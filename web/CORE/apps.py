@@ -1,5 +1,5 @@
 from django.apps import AppConfig
-from django.db import OperationalError
+from django.db import OperationalError, ProgrammingError
 
 from CORE.service.CONFIG import TOKENS_DIGITS
 
@@ -50,5 +50,5 @@ class CoreConfig(AppConfig):
             for key in settings.avalible_to_withdraw.keys():
                 if key not in TOKENS_DIGITS.keys():
                     raise ValueError("Config error")
-        except OperationalError: #нужны миграции
+        except (OperationalError, ProgrammingError): #нужны миграции
             pass
