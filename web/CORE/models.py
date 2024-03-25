@@ -92,9 +92,10 @@ class BybitSettings(models.Model):
         return tokens
 
     def get_payment_method_name(self, type: int):
-        for method in self.payment_methods:
-            if method['payment_type'] == type:
-                return method['payment_name']
+        for currency in self.banks:
+            for payment_method in currency['payment_methods']:
+                if payment_method['id'] == type:
+                    return payment_method['bank_name']
         else:
             raise Exception("Не найден способ оплаты")
 
