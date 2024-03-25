@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-aopxkfkgx_t8=p@55@io!v*&rxbq%jt*)3f@8%hqrelzhp9mc2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['158.160.113.89']
+ALLOWED_HOSTS = ['158.160.113.89', '127.0.0.1']
 
 
 # Application definition
@@ -84,7 +84,7 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
+    'default1': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': os.getenv('POSTGRES_DATABASE'),
         'USER': os.getenv('POSTGRES_USER'),
@@ -92,6 +92,10 @@ DATABASES = {
         'HOST': 'db',
         'PORT': 5432,
     },
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+    }
 }
 
 

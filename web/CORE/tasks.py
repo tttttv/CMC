@@ -15,25 +15,26 @@ from celery import shared_task
 @shared_task
 def update_p2pitems_task():
     settings = BybitSettings.objects.first()
-    for token in settings.parsing_settings:
-        accounts = BybitAccount.objects.filter(is_active=True)
-        account = random.choice(accounts)
-        s = BybitSession(account)
+    for currency in settings.banks:
+        for method in currency['payment_methods']:
+            accounts = BybitAccount.objects.filter(is_active=True)
+            account = random.choice(accounts)
+            s = BybitSession(account)
 
-        items_sale= s.get_prices_list(token_id=token['token'], currency_id=token['currency'],
-                          payment_methods=token['payment_methods'], side="1") #лоты на продажу
-        items_buy = s.get_prices_list(token_id=token['token'], currency_id=token['currency'],
-                          payment_methods=token['payment_methods'], side="0")  #лоты на покупку
+            items_sale= s.get_prices_list(token_id='USDT', currency_id=currency['id'],
+                              payment_methods=method['id'], side="1") #лоты на продажу
+            items_buy = s.get_prices_list(token_id='USDT', currency_id=currency['id'],
+                              payment_methods=method['id'], side="0")  #лоты на покупку
 
-        P2PItem.objects.filter(is_active=True).update(is_active=False)
+            P2PItem.objects.filter(is_active=True).update(is_active=False)
 
-        for item in (items_sale + items_buy):
-            print(item)
-            if P2PItem.objects.filter(item_id=item.item_id).exists():
-                item.id = P2PItem.objects.get(item_id=item.item_id).id
-                print(item.id)
-            item.is_active = True
-            item.save()
+            for item in (items_sale + items_buy):
+                print(item)
+                if P2PItem.objects.filter(item_id=item.item_id).exists():
+                    item.id = P2PItem.objects.get(item_id=item.item_id).id
+                    print(item.id)
+                item.is_active = True
+                item.save()
 
 @shared_task
 def update_latest_email_codes_task(user_id=None):
