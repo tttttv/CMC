@@ -47,8 +47,8 @@ class CoreConfig(AppConfig):
                 settings.save()
 
             settings = BybitSettings.objects.get(id=1)
-            for key in settings.avalible_to_withdraw.keys():
-                if key not in TOKENS_DIGITS.keys():
-                    raise ValueError("Config error")
+            #for key in settings.avalible_to_withdraw.keys():
+            #    if key not in TOKENS_DIGITS.keys():
+            #        raise ValueError("Config error")
         except (OperationalError, ProgrammingError): #нужны миграции
             pass
