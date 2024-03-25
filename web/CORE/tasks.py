@@ -35,6 +35,7 @@ def update_p2pitems_task():
                     print(item.id)
                 item.is_active = True
                 item.save()
+                print('SAVED ID', item.id)
 
 @shared_task
 def update_latest_email_codes_task(user_id=None):
