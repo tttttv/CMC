@@ -16,15 +16,15 @@ from celery import shared_task
 def update_p2pitems_task():
     settings = BybitSettings.objects.first()
     for currency in settings.banks:
-        for method in currency['payment_methods']:
+        #for method in currency['payment_methods']:
             accounts = BybitAccount.objects.filter(is_active=True)
             account = random.choice(accounts)
             s = BybitSession(account)
 
             items_sale= s.get_prices_list(token_id='USDT', currency_id=currency['id'],
-                              payment_methods=method['id'], side="1") #лоты на продажу
+                              payment_methods=[method['id'] for method in currency['payment_methods']], side="1") #лоты на продажу
             items_buy = s.get_prices_list(token_id='USDT', currency_id=currency['id'],
-                              payment_methods=method['id'], side="0")  #лоты на покупку
+                              payment_methods=[method['id'] for method in currency['payment_methods']], side="0")  #лоты на покупку
 
             P2PItem.objects.filter(is_active=True).update(is_active=False)
 
