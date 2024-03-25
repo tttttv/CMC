@@ -17,5 +17,5 @@ RUN pip install -r requirements.txt
 ENV TZ=Europe/Moscow
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-RUN apt update
-RUN apt-get install python3-psycopg2
+#RUN apt update
+#RUN apt-get install python3-psycopg2
