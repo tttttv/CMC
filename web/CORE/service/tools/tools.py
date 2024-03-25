@@ -1,4 +1,3 @@
-from CORE.models import BybitAccount, P2PItem
 from CORE.service.CONFIG import TOKENS_DIGITS, TRANSACTION_FEES, P2P_TOKENS
 from CORE.service.tools.formats import format_float, format_float_up
 
@@ -21,6 +20,8 @@ def calculate_topup_amount(token, amount, p2p_price, trade_rate):
 
 #todo заложить комиссию трейдинга на бирже
 def get_price(payment_method, amount, currency, token, chain, anchor='currency'): #anchor currency - фикс сумма фиата, token - фикс крипта
+    from CORE.models import BybitAccount, P2PItem
+    
     if not (token in P2P_TOKENS):
         print(1)
         p2p_token = 'USDT'
