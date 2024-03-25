@@ -97,7 +97,7 @@ class BybitSettings(models.Model):
                 if payment_method['id'] == type:
                     return payment_method['bank_name']
         else:
-            raise Exception("Не найден способ оплаты")
+            return "Не найден способ оплаты"
 
 
 class BybitAccount(models.Model):
