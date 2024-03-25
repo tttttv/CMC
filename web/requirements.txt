@@ -8,3 +8,4 @@ django-celery-results
 beautifulsoup4
 gunicorn
 psycopg2-binary
+Redis
