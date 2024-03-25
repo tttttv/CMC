@@ -1,0 +1,426 @@
+openapi: 3.0.3
+info:
+  title: CMC Exchange api docs
+  version: 0.0.1
+servers:
+  - url: localhost
+tags:
+  - name: exchange
+    description: Запросы касающиеся начала обмена
+  - name: order
+    description: Работа с заказом
+paths:
+  /exchange/from:
+    get:
+      tags:
+        - exchange
+      summary: Запрос доступных способов покупки
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Currency'
+  /exchange/to:
+    get:
+      tags:
+        - exchange
+      summary: Запрос доступных способов покупки
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+  /exchange/price:
+    get:
+      tags:
+        - exchange
+      summary: Запрос стоимости обмена
+      parameters:
+        - name: anchor
+          in: query
+          description: к чему привязываемся - token = количеству крипты, currency = количеству фиата
+          schema:
+            type: string
+            example: token
+          required: True
+        - name: amount
+          in: query
+          schema:
+            type: integer
+            example: 5400
+          required: True
+          description: Сумма на которую покупает
+        - name: payment_method
+          in: query
+          schema:
+            type: integer
+            example: 377
+          required: True
+          description: Айди метода оплаты
+        - name: token
+          in: query
+          schema:
+            type: string
+            example: USDT
+          required: True
+          description: Токен который оцениваем
+        - name: chain
+          in: query
+          schema:
+            type: string
+            example: MANTLE
+          description: Чейн
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  price:
+                    type: number
+                    example: 97.54
+                    description: Курс
+                  better_amount:
+                    type: integer
+                    example: 10000
+                    description: Сумма, с которой курс лучше
+                  best_p2p:
+                    type: string
+                    example: 52435223452345
+                    description: Айди лота для покупки
+  /order:
+    post:
+      tags:
+        - order
+      summary: Add a new pet to the store
+      description: Add a new pet to the store
+      operationId: addPet
+      requestBody:
+        description: Create a new pet in the store
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - card_number
+              - payment_method
+              - amount
+              - price
+              - token
+              - chain
+              - address
+              - email
+              - token_id
+              properties:
+                name:
+                  type: string
+                  example: Иванов Иван Иванович
+                  description: ФИО отправителя
+                card_number:
+                  type: string
+                  example: 4738123467892345
+                  description: Номер карты отправителя
+                payment_method:
+                  type: integer
+                  example: 377
+                  description: Способ оплаты
+                amount:
+                  type: number
+                  example: 5400
+                  description: сумма покупки в фиате
+                price:
+                  type: number
+                  example: 97.56
+                  description: стоимость покупки
+                token:
+                  type: string
+                  example: USDT
+                  description: покупемый токен
+                chain:
+                  type: string
+                  example: MANTLE
+                  description: чейн
+                address:
+                  type: string
+                  example: 0x1234123451243523452345234523452
+                  description: Адрес для вывода
+                email:
+                  type: string
+                  example: test@test.ru
+                  description: Почта получателя
+                item_id:
+                  type: integer
+                  example: 15732142341234
+                  description: Айди лота для покупки
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order_hash:
+                    type: string
+                    example: 543251352345823452345
+        '403':
+          description:
+            code 1 - нет свободных аккаунтов
+            code 2 - лот больше неактивен
+            code 3 - неверный способ оплаты
+            code 4 - валюта не найдена
+            code 5 - токен не найден
+            code 6 - чейн не найден
+  /order/state:
+    get:
+      tags:
+        - order
+      summary: Запрос статуса заказа
+      parameters:
+        - name: order_hash
+          in: query
+          description: Хэш заказа
+          required: True
+          schema:
+            type: string
+            example: 5234952384582345
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order:
+                    type: object
+                    properties:
+                      from:
+                        type: string
+                        example: 377
+                      to:
+                        type: string
+                        example: USDT
+                      rate:
+                        type: number
+                        example: 95.44
+                  state:
+                    type: string
+                    example: INITIALIZATION
+                    description: INITIALIZATION - Ожидание создания заказа на бирже; PENDING - Заказ создан, ожидаем перевод; RECEIVING - Пользователь пометил как отправленный - ждем подтверждение; BUING - Продавец подтвердил получение денег; TRADING - Меняем на бирже; WITHDRAWING - Выводим деньги; SUCCESS - Успешно; ERROR - Критическая ошибка; TIMEOUT - просрочено время перевода
+                  state_data:
+                    type: object
+  /order/cancel:
+    post:
+      tags:
+        - order
+      description: Отменяет заказ, возможно только при статусе  PENDING
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - order_hash
+              properties:
+                order_hash:
+                  type: string
+                  example: 2345234523452345
+                  description: Хэш заказа
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+        '403':
+          description:
+            Wrong order state
+  /order/paid:
+    post:
+      tags:
+        - order
+      description: Отмечает заказ как оплаченный, работает только на state = PENDING
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - order_hash
+              properties:
+                order_hash:
+                  type: string
+                  example: 2345234523452345
+                  description: Хэш заказа
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+        '403':
+          description:
+            Wrong order state
+  /order/message:
+    get:
+      tags:
+        - order
+      summary: Возвращает список сообщений в чате по заказу
+      parameters:
+        - name: order_hash
+          in: query
+          description: Хэш заказа
+          required: True
+          schema:
+            type: string
+            example: 5234952384582345
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                xml:
+                  name: addresses
+                  wrapped: true
+                items:
+                  $ref: '#/components/schemas/Message'
+  /order/message/send:
+    post:
+      tags:
+        - order
+      description: Отмечает заказ как оплаченный, работает только на state = PENDING
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - order_hash
+              - text
+              properties:
+                order_hash:
+                  type: string
+                  example: 2345234523452345
+                  description: Хэш заказа
+                text:
+                  type: string
+                  example: текст
+                  description: Текст сообщения
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+        '403':
+          description:
+            Error sending message
+components:
+  schemas:
+    PaymentMethod:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 377
+        petId:
+          type: string
+          example: Альфа банк
+      xml:
+        name: payment_method
+    Currency:
+      type: object
+      properties:
+        id:
+          type: string
+          example: RUB
+        name:
+          type: string
+          example: Рубли
+        payment_methods:
+          type: array
+          xml:
+            name: addresses
+            wrapped: true
+          items:
+            $ref: '#/components/schemas/PaymentMethod'
+      xml:
+        name: currency
+    Chain:
+      type: object
+      properties:
+        id:
+          type: string
+          example: USDT
+        name:
+          type: string
+          example: USDT
+    Token:
+      type: object
+      properties:
+        id:
+          type: string
+          example: USDT
+        name:
+          type: string
+          example: USDT
+        chains:
+          type: array
+          xml:
+            name: addresses
+            wrapped: true
+          items:
+            $ref: '#/components/schemas/Chain'
+        withdraw_commission:
+          type: number
+          example: 0.01
+        payment_methods:
+          type: array
+          xml:
+            name: addresses
+            wrapped: true
+          items:
+            type: integer
+            example: 1
+      xml:
+        name: address
+    Message:
+      type: object
+      properties:
+        uuid:
+          type: string
+          example: 5234523452345234
+          description: Айди сообщения
+        text:
+          type: string
+          example: Текст
+          description: Текст сообщения
+        dt:
+          type: string
+          format: date
+          example: 04.05.2024 15:16:24
+        nick_name:
+          type: string
+          example: Иван
+          description: Имя отправителя
+  securitySchemes:
+    petstore_auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://petstore3.swagger.io/oauth/authorize
+          scopes:
+            write:pets: modify pets in your account
+            read:pets: read your pets
+    api_key:
+      type: apiKey
+      name: api_key
+      in: header

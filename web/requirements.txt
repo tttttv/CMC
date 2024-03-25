@@ -1,0 +1,7 @@
+requests
+imap-tools
+pybit
+websocket-client
+django
+celery
+django-celery-results

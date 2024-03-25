@@ -1,0 +1,111 @@
+version: "2"
+services:
+  web:
+    build: ./web
+    command: sh -c "ls &&
+                    mkdir -p static &&
+                    python manage.py collectstatic --no-input &&
+                    gunicorn --bind 0.0.0.0:8000 --workers $WORKERS_AMOUNT --log-level debug --timeout 120 CMC.wsgi:application --reload"
+    ports:
+      - 8000:8000
+    volumes:
+      - /static:/web/staticfiles
+      - /media:/web/media
+      - /migrations/CORE:/web/CORE/migrations
+      - /migrations/API:/web/API/migrations
+      - /logs/web:/web/logs
+      - /ssl:/ssl
+      - /home/tttttv/CMC/web:/web
+    environment:
+      POSTGRES_DATABASE: "${POSTGRES_DATABASE}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_HOST: "${POSTGRES_HOST}"
+      REDIS_USER: "${REDIS_USER}"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      DJANGO_KEY: "${DJANGO_KEY}"
+      SERVER: "${SERVER}"
+      XDG_RUNTIME_DIR: "${XDG_RUNTIME_DIR}"
+    depends_on:
+      - redis
+      - db
+  redis:
+    build: ./redis
+    privileged: true
+    command: sh -c "./init.sh"
+    volumes:
+      - redis_data:/data:rw
+    ports:
+      - "6379:6379"
+    environment:
+      REDIS_USER: "${REDIS_USER}"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+  db:
+    image: postgres:14
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: '${POSTGRES_DATABASE}'
+      POSTGRES_USER: '${POSTGRES_USER}'
+      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}'
+      POSTGRES_HOST: "${POSTGRES_HOST}"
+    volumes:
+      - /db:/var/lib/postgresql/data
+  nginx:
+    build: ./nginx
+    ports:
+      - 80:80
+      - 443:443
+      - 9006:9006
+    volumes:
+      - /static:/static
+      - /media:/media
+      - /ssl:/ssl
+    depends_on:
+      - web
+  celery:
+    build: ./web
+    command: sh -c " touch /web/logs/django.log &&
+      celery -A CONTROL worker -Q default -l ERROR -E -f /web/logs/celery.log --concurrency=4"
+    volumes:
+      - ./web/:/usr/src/app/
+      - /media:/web/media
+      - /migrations/API:/web/API/migrations
+      - /migrations/CORE:/web/CORE/migrations
+      - /logs/celery:/web/logs
+      - /ssl:/ssl
+    depends_on:
+      - redis
+    environment:
+      POSTGRES_DATABASE: "${POSTGRES_DATABASE}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_HOST: "${POSTGRES_HOST}"
+      REDIS_USER: "${REDIS_USER}"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      DJANGO_KEY: "${DJANGO_KEY}"
+      SERVER: "${SERVER}"
+      XDG_RUNTIME_DIR: "${XDG_RUNTIME_DIR}"
+  celery-beat:
+    build: ./web
+    command: sh -c " touch /web/logs/django.log &&
+                    celery -A CONTROL beat -l info -f /web/logs/beat.log"
+    volumes:
+      - ./web/:/usr/src/app/
+      - /logs/beat:/web/logs
+      - /home/tttttv/CMC/web:/web
+    depends_on:
+      - redis
+    environment:
+      POSTGRES_DATABASE: "${POSTGRES_DATABASE}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_HOST: "${POSTGRES_HOST}"
+      REDIS_USER: "${REDIS_USER}"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      DJANGO_KEY: "${DJANGO_KEY}"
+      SERVER: "${SERVER}"
+      XDG_RUNTIME_DIR: "${XDG_RUNTIME_DIR}"
+volumes:
+  redis_data:
+    driver: local
