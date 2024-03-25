@@ -66,7 +66,7 @@ services:
   celery:
     build: ./web
     command: sh -c " touch /web/logs/django.log &&
-      celery -A CMC worker -Q default -l ERROR -E -f /web/logs/celery.log --concurrency=4"
+      celery -A CMC worker -l ERROR -E -f /web/logs/celery.log --concurrency=4"
     volumes:
       - ./web/:/usr/src/app/
       - /media:/web/media
