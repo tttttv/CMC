@@ -6,3 +6,4 @@ django
 celery
 django-celery-results
 beautifulsoup4
+gunicorn
