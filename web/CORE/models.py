@@ -13,13 +13,15 @@ from CORE.service.tools.tools import calculate_withdraw_amount
 
 class BybitSettings(models.Model):
     """Настройки одни на всю систему, ориентируемся на модель с номером 1"""
-    currencies = models.JSONField(default=dict) #Список валют доступных к обмену, {'CUR': [methods], ...}
+    #currencies = models.JSONField(default=dict) #Список валют доступных к обмену, {'CUR': [methods], ...}
     #payment_methods = models.JSONField(default=list) #Список методов оплаты, [{"payment_type": 377, "payment_name": "Sberbank", ...}]
     #tokens = models.JSONField(default=list) #Список токенов [{'id': 'USDT', 'name': 'USDT', 'chains': [{'name': 'MANTLE', 'id': 'MANTLE'},]},]
     #parsing_settings = models.JSONField(default=dict) #Список методов оплаты для парсинга [{'token': 'USDT', 'currency': 'RUB', 'payment_methods': [377, 379]}]
     #avalible_to_withdraw = models.JSONField(default=dict) #Список досупных для вывода монет/чейнов {'USDT': ['MANTLE'], 'BTC': ['']}
-    commissions = models.JSONField(default=dict) #Список комиссий вывода {'USDT': 0.01, 'BTC': 0.02}
+    #commissions = models.JSONField(default=dict) #Список комиссий вывода {'USDT': 0.01, 'BTC': 0.02}
 
+    banks = models.JSONField(default=dict)
+    """
     banks = [
         {
             'id': 'RUB',
@@ -32,7 +34,10 @@ class BybitSettings(models.Model):
             ],
         }
     ]
+    """
 
+    tokens = models.JSONField(default=dict)
+    """
     tokens = [
         {
             'id': 'USDT',
@@ -47,6 +52,7 @@ class BybitSettings(models.Model):
             'withdraw_commission': 0.01
         }
     ]
+    """
 
     def __str__(self):
         return 'Настройки'
