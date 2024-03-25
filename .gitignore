@@ -2,3 +2,4 @@
 /web/db.sqlite3
 /web/CORE/migrations/
 .idea
+/.env
