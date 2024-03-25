@@ -76,6 +76,7 @@ services:
       - /ssl:/ssl
     depends_on:
       - redis
+      - db
     environment:
       POSTGRES_DATABASE: "${POSTGRES_DATABASE}"
       POSTGRES_USER: "${POSTGRES_USER}"
@@ -96,6 +97,7 @@ services:
       - /home/tttttv/CMC/web:/web
     depends_on:
       - redis
+      - db
     environment:
       POSTGRES_DATABASE: "${POSTGRES_DATABASE}"
       POSTGRES_USER: "${POSTGRES_USER}"
