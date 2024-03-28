@@ -13,7 +13,9 @@ from CORE.tasks import process_buy_order_task, update_latest_email_codes_task, u
 
 def get_avalible_from_view(request):
     settings = BybitSettings.objects.get(id=1)
-    return JsonResponse(settings.get_avalible_topup_methods())
+    methods = settings.get_avalible_topup_methods()
+    print(methods)
+    return JsonResponse(methods)
 
 def get_avalible_to_view(request):
     settings = BybitSettings.objects.get(id=1)
