@@ -208,7 +208,7 @@ def get_chat_messages_view(request):
     order_hash = int(request.GET['order_hash'])
     order = P2POrderBuyToken.get_order_by_hash(order_hash)
 
-    messages = P2POrderMessage.objects.filter(order=order).order_by('-dt')
+    messages = P2POrderMessage.objects.filter(order_id=order.order_id).order_by('-dt')
     data = [m.to_json() for m in messages]
 
     return JsonResponse({'messages': data, 'title': 'Иван Иванов', 'avatar': '/static/CORE/misc/default_avatar.png'})

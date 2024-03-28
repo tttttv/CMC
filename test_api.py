@@ -55,11 +55,23 @@ def mark_order_as_paid(order_hash):
     r = requests.post(BASE_URL + 'order/paid', data=data)
     print(r.json())
 
-'order/message'
-'order/message/send'
+def get_order_messages(order_hash):
+    data = {
+        'order_hash': order_hash,
+    }
+    r = requests.get(BASE_URL + 'order/message', params=data)
+    print(r.json())
+
+def send_message(order_hash, text):
+    data = {
+        'order_hash': order_hash,
+        'text': text
+    }
+    r = requests.post(BASE_URL + 'order/message/send', data=data)
 
 if __name__ == '__main__':
     #get_exchange_price(377, 500, 'NEAR', 'NEAR')
     #create_order(377, 500, 101.67, 'NEAR', 'NEAR', 'b8c72480a7d962f389ff2954386e3f529770991df04d6c750923a1b3625bbf9d', '1771636624771104768')
     #get_order_state('35742549198872617291353508656626642565')
-    mark_order_as_paid('35742549198872617291353508656626642565')
+    #mark_order_as_paid('35742549198872617291353508656626642565')
+    get_order_messages('35742549198872617291353508656626642565')
