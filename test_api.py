@@ -10,8 +10,18 @@ def get_to():
     r = requests.get(BASE_URL + 'exchange/to')
     print(r.json())
 
-def get_exchange_price():
-    r = requests.get(BASE_URL + 'exchange/price')
+def get_exchange_price(payment_method, amount, token, chain, anchor='currency'):
+    params = {
+        'anchor': anchor,
+        'payment_method': payment_method,
+        'amount': amount,
+        'token': token,
+        'chain': chain
+    }
+
+    r = requests.get(BASE_URL + 'exchange/price', params=params)
+    print(r.url)
+    print(r.json())
 
 def create_order():
     'order'
@@ -28,4 +38,4 @@ def mark_order_as_paid():
 'order/message/send'
 
 if __name__ == '__main__':
-    get_to()
+    get_exchange_price(377, 500, 'NEAR', 'NEAR')

@@ -30,6 +30,7 @@ def get_price(payment_method, amount, currency, token, chain, anchor='currency')
         p2p_token = token
         trade_rate = 1
 
+    print(amount, currency, p2p_token)
     items = P2PItem.objects.filter(side=P2PItem.SIDE_SELL, is_active=True, min_amount__lte=amount,
                                    max_amount__gte=amount, currency=currency, token=p2p_token).order_by('-price').all()
     print(items)
