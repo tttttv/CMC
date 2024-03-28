@@ -82,13 +82,18 @@ class BybitSettings(models.Model):
             raise ValueError("Token not found")
 
     def get_avalible_topup_methods(self):
-        return self.banks
+        banks = self.banks
+        for i in range(0, len(banks)):
+            for j in range(0, banks[i]['payment_methods']):
+                banks[i]['payment_methods'][j]['logo'] = '/static/CORE/' + str(banks[i][j]['id']) + '.png'
+        return banks
 
     def get_avalible_withdraw_methods(self):
         tokens = self.tokens
         for index in range(0, len(tokens)):
             tokens[index].pop('withdraw_comission')
             tokens[index]['crypto'] = True
+            tokens[index]['logo'] = '/static/CORE/tokens/' + str(tokens[index]['id']) + '.png'
         return tokens
 
     def get_payment_method_name(self, type: int):
