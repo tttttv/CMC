@@ -85,7 +85,9 @@ class BybitSettings(models.Model):
         banks = self.banks
         for i in range(0, len(banks)):
             for j in range(0, len(banks[i]['payment_methods'])):
-                banks[i]['payment_methods'][j]['logo'] = '/static/CORE/' + str(banks[i][j]['id']) + '.png'
+                print(banks)
+                print(i, j)
+                banks[i]['payment_methods'][j]['logo'] = '/static/CORE/banks/' + str(banks[i][j]['id']) + '.png'
         return banks
 
     def get_avalible_withdraw_methods(self):
