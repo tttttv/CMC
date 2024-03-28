@@ -50,6 +50,18 @@ class BybitSettings(models.Model):
             ],
             'payment_methods': [377, 379],
             'withdraw_commission': 0.01
+        },
+        {
+            'id': 'NEAR',
+            'name': 'NEAR',
+            'chains': [
+                {
+                    'name': 'NEAR',
+                    'id': 'NEAR'
+                }
+            ],
+            'payment_methods': [377, 379],
+            'withdraw_commission': 0.01
         }
     ]
     """

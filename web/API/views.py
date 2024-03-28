@@ -37,12 +37,13 @@ def get_price_view(request):
         return JsonResponse({'message': 'Currency not found', 'code': 1}, status=404)
 
     try:
-        price, best_p2p, better_amount = get_price(payment_method, amount, currency, token, chain, anchor=anchor)
+        quantity, best_p2p, better_amount = get_price(payment_method, amount, currency, token, chain, anchor=anchor)
     except TypeError:
         return JsonResponse({'message': 'cant get price', 'code': 2}, status=403)
 
     data = {
-        'price': price,
+        'price': amount / quantity,
+        'quantity': quantity,
         'better_amount': better_amount,
         'best_p2p': best_p2p.item_id
     }
