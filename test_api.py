@@ -36,7 +36,7 @@ def create_order(payment_method, amount, price, token, chain, address, item_id, 
         'email': email,
         'item_id': item_id
     }
-    r = requests.post(BASE_URL + 'order', json=data)
+    r = requests.post(BASE_URL + 'order', data=data)
     print(r.json())
 
 def get_order_state():

@@ -47,7 +47,8 @@ def get_price_view(request):
         'price': amount / quantity,
         'quantity': quantity,
         'better_amount': better_amount,
-        'best_p2p': best_p2p.item_id
+        'best_p2p': best_p2p.item_id,
+        'best_p2p_price': best_p2p.price
     }
     return JsonResponse(data)
 
@@ -114,7 +115,7 @@ def create_order_view(request):
 
     order.withdraw_address = address  # Todo проверку корректности адреса
     order.save()
-    process_buy_order_task.delay(id=order.id)
+    process_buy_order_task.delay(kwargs={'id': order.id})
 
     data = {
         'order_hash': order.get_hash()
