@@ -14,13 +14,12 @@ from CORE.tasks import process_buy_order_task, update_latest_email_codes_task, u
 def get_avalible_from_view(request):
     settings = BybitSettings.objects.get(id=1)
     methods = settings.get_avalible_topup_methods()
-    print(methods)
-    return JsonResponse(methods)
+    return JsonResponse({'methods': methods})
 
 def get_avalible_to_view(request):
     settings = BybitSettings.objects.get(id=1)
     methods = settings.get_avalible_withdraw_methods()
-    return JsonResponse(methods)
+    return JsonResponse({'methods': methods})
 
 def get_price_view(request):
     settings = BybitSettings.objects.get(id=1)
