@@ -57,12 +57,18 @@ class BybitSettings(models.Model):
     def __str__(self):
         return 'Настройки'
 
+    @property
+    def is_working(self):
+        return True
+
     def get_payment_method(self, method):
         for cur in self.banks:
             for pm in cur['payment_methods']:
                 if pm['id'] == method:
-                    pm['currency'] = cur['id']
-                    return pm
+                    method = pm
+                    method['currency'] = cur['id']
+                    method['logo'] = '/static/CORE/banks/' + str(method['id']) + '.png'
+                    return method
         else:
             raise ValueError("Payment method not found")
 
@@ -76,8 +82,10 @@ class BybitSettings(models.Model):
 
     def get_token(self, token):
         for t in self.tokens:
-            if t[id] == token:
-                return t
+            if t['id'] == token:
+                tk = t
+                tk['logo'] = '/static/CORE/tokens/' + str(tk['id']) + '.png'
+                return tk
         else:
             raise ValueError("Token not found")
 
@@ -366,5 +374,6 @@ class P2POrderMessage(models.Model):
             'nick_name': self.nick_name,
             'text': self.text,
             'dt': self.dt.strftime('%d.%m.%Y %H:%M:%S'),
-            'uuid': self.uuid
+            'uuid': self.uuid,
+            'image_url': None
         }

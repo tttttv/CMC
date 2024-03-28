@@ -1,3 +1,4 @@
+import datetime
 from time import sleep
 
 from django.http import JsonResponse
@@ -47,6 +48,9 @@ def get_price_view(request):
 
 def create_order_view(request):
     settings = BybitSettings.objects.get(id=1)
+
+    if not settings.is_working:
+        return JsonResponse({'message': 'not avalible now', 'code': 0}, status=403)
 
     name = request.POST['name']
     card_number = request.POST['card_number']
@@ -120,7 +124,8 @@ def get_order_state_view(request):
     order_data = {
         'from': settings.get_payment_method(order.payment_method),
         'to': settings.get_token(order.p2p_token),
-        'rate': order.amount / order.withdraw_quantity
+        'rate': order.amount / order.withdraw_quantity,
+        'order_hash': order_hash
     }
     if order.state == P2POrderBuyToken.STATE_INITIATED:
         state = 'INITIALIZATION' #Ожидание создания заказа на бирже
@@ -128,7 +133,11 @@ def get_order_state_view(request):
         state = order.state
     elif order.state == P2POrderBuyToken.STATE_CREATED: #Заказ создан, ожидаем перевод
         state = 'PENDING'
-        state_data = order.terms
+        state_data = {
+            'terms': order.terms,
+            'time_left': (order.dt_created - datetime.datetime.now() + datetime.timedelta(minutes=20)).minutes,
+            'commentary': "Просим вас не указывать комментарии к платежу. ФИО плательщика должно соответствовать тому, которое вы указывали при создании заявки, платежи от третьих лиц не принимаются."
+        }
     elif order.state == P2POrderBuyToken.STATE_TRANSFERRED: #Пользователь пометил как отправленный - ждем подтверждение
         state = 'RECEIVING'
     elif order.state == P2POrderBuyToken.STATE_PAID: #Заказ помечен как оплаченный - ждем подтверждение
@@ -145,6 +154,9 @@ def get_order_state_view(request):
         state = 'WITHDRAWING'
     elif order.state == P2POrderBuyToken.STATE_WITHDRAWN: #Успешно
         state = 'SUCCESS'
+        state_data = {
+            'address': order.withdraw_address
+        }
     elif order.state == P2POrderBuyToken.STATE_TIMEOUT: #Таймаут получения денег
         state = 'TIMEOUT'
     elif order.state == P2POrderBuyToken.STATE_ERROR: #Критическая ошибка, требующая связи через бота
@@ -187,7 +199,7 @@ def get_chat_messages_view(request):
     messages = P2POrderMessage.objects.filter(order=order).order_by('-dt')
     data = [m.to_json() for m in messages]
 
-    return JsonResponse(data)
+    return JsonResponse({'messages': data, 'title': 'Иван Иванов', 'avatar': '/static/CORE/misc/default_avatar.png'})
 
 def send_chat_message_view(request):
     order_hash = request.POST['order_hash']
