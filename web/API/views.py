@@ -57,7 +57,7 @@ def create_order_view(request):
 
     if not settings.is_working:
         return JsonResponse({'message': 'not avalible now', 'code': 0}, status=403)
-
+    print(request.POST)
     name = request.POST['name']
     card_number = request.POST['card_number']
     payment_method = int(request.GET.get('payment_method', 377))
