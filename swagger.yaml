@@ -87,7 +87,11 @@ paths:
                   price:
                     type: number
                     example: 97.54
-                    description: Курс
+                    description: Курс, отображается в интерфейсе
+                  quantity:
+                    type: number
+                    example: 5.234
+                    description: Количество получаемой валюты (или отправляемой, в зависимости от anchor)
                   better_amount:
                     type: integer
                     example: 10000
@@ -95,7 +99,15 @@ paths:
                   best_p2p:
                     type: string
                     example: 52435223452345
-                    description: Айди лота для покупки
+                    description: Айди лота для покупки, нужно передавать при создании заказа
+                  best_p2p_price:
+                    type: number
+                    example: 97.54
+                    description: Курс обмена на бирже, нужно передавать при создании заказа
+        '403':
+          description:
+            code 1 - Не найдена валюта для обмена
+            code 2 - Не получилось запросить цену
   /order:
     post:
       tags:
@@ -175,12 +187,14 @@ paths:
                     example: 543251352345823452345
         '403':
           description:
+            code 0 - обменник не доступен
             code 1 - нет свободных аккаунтов
             code 2 - лот больше неактивен
             code 3 - неверный способ оплаты
             code 4 - валюта не найдена
             code 5 - токен не найден
             code 6 - чейн не найден
+            code 7 - неверный адрес кошелька
   /order/state:
     get:
       tags:
@@ -214,12 +228,16 @@ paths:
                       rate:
                         type: number
                         example: 95.44
+                      order_hash:
+                        type: number
+                        example: 5823459234852345
                   state:
                     type: string
                     example: INITIALIZATION
                     description: INITIALIZATION - Ожидание создания заказа на бирже; PENDING - Заказ создан, ожидаем перевод; RECEIVING - Пользователь пометил как отправленный - ждем подтверждение; BUING - Продавец подтвердил получение денег; TRADING - Меняем на бирже; WITHDRAWING - Выводим деньги; SUCCESS - Успешно; ERROR - Критическая ошибка; TIMEOUT - просрочено время перевода
                   state_data:
                     type: object
+                    description: 'PENDING: terms - куда переводить деньги, например {"real_name": "Dzhabbarov Vladimir", "account_no": "2202205075821931", "payment_id": "2657782", "payment_type": 377} \n time_left - сколько секунд осталось, commentary - комментарий к заказу; SUCCESS: address - адрес куда выводили'
   /order/cancel:
     post:
       tags:
@@ -287,12 +305,21 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                xml:
-                  name: addresses
-                  wrapped: true
-                items:
-                  $ref: '#/components/schemas/Message'
+                type: object
+                properties:
+                  title:
+                    type: string
+                    example: Иванов Иван
+                  avatar:
+                    type: string
+                    example: /static/CORE/msic/avatar.png
+                  messages:
+                    type: array
+                    xml:
+                      name: addresses
+                      wrapped: true
+                    items:
+                      $ref: '#/components/schemas/Message'
   /order/message/send:
     post:
       tags:
@@ -334,6 +361,9 @@ components:
         petId:
           type: string
           example: Альфа банк
+        logo:
+          type: string
+          example: /static/Core/banks/377.png
       xml:
         name: payment_method
     Currency:
@@ -390,6 +420,12 @@ components:
           items:
             type: integer
             example: 1
+        crypto:
+          type: boolean
+          example: True
+        logo:
+          type: string
+          example: /static/Core/tokens/USDT.png
       xml:
         name: address
     Message:
@@ -411,6 +447,10 @@ components:
           type: string
           example: Иван
           description: Имя отправителя
+        image_url:
+          type: string
+          nullable: true
+          example: /static/Core/image/1.png
   securitySchemes:
     petstore_auth:
       type: oauth2
