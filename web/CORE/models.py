@@ -99,7 +99,7 @@ class BybitSettings(models.Model):
     def get_avalible_withdraw_methods(self):
         tokens = self.tokens
         for index in range(0, len(tokens)):
-            tokens[index].pop('withdraw_comission')
+            tokens[index].pop('withdraw_commission')
             tokens[index]['crypto'] = True
             tokens[index]['logo'] = '/static/CORE/tokens/' + str(tokens[index]['id']) + '.png'
         return tokens
