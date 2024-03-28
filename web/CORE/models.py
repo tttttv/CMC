@@ -388,5 +388,6 @@ class P2POrderMessage(models.Model):
             'text': self.text,
             'dt': self.dt.strftime('%d.%m.%Y %H:%M:%S'),
             'uuid': self.uuid,
-            'image_url': None
+            'image_url': None,
+            'technical': self.type != '1'
         }

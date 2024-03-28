@@ -166,7 +166,7 @@ def process_buy_order_task(order_id):
         status = api.get_order_status(order.market_order_id)
         print(status)
         if status == 'Filled' or status == 'PartiallyFilledCanceled': #Успешно вывели
-            api.transfer_to_funding(order.withdraw_token, order.withdraw_quantity)
+            api.transfer_to_funding(order.withdraw_token, order.withdraw_quantity) #todo выводить минус комиссия 0.1% near
             order.state = P2POrderBuyToken.STATE_WITHDRAWING
             order.save()
         elif status == 'PartiallyFilledCanceled': #Todo ghjhf,jnfnm kjubre
@@ -194,7 +194,7 @@ def process_buy_order_task(order_id):
     elif order.state == P2POrderBuyToken.STATE_WAITING_VERIFICATION:  # Ждем код на почту
         api = account.get_api()
         print(order.withdraw_quantity)
-        if api.withdraw(order.withdraw_token, order.withdraw_chain, order.withdraw_address, order.withdraw_quantity):
+        if api.withdraw(order.withdraw_token, order.withdraw_chain, order.withdraw_address, order.withdraw_quantity): #todo выводить минус комиссия вывода 0.01 near
             print('Witdrawn successfully')
             order.state = P2POrderBuyToken.STATE_WITHDRAWN
             order.dt_withdrawn = datetime.datetime.now()
