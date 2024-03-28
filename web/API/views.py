@@ -145,7 +145,7 @@ def get_order_state_view(request):
         state = 'PENDING'
         state_data = {
             'terms': order.terms,
-            'time_left': (order.dt_created - datetime.datetime.now() + datetime.timedelta(minutes=20)).minutes,
+            'time_left': (order.dt_created - datetime.datetime.now() + datetime.timedelta(minutes=20)).seconds,
             'commentary': "Просим вас не указывать комментарии к платежу. ФИО плательщика должно соответствовать тому, которое вы указывали при создании заявки, платежи от третьих лиц не принимаются."
         }
     elif order.state == P2POrderBuyToken.STATE_TRANSFERRED: #Пользователь пометил как отправленный - ждем подтверждение
