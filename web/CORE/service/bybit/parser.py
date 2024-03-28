@@ -56,7 +56,7 @@ class BybitSession(Session):
             "size": "10000",
             "page": "1",
             "amount": amount,
-            "authMaker": True,
+            #"authMaker": True, - подтвержденный
             "canTrade": True
         }
 
