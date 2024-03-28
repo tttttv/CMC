@@ -87,6 +87,7 @@ class BybitSettings(models.Model):
                 tk['logo'] = '/static/CORE/tokens/' + str(tk['id']) + '.png'
                 return tk
         else:
+            print(token)
             raise ValueError("Token not found")
 
     def get_avalible_topup_methods(self):
