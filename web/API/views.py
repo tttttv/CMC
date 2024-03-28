@@ -144,7 +144,7 @@ def get_order_state_view(request):
     elif order.state == P2POrderBuyToken.STATE_CREATED: #Заказ создан, ожидаем перевод
         state = 'PENDING'
         state_data = {
-            'terms': order.terms,
+            'terms': order.terms, #{'real_name': 'Dzhabbarov Vladimir', 'account_no': '2202205075821931', 'payment_id': '2657782', 'payment_type': 377}
             'time_left': (order.dt_created - datetime.datetime.now() + datetime.timedelta(minutes=20)).seconds,
             'commentary': "Просим вас не указывать комментарии к платежу. ФИО плательщика должно соответствовать тому, которое вы указывали при создании заявки, платежи от третьих лиц не принимаются."
         }
@@ -182,7 +182,7 @@ def get_order_state_view(request):
 
 @csrf_exempt
 def cancel_order_view(request):
-    order_hash = request.POST['order_hash']
+    order_hash = int(request.POST['order_hash'])
     order = P2POrderBuyToken.get_order_by_hash(order_hash)
 
     if order.state == order.STATE_CREATED:
@@ -194,7 +194,7 @@ def cancel_order_view(request):
 
 @csrf_exempt
 def mark_order_as_paid_view(request):
-    order_hash = request.POST['order_hash']
+    order_hash = int(request.POST['order_hash'])
     order = P2POrderBuyToken.get_order_by_hash(order_hash)
 
     if order.state == P2POrderBuyToken.STATE_CREATED:
@@ -205,7 +205,7 @@ def mark_order_as_paid_view(request):
         return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)
 
 def get_chat_messages_view(request):
-    order_hash = request.GET['order_hash']
+    order_hash = int(request.GET['order_hash'])
     order = P2POrderBuyToken.get_order_by_hash(order_hash)
 
     messages = P2POrderMessage.objects.filter(order=order).order_by('-dt')
@@ -215,7 +215,7 @@ def get_chat_messages_view(request):
 
 @csrf_exempt
 def send_chat_message_view(request):
-    order_hash = request.POST['order_hash']
+    order_hash = int(request.POST['order_hash'])
     order = P2POrderBuyToken.get_order_by_hash(order_hash)
 
     text = request.POST['text']
