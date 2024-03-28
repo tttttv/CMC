@@ -39,8 +39,12 @@ def create_order(payment_method, amount, price, token, chain, address, item_id, 
     r = requests.post(BASE_URL + 'order', data=data)
     print(r.json())
 
-def get_order_state():
-    'order/state'
+def get_order_state(order_hash):
+    data = {
+        'order_hash': order_hash,
+    }
+    r = requests.get(BASE_URL + 'order/state', params=data)
+    print(r.json())
 
 'order/cancel'
 
@@ -52,4 +56,5 @@ def mark_order_as_paid():
 
 if __name__ == '__main__':
     #get_exchange_price(377, 500, 'NEAR', 'NEAR')
-    create_order(377, 500, 757.575757575757, 'NEAR', 'NEAR', 'b8c72480a7d962f389ff2954386e3f529770991df04d6c750923a1b3625bbf9d', '1771636624771104768')
+    #create_order(377, 500, 101.67, 'NEAR', 'NEAR', 'b8c72480a7d962f389ff2954386e3f529770991df04d6c750923a1b3625bbf9d', '1771636624771104768')
+    get_order_state('35742549198872617291353508656626642565')

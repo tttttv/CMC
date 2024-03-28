@@ -124,7 +124,7 @@ def create_order_view(request):
 
 def get_order_state_view(request):
     settings = BybitSettings.objects.get(id=1)
-    order_hash = request.GET['order_hash']
+    order_hash = int(request.GET['order_hash'])
     order = P2POrderBuyToken.get_order_by_hash(order_hash)
     if not order:
         return JsonResponse({}, status=404)
