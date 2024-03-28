@@ -23,8 +23,21 @@ def get_exchange_price(payment_method, amount, token, chain, anchor='currency'):
     print(r.url)
     print(r.json())
 
-def create_order():
-    'order'
+def create_order(payment_method, amount, price, token, chain, address, item_id, name='test', card_number='test', email='test'):
+    data = {
+        'name': name,
+        'card_number': card_number,
+        'payment_method': payment_method,
+        'amount': amount,
+        'price': price,
+        'token': token,
+        'chain': chain,
+        'address': address,
+        'email': email,
+        'item_id': item_id
+    }
+    r = requests.post(BASE_URL + 'order', json=data)
+    print(r.json())
 
 def get_order_state():
     'order/state'
@@ -38,4 +51,5 @@ def mark_order_as_paid():
 'order/message/send'
 
 if __name__ == '__main__':
-    get_exchange_price(377, 500, 'NEAR', 'NEAR')
+    #get_exchange_price(377, 500, 'NEAR', 'NEAR')
+    create_order(377, 500, 757.575757575757, 'NEAR', 'NEAR', 'b8c72480a7d962f389ff2954386e3f529770991df04d6c750923a1b3625bbf9d', '1771636624771104768')

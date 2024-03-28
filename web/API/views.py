@@ -5,6 +5,8 @@ from django.http import JsonResponse
 from django.shortcuts import render
 
 # Create your views here.
+from django.views.decorators.csrf import csrf_exempt
+
 from CORE.models import P2POrderBuyToken, BybitAccount, P2PItem, BybitSettings, P2POrderMessage
 from CORE.service.CONFIG import P2P_TOKENS, TOKENS_DIGITS
 from CORE.service.bybit.parser import BybitSession
@@ -49,6 +51,7 @@ def get_price_view(request):
     }
     return JsonResponse(data)
 
+@csrf_exempt
 def create_order_view(request):
     settings = BybitSettings.objects.get(id=1)
 
@@ -70,6 +73,9 @@ def create_order_view(request):
     order.name = name
     order.card_number = card_number
     order.email = email
+
+    if False: #Todo валидация адреса
+        return JsonResponse({'message': 'wrong address', 'code': 7}, status=403)
 
     account = BybitAccount.get_free()
     if not account:
@@ -117,7 +123,7 @@ def create_order_view(request):
 
 def get_order_state_view(request):
     settings = BybitSettings.objects.get(id=1)
-    order_hash = request.POST['order_hash']
+    order_hash = request.GET['order_hash']
     order = P2POrderBuyToken.get_order_by_hash(order_hash)
     if not order:
         return JsonResponse({}, status=404)
@@ -173,6 +179,7 @@ def get_order_state_view(request):
 
     return JsonResponse(data)
 
+@csrf_exempt
 def cancel_order_view(request):
     order_hash = request.POST['order_hash']
     order = P2POrderBuyToken.get_order_by_hash(order_hash)
@@ -184,6 +191,7 @@ def cancel_order_view(request):
     else:
         return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)
 
+@csrf_exempt
 def mark_order_as_paid_view(request):
     order_hash = request.POST['order_hash']
     order = P2POrderBuyToken.get_order_by_hash(order_hash)
@@ -204,6 +212,7 @@ def get_chat_messages_view(request):
 
     return JsonResponse({'messages': data, 'title': 'Иван Иванов', 'avatar': '/static/CORE/misc/default_avatar.png'})
 
+@csrf_exempt
 def send_chat_message_view(request):
     order_hash = request.POST['order_hash']
     order = P2POrderBuyToken.get_order_by_hash(order_hash)
