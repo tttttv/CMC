@@ -192,7 +192,7 @@ class BybitSession(Session):
         }
         r = self.session.post("https://api2.bybit.com/fiat/otc/order/message/listpage", data=data)
         resp = r.json()
-
+        print(resp)
         if resp['ret_code'] == 0:
             messages = []
             for item in resp['result']['result']:
