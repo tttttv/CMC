@@ -73,7 +73,8 @@ def send_message(order_hash, text):
 if __name__ == '__main__':
     #get_exchange_price(377, 500, 'NEAR', 'NEAR')
     #create_order(377, 500, 101.67, 'NEAR', 'NEAR', 'b8c72480a7d962f389ff2954386e3f529770991df04d6c750923a1b3625bbf9d', '1771636624771104768')
-    get_order_state('35742549198872617291353508656626642565')
+    #get_order_state('35742549198872617291353508656626642565')
     #mark_order_as_paid('35742549198872617291353508656626642565')
     #get_order_messages('35742549198872617291353508656626642565')
     #send_message('35742549198872617291353508656626642565', 'деньги перевел')
+    pass

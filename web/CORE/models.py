@@ -1,5 +1,7 @@
 import datetime
+import hashlib
 import random
+import time
 
 from django.db import models
 from django.db.models import Q
@@ -8,7 +10,6 @@ from CORE.service.bybit.api import BybitAPI
 from CORE.service.bybit.code_2fa import get_ga_token
 from CORE.service.bybit.models import OrderMessage
 from CORE.service.CONFIG import  TOKENS_DIGITS
-from CORE.service.tools.tools import calculate_withdraw_amount
 
 
 class BybitSettings(models.Model):
@@ -45,11 +46,11 @@ class BybitSettings(models.Model):
             'chains': [
                 {
                     'name': 'MANTLE',
-                    'id': 'MANTLE'
+                    'id': 'MANTLE',
+                    'withdraw_commission': 0.01
                 }
             ],
             'payment_methods': [377, 379],
-            'withdraw_commission': 0.01
         },
         {
             'id': 'NEAR',
@@ -57,11 +58,11 @@ class BybitSettings(models.Model):
             'chains': [
                 {
                     'name': 'NEAR',
-                    'id': 'NEAR'
+                    'id': 'NEAR',
+                    'withdraw_commission': 0.01
                 }
             ],
             'payment_methods': [377, 379],
-            'withdraw_commission': 0.01
         }
     ]
     """
@@ -112,7 +113,6 @@ class BybitSettings(models.Model):
     def get_avalible_withdraw_methods(self):
         tokens = self.tokens
         for index in range(0, len(tokens)):
-            tokens[index].pop('withdraw_commission')
             tokens[index]['crypto'] = True
             tokens[index]['logo'] = '/static/CORE/tokens/' + str(tokens[index]['id']) + '.png'
         return tokens
@@ -247,6 +247,27 @@ class P2PItem(models.Model):
 
         return item
 
+
+class Partner(models.Model):
+    name = models.CharField(max_length=50, default='Имя')  # Название выпустившего виджет
+    balance = models.FloatField(default=0)  # Баланс комиссии
+    platform_commission = models.FloatField(default=0.02)  # Комиссия платформы
+    code = models.CharField(max_length=50, default='35742649192617212353508656626642567')
+
+class Widget(models.Model):
+    partner = models.ForeignKey(Partner, on_delete=models.CASCADE)
+    hash = models.CharField(max_length=15, unique=True)
+    withdrawing_token = models.CharField(max_length=50, default=None, blank=True, null=True)
+    withdrawing_chain = models.CharField(max_length=50, default=None, blank=True, null=True)
+    withdrawing_address = models.CharField(max_length=500, default=None, blank=True, null=True)
+    partner_commission = models.FloatField(default=0.01)  # Комиссия партнера
+    platform_commission = models.FloatField(default=0.02)  # Комиссия платформы
+
+    def __init__(self, *args, **kwargs):
+        self.hash = hashlib.sha1().update(str(time.time()).encode("utf-8")).hexdigest()[:15]
+        self.platform_commission = self.partner.platform_commission
+        super(Widget, self).__init__(*args, **kwargs)
+
 class P2POrderBuyToken(models.Model):
     STATE_INITIATED = 'INITIATED'
     STATE_WRONG_PRICE = 'WRONG'
@@ -281,6 +302,7 @@ class P2POrderBuyToken(models.Model):
     )
 
     account = models.ForeignKey(BybitAccount, on_delete=models.CASCADE)
+    widget = models.ForeignKey(Widget, on_delete=models.CASCADE, blank=True, null=True)
 
     name = models.CharField(max_length=100, default='')
     card_number = models.CharField(max_length=100, default='')
@@ -288,16 +310,23 @@ class P2POrderBuyToken(models.Model):
 
     item = models.ForeignKey(P2PItem, on_delete=models.CASCADE)
     payment_method = models.IntegerField()
-    amount = models.FloatField()
+
     currency = models.CharField(max_length=10)
     p2p_token = models.CharField(max_length=30, default='USDT')
     p2p_price = models.FloatField()
 
     #Информация для вывода средств
-    withdraw_price = models.FloatField(default=1, null=True)
+    withdraw_token_rate = models.FloatField(default=1, null=True)
     withdraw_token = models.CharField(max_length=30, default='USDT')
     withdraw_chain = models.CharField(max_length=30, default='MANTLE')
     withdraw_address = models.CharField(max_length=100)
+
+    amount = models.FloatField() #Сколько валюты человек отправляет
+    withdraw_quantity = models.FloatField() #Сколько крипты выводим
+    partner_commission = models.FloatField()  # Комиссия создателя трейда
+    platform_commission = models.FloatField()  # Комиссия платформы
+    chain_commission = models.FloatField() #Комиссия блокчейна за перевод
+    trading_commission = models.FloatField() #Комиссия биржи за покупку
 
     #INITIATED
     dt_initiated = models.DateTimeField(default=datetime.datetime.now)
@@ -341,13 +370,29 @@ class P2POrderBuyToken(models.Model):
         return self.id ^ P2POrderBuyToken.HASH_CONSTANT
 
     @property
-    def p2p_quantity(self):
+    def p2p_quantity(self):  # Сколько нужно купить на п2п
         digits = TOKENS_DIGITS[self.p2p_token]
         return float((('{:.' + str(digits) + 'f}').format(self.amount / self.p2p_price)))
 
     @property
+    def p2p_avalible_balance(self): #Сколько остается после комиссий - переводим на биржу
+        digits = TOKENS_DIGITS[self.p2p_token] #Todo тут нужно поработать с точностью после запятой
+        return self.p2p_quantity * ( 1 - self.platform_commission - self.partner_commission)
+
+    @property
+    def trading_quantity(self): #Нужно купить на бирже
+        digits = TOKENS_DIGITS[self.withdraw_token]
+        return float((('{:.' + str(digits) + 'f}').format(self.withdraw_from_trading_account / ( 1 - self.trading_commission))))
+
+    @property
+    def withdraw_from_trading_account(self): #Сколько нужно перевести на Funding аккаунт
+        digits = TOKENS_DIGITS[self.withdraw_token]
+        return float((('{:.' + str(digits) + 'f}').format((self.withdraw_quantity + self.chain_commission))))
+    """
+    @property
     def withdraw_quantity(self):
         return calculate_withdraw_amount(self.withdraw_token, self.withdraw_chain, self.amount, self.p2p_price, self.withdraw_price)
+    """
 
     def risk_get_ga_code(self):
         return self.account.risk_get_ga_code()

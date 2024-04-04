@@ -12,7 +12,7 @@ class BybitAPI():
             api_secret=api_secret,
         )
 
-    def get_price(self, token_buy, token_sell):
+    def get_trading_rate(self, token_buy, token_sell):
         r = self.session._submit_request(
             method="GET",
             path=f"{self.session.endpoint}/spot/v3/public/quote/ticker/price?symbol=" + token_buy + token_sell,

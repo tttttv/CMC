@@ -37,11 +37,11 @@ class CoreConfig(AppConfig):
                         'chains': [
                             {
                                 'name': 'MANTLE',
-                                'id': 'MANTLE'
+                                'id': 'MANTLE',
+                                'withdraw_commission': 0.01
                             }
                         ],
                         'payment_methods': [377, 379],
-                        'withdraw_commission': 0.01
                     }
                 ]
                 settings.save()

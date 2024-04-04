@@ -2,30 +2,30 @@ from CORE.service.CONFIG import TOKENS_DIGITS, TRANSACTION_FEES, P2P_TOKENS
 from CORE.service.tools.formats import format_float, format_float_up
 
 
-def calculate_withdraw_amount(token, chain, amount, p2p_price, withdraw_price):
-    from CORE.models import BybitSettings
+
+def calculate_withdraw_quantity(token, chain, amount, p2p_price, withdraw_token_rate, platform_commission, partner_commission, trading_commission, chain_commission):
     digits = TOKENS_DIGITS[token]
-    settings = BybitSettings.objects.get(id=1)
-    return float((('{:.' + str(digits) + 'f}').format(
-        format_float((amount / p2p_price / withdraw_price) / (1 + settings.get_token(token)['withdraw_commission']) - TRANSACTION_FEES[token][chain], digits)
-    )))
+    return format_float(
+        (((amount / p2p_price) * (1 - partner_commission - platform_commission)) / withdraw_token_rate) * ( 1 - trading_commission) - chain_commission
+        , digits)
 
 
-def calculate_topup_amount(token, amount, p2p_price, trade_rate):
-    from CORE.models import BybitSettings
-    settings = BybitSettings.objects.get(id=1)
-    return format_float_up((amount * p2p_price * trade_rate) *  (1 + settings.get_token(token)['withdraw_commission']), TOKENS_DIGITS[token])
+def calculate_topup_amount(token, quantity, p2p_price, trade_rate, platform_commission, partner_commission, trading_commission, chain_commission):
+    digits = TOKENS_DIGITS[token]
+    return format_float_up(
+        (((quantity + chain_commission) / ( 1 - trading_commission )) * trade_rate / ( 1 - partner_commission - platform_commission)) * p2p_price
+        , digits)
 
 
 
 #todo заложить комиссию трейдинга на бирже
-def get_price(payment_method, amount, currency, token, chain, anchor='currency'): #anchor currency - фикс сумма фиата, token - фикс крипта
+def get_price(payment_method, amount, quantity, currency, token, chain, platform_commission, partner_commission, chain_commission, trading_commission=0.001, anchor='currency'): #anchor currency - фикс сумма фиата, token - фикс крипта
     from CORE.models import BybitAccount, P2PItem
 
     if not (token in P2P_TOKENS):
         print(1)
         p2p_token = 'USDT'
-        trade_rate = BybitAccount.get_random_account().get_api().get_price(token, 'USDT') #Todo тут только usdt
+        trade_rate = BybitAccount.get_random_account().get_api().get_trading_rate(token, 'USDT') #Todo тут только usdt
     else:
         p2p_token = token
         trade_rate = 1
@@ -55,7 +55,9 @@ def get_price(payment_method, amount, currency, token, chain, anchor='currency')
     p2p_price = best_p2p.price
 
     print(p2p_price, trade_rate)
-    if anchor == 'currency': #Возвращаем сколько крипты получит клиент
-        return calculate_withdraw_amount(token, chain, amount, p2p_price, trade_rate), best_p2p, better_p2p.min_amount
-    elif anchor == 'token': #Возвращаем сколько нужно заплатить фиата за количество крипты
-        return calculate_topup_amount(token, amount, p2p_price, trade_rate), best_p2p, better_p2p.min_amount
+    if anchor == 'currency': #Считаем сколько крипты получит клиент
+        quantity = calculate_withdraw_quantity(token, chain, amount, p2p_price, trade_rate, platform_commission, partner_commission, trading_commission, chain_commission)
+    elif anchor == 'token': #Считаем сколько нужно заплатить фиата за количество крипты
+        amount = calculate_topup_amount(token, quantity, p2p_price, trade_rate, platform_commission, partner_commission, trading_commission, chain_commission)
+
+    return amount, quantity, best_p2p, better_p2p

@@ -11,6 +11,8 @@ from CORE.service.CONFIG import P2P_BUY_TIMEOUTS, P2P_EMAIL_SEND_TIMEOUT, P2P_WI
 
 from celery import shared_task
 
+from CORE.service.tools.tools import calculate_withdraw_quantity
+
 
 @shared_task
 def update_p2pitems_task():
@@ -79,13 +81,15 @@ def process_buy_order_task(order_id):
 
     print(order.id, order.state)
     if order.state == P2POrderBuyToken.STATE_INITIATED:
-
         if order.withdraw_token not in P2P_TOKENS:  # Если нужно трейдить токен, покупаем в USDT
-            order.withdraw_price = order.account.get_api().get_price(order.withdraw_token, 'USDT')
+            order.withdraw_token_rate = order.account.get_api().get_trading_rate(order.withdraw_token, 'USDT')
             order.p2p_token = 'USDT'
         else: #Если нет - покупаем ту же валюту
-            order.withdraw_price = 1
+            order.withdraw_token_rate = 1
             order.p2p_token = order.withdraw_token
+        order.withdraw_quantity = calculate_withdraw_quantity(order.token, order.chain, order.amount, order.p2p_price,
+                                                              order.withdraw_token_rate, order.platform_commission,
+                                                              order.partner_commission, order.trading_commission, order.chain_commission)
         order.save()
 
         price = s.get_item_price(order.item.item_id) #Хэш от стоимости
@@ -124,7 +128,6 @@ def process_buy_order_task(order_id):
             order.dt_paid = datetime.datetime.now()
             order.save()
     elif order.state == P2POrderBuyToken.STATE_PAID: #Ждет подтверждения от продавца
-        #Todo сколько времени на подтверждение продавцом? - 10 мин, но дальше аппеляция
         state, terms = s.get_order_info(order.order_id, order.payment_method)
 
         messages = s.get_order_messages(order.order_id)  # Выгружаем сообщения из базы
@@ -143,6 +146,11 @@ def process_buy_order_task(order_id):
             print('Appeal')
         else:
             raise ValueError("Unknown state", state)
+
+        if order.dt_paid.replace(tzinfo=None) < (datetime.datetime.now() - datetime.timedelta(minutes=P2P_BUY_TIMEOUTS['CREATED'])):
+            print('SELLER timeout')
+            order.state = P2POrderBuyToken.STATE_ERROR
+            order.save()
     elif order.state == P2POrderBuyToken.STATE_RECEIVED: #Переводим на биржу
         if order.p2p_token == order.withdraw_token: #Если не нужно менять валюту на бирже
             order.state = P2POrderBuyToken.STATE_WITHDRAWING
@@ -151,13 +159,13 @@ def process_buy_order_task(order_id):
             return order
         else: #Нужно менять
             api = order.account.get_api()
-            api.transfer_to_trading(order.p2p_token, order.p2p_quantity) #Переводим на биржу
+            api.transfer_to_trading(order.p2p_token, order.p2p_avalible_balance) #Переводим на биржу
             order.state = P2POrderBuyToken.STATE_TRADING
             order.dt_trading = datetime.datetime.now()
             order.save()
     elif order.state == P2POrderBuyToken.STATE_TRADING: #Todo добавить проверку на волатильность
         api = order.account.get_api()
-        market_order_id = api.place_order(order.withdraw_token, order.p2p_token, order.withdraw_quantity)
+        market_order_id = api.place_order(order.withdraw_token, order.p2p_token, order.trading_quantity)
         order.market_order_id = market_order_id
         order.state = P2POrderBuyToken.STATE_TRADED
         order.save()
@@ -166,10 +174,10 @@ def process_buy_order_task(order_id):
         status = api.get_order_status(order.market_order_id)
         print(status)
         if status == 'Filled' or status == 'PartiallyFilledCanceled': #Успешно вывели
-            api.transfer_to_funding(order.withdraw_token, order.withdraw_quantity) #todo выводить минус комиссия 0.1% near
+            api.transfer_to_funding(order.withdraw_token, order.withdraw_from_trading_account) #todo выводить минус комиссия 0.1% near
             order.state = P2POrderBuyToken.STATE_WITHDRAWING
             order.save()
-        elif status == 'PartiallyFilledCanceled': #Todo ghjhf,jnfnm kjubre
+        elif status == 'PartiallyFilledCanceled': #Todo проработать логику
             raise ValueError("Не до конца выполнено")
         else:
             print(status)

@@ -7,12 +7,28 @@ from django.shortcuts import render
 # Create your views here.
 from django.views.decorators.csrf import csrf_exempt
 
-from CORE.models import P2POrderBuyToken, BybitAccount, P2PItem, BybitSettings, P2POrderMessage
+from CORE.models import P2POrderBuyToken, BybitAccount, P2PItem, BybitSettings, P2POrderMessage, Partner, Widget
 from CORE.service.CONFIG import P2P_TOKENS, TOKENS_DIGITS
 from CORE.service.bybit.parser import BybitSession
-from CORE.service.tools.formats import format_float, format_float_up
-from CORE.service.tools.tools import calculate_withdraw_amount, calculate_topup_amount, get_price
+from CORE.service.tools.tools import get_price, calculate_withdraw_quantity
 from CORE.tasks import process_buy_order_task, update_latest_email_codes_task, update_p2pitems_task
+
+def create_widget_view(request):
+    """ TODO NEW """
+    partner_code = request.POST['partner_code']
+    try:
+        partner = Partner.objects.get(code=partner_code)
+    except:
+        return JsonResponse({}, status=404)
+
+    widget = Widget(partner=partner)
+    widget.withdrawing_token = request.POST['withdrawing_token']
+    widget.withdrawing_chain = request.POST['withdrawing_chain']
+    widget.withdrawing_address = request.POST['withdrawing_address']
+    widget.partner_commission = float(request.POST['partner_commission'])
+    widget.save()
+
+    return JsonResponse({'widget': widget.hash})
 
 def get_avalible_from_view(request):
     settings = BybitSettings.objects.get(id=1)
@@ -22,15 +38,41 @@ def get_avalible_from_view(request):
 def get_avalible_to_view(request):
     settings = BybitSettings.objects.get(id=1)
     methods = settings.get_avalible_withdraw_methods()
+
+    widget_hash = request.GET.get('widget', None)
+    if widget_hash:
+        widget = Widget.objects.get(hash=widget_hash)
+        for method in methods:
+            if method['id'] == widget.withdrawing_token:
+                for chain in method['chains']:
+                    if chain['id'] == widget.withdrawing_chain:
+                        method['chains'] = chain
+                        methods = [method]
+                        break
+
     return JsonResponse({'methods': methods})
 
 def get_price_view(request):
+    """
+    amount - сколько валюты заплатить
+    quantity - сколько крипты получит
+
+    :param request:
+    :return:
+    """
     settings = BybitSettings.objects.get(id=1)
     anchor = request.GET.get('anchor', 'currency')
     payment_method = int(request.GET.get('payment_method', 377))
-    amount = float(request.GET['amount'])
+    amount = float(request.GET.get('amount', 0))
+    quantity = float(request.GET.get('quantity', 0))
     token = request.GET.get('token', 'USDT')
     chain = request.GET.get('chain', 'MANTLE')
+
+    widget_hash = request.GET.get('widget', None)
+    if widget_hash: #Если вдруг по виджету передана не та крипта
+        widget = Widget.objects.get(hash=widget_hash)
+        if token != widget.withdrawing_token or chain != widget.withdrawing_chain:
+            return JsonResponse({}, status=404)
 
     pm = settings.get_payment_method(payment_method)
     if pm:
@@ -39,14 +81,16 @@ def get_price_view(request):
         return JsonResponse({'message': 'Currency not found', 'code': 1}, status=404)
 
     try:
-        quantity, best_p2p, better_amount = get_price(payment_method, amount, currency, token, chain, anchor=anchor)
+        chain_commission = settings.get_token(token)['chains'][chain]['withdraw_commission']
+        amount, quantity, best_p2p, better_p2p = get_price(payment_method, amount, quantity, currency, token, chain, 0.01, 0.01, chain_commission,  anchor=anchor)
     except TypeError:
         return JsonResponse({'message': 'cant get price', 'code': 2}, status=403)
 
     data = {
         'price': amount / quantity,
+        'amount': amount,
         'quantity': quantity,
-        'better_amount': better_amount,
+        'better_amount': better_p2p.min_amount,
         'best_p2p': best_p2p.item_id,
         'best_p2p_price': best_p2p.price
     }
@@ -91,8 +135,6 @@ def create_order_view(request):
         return JsonResponse({'message': 'Invalid payment method', 'code': 3}, status=403)
     order.payment_method = payment_method
 
-    # todo добавить проверку адреса
-
     order.amount = amount
     order.p2p_price = price
 
@@ -113,7 +155,27 @@ def create_order_view(request):
         return JsonResponse({'message': 'Chain not found', 'code': 6}, status=404)
     order.withdraw_chain = chain
 
-    order.withdraw_address = address  # Todo проверку корректности адреса
+    order.withdraw_address = address
+
+    order.chain_commission = settings.get_token(token)['chains'][chain]['withdraw_commission']
+    order.trading_commission = 0.001
+
+    widget_hash = request.GET.get('widget', None)
+    if widget_hash:  # Если передан виджет
+        widget = Widget.objects.get(hash=widget_hash)
+
+        if order.withdraw_token != widget.withdrawing_token \
+                or order.withdraw_chain != widget.withdrawing_chain\
+                or order.withdraw_address != widget.withdrawing_address:  # Если вдруг по виджету передана не та крипта или адрес
+            return JsonResponse({}, status=404)
+
+        order.widget = widget
+        order.partner_commission = order.widget.platform_commission
+        order.platform_commission = order.widget.partner_commission
+    else:
+        order.partner_commission = 0
+        order.platform_commission = 0.02
+
     order.save()
     process_buy_order_task.delay(kwargs={'id': order.id})
 
