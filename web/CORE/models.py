@@ -264,7 +264,8 @@ class Widget(models.Model):
     platform_commission = models.FloatField(default=0.02)  # Комиссия платформы
 
     def __init__(self, *args, **kwargs):
-        self.hash = hashlib.sha1().update(str(time.time()).encode("utf-8")).hexdigest()[:15]
+        hashlib.sha1().update(str(time.time()).encode("utf-8"))
+        self.hash = hashlib.sha1().hexdigest()[:15]
         self.platform_commission = self.partner.platform_commission
         super(Widget, self).__init__(*args, **kwargs)
 
