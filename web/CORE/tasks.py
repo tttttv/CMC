@@ -87,7 +87,7 @@ def process_buy_order_task(order_id):
         else: #Если нет - покупаем ту же валюту
             order.withdraw_token_rate = 1
             order.p2p_token = order.withdraw_token
-        order.withdraw_quantity = calculate_withdraw_quantity(order.token, order.chain, order.amount, order.p2p_price,
+        order.withdraw_quantity = calculate_withdraw_quantity(order.withdraw_token, order.withdraw_chain, order.amount, order.p2p_price,
                                                               order.withdraw_token_rate, order.platform_commission,
                                                               order.partner_commission, order.trading_commission, order.chain_commission)
         order.save()
