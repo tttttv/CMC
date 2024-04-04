@@ -413,7 +413,6 @@ class P2POrderMessage(models.Model):
     user_id = models.CharField(max_length=50, blank=True, null=True)
     nick_name = models.CharField(max_length=50, blank=True, null=True)
     type = models.CharField(max_length=50)  # 1 - переписка, иначе служебное
-    from_user = models.BooleanField(default=False)
 
     @classmethod
     def create_from_parser(cls, order_id, data: OrderMessage):
