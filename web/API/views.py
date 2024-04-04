@@ -81,7 +81,7 @@ def get_price_view(request):
         return JsonResponse({'message': 'Currency not found', 'code': 1}, status=404)
 
     try:
-        chain_commission = settings.get_token(token)['chains'][chain]['withdraw_commission']
+        chain_commission = settings.get_chain(token, chain)['withdraw_commission']
         amount, quantity, best_p2p, better_p2p = get_price(payment_method, amount, quantity, currency, token, chain, 0.01, 0.01, chain_commission,  anchor=anchor)
     except TypeError as ex:
         raise ex #todo убрать
@@ -158,7 +158,7 @@ def create_order_view(request):
 
     order.withdraw_address = address
 
-    order.chain_commission = settings.get_token(token)['chains'][chain]['withdraw_commission']
+    order.chain_commission = settings.get_chain(token, chain)['withdraw_commission']
     order.trading_commission = 0.001
 
     widget_hash = request.GET.get('widget', None)
