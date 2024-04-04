@@ -377,7 +377,7 @@ class P2POrderBuyToken(models.Model):
     @property
     def p2p_avalible_balance(self): #Сколько остается после комиссий - переводим на биржу
         digits = TOKENS_DIGITS[self.p2p_token] #Todo тут нужно поработать с точностью после запятой
-        return self.p2p_quantity * ( 1 - self.platform_commission - self.partner_commission)
+        return  float(('{:.' + str(digits) + 'f}').format(self.p2p_quantity * ( 1 - self.platform_commission - self.partner_commission)))
 
     @property
     def trading_quantity(self): #Нужно купить на бирже
@@ -412,6 +412,7 @@ class P2POrderMessage(models.Model):
     user_id = models.CharField(max_length=50, blank=True, null=True)
     nick_name = models.CharField(max_length=50, blank=True, null=True)
     type = models.CharField(max_length=50)  # 1 - переписка, иначе служебное
+    from_user = models.BooleanField(default=False)
 
     @classmethod
     def create_from_parser(cls, order_id, data: OrderMessage):

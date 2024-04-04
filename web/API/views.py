@@ -1,4 +1,6 @@
 import datetime
+import hashlib
+import time
 from time import sleep
 
 from django.http import JsonResponse
@@ -285,6 +287,15 @@ def send_chat_message_view(request):
 
     s = BybitSession(order.account)
     if s.send_message(order.order_id, text):
+        message = P2POrderMessage()
+        message.order_id = order.order_id
+        message.message_id = hashlib.sha1().update(str(time.time()).encode("utf-8")).hexdigest()[:15]
+        message.from_user = True
+        message.text = text
+        message.nick_name = 'Вы'
+        message.dt = datetime.datetime.now()
+        message.type = 1
+        message.save()
         return JsonResponse({})
     else:
         return JsonResponse({'message': 'Error sending message', 'code': 1}, status=403)
