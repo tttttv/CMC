@@ -1,6 +1,6 @@
 TOKENS_DIGITS = {
     'USDT': 4,
-    'NEAR': 4,
+    'NEAR': 2,
 }
 
 

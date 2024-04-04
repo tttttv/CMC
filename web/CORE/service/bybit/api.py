@@ -29,7 +29,7 @@ class BybitAPI():
             side="Buy",
             orderType="Market",
             qty=amount,
-            marketUnit='baseCoin', #Todo это нужно убрать и передавать четкое количество коинов к покупке quoteCoin/baseCoin (за счет лишнего баланса)
+            marketUnit='baseCoin',
             isLeverage=0,
             orderFilter="Order",
         )
