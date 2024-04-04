@@ -429,7 +429,7 @@ class P2POrderMessage(models.Model):
             message.save()
 
     @property
-    def order(self):
+    def order(self): #todo сделать нормально
         return P2POrderBuyToken.objects.get(order_id=self.order_id)
 
     def to_json(self):
@@ -441,7 +441,7 @@ class P2POrderMessage(models.Model):
                 side = 'TRADER'
         else:
             side = 'SUPPORT'
-            
+
         return {
             'nick_name': self.nick_name,
             'text': self.text,
