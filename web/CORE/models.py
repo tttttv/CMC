@@ -322,7 +322,7 @@ class P2POrderBuyToken(models.Model):
     withdraw_address = models.CharField(max_length=100)
 
     amount = models.FloatField() #Сколько валюты человек отправляет
-    withdraw_quantity = models.FloatField() #Сколько крипты выводим
+    withdraw_quantity = models.FloatField(null=True) #Сколько крипты выводим, null когда создается
     partner_commission = models.FloatField()  # Комиссия создателя трейда
     platform_commission = models.FloatField()  # Комиссия платформы
     chain_commission = models.FloatField() #Комиссия блокчейна за перевод
