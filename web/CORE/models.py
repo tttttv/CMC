@@ -439,5 +439,5 @@ class P2POrderMessage(models.Model):
             'dt': self.dt.strftime('%d.%m.%Y %H:%M:%S'),
             'uuid': self.uuid,
             'image_url': None,
-            'side': 'TRADER' if self.type == '1' else (1 if self.user_id == self.order.account.user_id else 'TECHNICAL'),
+            'side': 'TRADER' if self.type == '1' else (1 if self.user_id == str(self.order.account.user_id) else 'TECHNICAL'),
         }
