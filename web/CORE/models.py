@@ -428,6 +428,10 @@ class P2POrderMessage(models.Model):
             message.type = data.msgType
             message.save()
 
+    @property
+    def order(self):
+        return P2POrderBuyToken.objects.get(order_id=self.order_id)
+
     def to_json(self):
         return {
             'nick_name': self.nick_name,
@@ -435,5 +439,5 @@ class P2POrderMessage(models.Model):
             'dt': self.dt.strftime('%d.%m.%Y %H:%M:%S'),
             'uuid': self.uuid,
             'image_url': None,
-            'technical': self.type != '1'
+            'side': 'TRADER' if self.type == '1' else (1 if self.user_id == self.order.account.user_id else 'TECHNICAL'),
         }
