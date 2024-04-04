@@ -15,3 +15,6 @@ admin.site.register(P2PItem, P2PItemAdmin)
 
 admin.site.register(P2POrderBuyToken)
 admin.site.register(P2POrderMessage)
+
+admin.site.register(Partner)
+admin.site.register(Widget)

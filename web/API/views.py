@@ -83,7 +83,8 @@ def get_price_view(request):
     try:
         chain_commission = settings.get_token(token)['chains'][chain]['withdraw_commission']
         amount, quantity, best_p2p, better_p2p = get_price(payment_method, amount, quantity, currency, token, chain, 0.01, 0.01, chain_commission,  anchor=anchor)
-    except TypeError:
+    except TypeError as ex:
+        raise ex #todo убрать
         return JsonResponse({'message': 'cant get price', 'code': 2}, status=403)
 
     data = {
