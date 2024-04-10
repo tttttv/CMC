@@ -3,3 +3,4 @@
 /web/CORE/migrations/
 .idea
 /.env
+/nginx/cert
