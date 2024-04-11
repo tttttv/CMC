@@ -70,6 +70,11 @@ def get_price_view(request):
     token = request.GET.get('token', 'USDT')
     chain = request.GET.get('chain', 'MANTLE')
 
+    if anchor == 'currency' and amount == 0:
+        return JsonResponse({'message': 'amount is zero with anchor=currency', 'code': 3}, status=403)
+    elif anchor == 'token' and quantity == 0:
+        return JsonResponse({'message': 'quantity is zero with anchor=token', 'code': 3}, status=403)
+
     widget_hash = request.GET.get('widget', None)
     if widget_hash: #Если вдруг по виджету передана не та крипта
         widget = Widget.objects.get(hash=widget_hash)
