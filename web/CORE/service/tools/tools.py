@@ -14,7 +14,7 @@ def calculate_topup_amount(token, quantity, p2p_price, trade_rate, platform_comm
     digits = TOKENS_DIGITS[token]
     return format_float_up(
         (((quantity + chain_commission) / ( 1 - trading_commission )) * trade_rate / ( 1 - partner_commission - platform_commission)) * p2p_price
-        , digits)
+        , 2)
 
 
 
