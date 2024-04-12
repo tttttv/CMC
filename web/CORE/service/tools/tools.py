@@ -38,9 +38,19 @@ def get_price(payment_method, amount, quantity, currency, token, chain, platform
             print(item.price * quantity, item.min_amount, item.max_amount)
             if (item.price * quantity) > item.min_amount and (item.price * quantity) < item.max_amount:
                 items.append(item)
+
+        all_better_items = P2PItem.objects.filter(side=P2PItem.SIDE_SELL, is_active=True, currency=currency, token=p2p_token).order_by('-price', '-min_amount').all()
+        better_items = []
+        for item in all_better_items:
+            print(item.price * quantity, item.min_amount, item.max_amount)
+            if (item.price * quantity) < item.max_amount:
+                items.append(item)
     else:
         items = P2PItem.objects.filter(side=P2PItem.SIDE_SELL, is_active=True, min_amount__lte=amount,
                                        max_amount__gte=amount, currency=currency, token=p2p_token).order_by('-price').all()
+        better_items = P2PItem.objects.filter(side=P2PItem.SIDE_SELL, is_active=True,
+                                              max_amount__gte=amount, currency=currency, token=p2p_token).order_by('-price', '-min_amount').all()
+
     print(items)
     for i in items:
         print(i.payment_methods, i.item_id)
@@ -51,8 +61,6 @@ def get_price(payment_method, amount, quantity, currency, token, chain, platform
         return None
 
     better_p2p = None #Ищем курс лучше для большего объема
-    better_items = P2PItem.objects.filter(side=P2PItem.SIDE_SELL, is_active=True,
-                                   max_amount__gte=amount, currency=currency, token=p2p_token).order_by('-price', '-min_amount').all()
     print(better_items)
     for i in better_items:
         print(i.payment_methods, i.item_id)
