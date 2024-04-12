@@ -98,7 +98,7 @@ def get_price_view(request):
         'price': "%.2f" % (amount / quantity),
         'amount': amount,
         'quantity': quantity,
-        'better_amount': better_p2p.min_amount if better_p2p.price < better_p2p.price else None,
+        'better_amount': better_p2p.min_amount if better_p2p else None,
         'best_p2p': best_p2p.item_id,
         'best_p2p_price': best_p2p.price
     }
