@@ -95,7 +95,7 @@ def get_price_view(request):
 
     price = amount / quantity
     data = {
-        'price': "%.2f" % str(amount / quantity),
+        'price': "%.2f" % (amount / quantity),
         'amount': amount,
         'quantity': quantity,
         'better_amount': better_p2p.min_amount,
