@@ -44,7 +44,7 @@ def get_price(payment_method, amount, quantity, currency, token, chain, platform
         for item in all_better_items:
             print(item.price * quantity, item.min_amount, item.max_amount)
             if (item.price * quantity) < item.max_amount:
-                items.append(item)
+                better_items.append(item)
     else:
         items = P2PItem.objects.filter(side=P2PItem.SIDE_SELL, is_active=True, min_amount__lte=amount,
                                        max_amount__gte=amount, currency=currency, token=p2p_token).order_by('-price').all()
