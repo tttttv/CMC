@@ -62,7 +62,9 @@ def get_price(payment_method, amount, quantity, currency, token, chain, platform
 
     better_p2p = None #Ищем курс лучше для большего объема
     better_items = sorted(better_items, key=lambda x: x.min_amount, reverse=True)
-    
+    for i in items:
+        print(i.price, i.min_amount)
+        
     for i in better_items:
         print(i.payment_methods, i.item_id)
         if (int(payment_method) in i.payment_methods):
