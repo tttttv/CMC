@@ -62,7 +62,7 @@ def get_price(payment_method, amount, quantity, currency, token, chain, platform
         print(i.payment_methods, i.item_id)
         if (int(payment_method) in i.payment_methods):
             better_p2p = i
-            print('FINAL', i.price, i.min_amount)
+            print('FINAL', i.price, i.min_amount, i.id)
             break
 
     p2p_price = best_p2p.price
