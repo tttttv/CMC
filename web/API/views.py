@@ -108,11 +108,6 @@ def get_price_view(request):
 def create_order_view(request):
     settings = BybitSettings.objects.get(id=1)
 
-    data = {
-        'order_hash': 35742549198872617291353508656626642567 ^ 4
-    }
-    return JsonResponse(data)
-
     if not settings.is_working:
         return JsonResponse({'message': 'not avalible now', 'code': 0}, status=403)
     print(request.POST)
@@ -193,7 +188,7 @@ def create_order_view(request):
     process_buy_order_task.apply_async(args=[order.id])
 
     data = {
-        'order_hash': order.get_hash()
+        'order_hash': str(order.get_hash())
     }
     return JsonResponse(data)
 
