@@ -51,8 +51,7 @@ def get_price(payment_method, amount, quantity, currency, token, chain, platform
     else:
         return None
 
-    better_items = P2PItem.objects.filter(side=P2PItem.SIDE_SELL, is_active=True, price__lte=best_p2p.price,
-                                          max_amount__lte=best_p2p.max_amount, currency=currency, token=p2p_token).order_by('-price', 'min_amount').all()
+    better_items = P2PItem.objects.filter(side=P2PItem.SIDE_SELL, is_active=True, max_amount__lte=best_p2p.max_amount, currency=currency, token=p2p_token).order_by('price', 'min_amount').all()
 
     better_p2p = None #Ищем курс лучше для большего объема
     for i in items:
