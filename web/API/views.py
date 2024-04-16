@@ -185,7 +185,7 @@ def create_order_view(request):
         order.platform_commission = 0.02
 
     order.save()
-    process_buy_order_task.delay(args=[order.id])
+    process_buy_order_task.apply_async(args=[order.id])
 
     data = {
         'order_hash': order.get_hash()
