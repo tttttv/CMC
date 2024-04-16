@@ -36,7 +36,7 @@ class OrderMessage:
         self.id = item['id']
         self.accountId = item['accountId']
         self.text = item['message']
-        self.createdDate = int(item.get('createdDate', 0))
+        self.createdDate = int(item.get('createDate', 0))
         self.msgUuid = item['msgUuid']
         self.userId = item['userId']
         self.nickName = item['nickName']

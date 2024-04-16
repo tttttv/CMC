@@ -5,6 +5,7 @@ from django.conf import settings
 
 urlpatterns = [
     path('widget', views.create_widget_view, name='create_widget'),
+
     path('exchange/from', views.get_avalible_from_view, name="get_from"),
     path('exchange/to', views.get_avalible_to_view, name="get_to"),
     path('exchange/price', views.get_price_view, name="get_price"),
