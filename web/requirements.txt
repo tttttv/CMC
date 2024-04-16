@@ -1,5 +1,6 @@
 requests
 imap-tools
+pycrypto
 pybit
 websocket-client
 django
