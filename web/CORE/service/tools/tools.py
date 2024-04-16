@@ -42,7 +42,7 @@ def get_price(payment_method, amount, quantity, currency, token, chain, platform
         items = P2PItem.objects.filter(side=P2PItem.SIDE_SELL, is_active=True, min_amount__lte=amount,
                                        max_amount__gte=amount, currency=currency, token=p2p_token).order_by('-price').all()
 
-    items = sorted(items, key=lambda x: x.price, reverse=True)
+    items = sorted(items, key=lambda x: x.price)
 
     for i in items:
         print(i.price, i.payment_methods)
