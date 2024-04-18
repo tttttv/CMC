@@ -438,6 +438,7 @@ class P2POrderMessage(models.Model):
 
     def get_image_base64(self):
         # settings.MEDIA_ROOT = '/path/to/env/projectname/media'
+        print('GETTING IMAGE', self.image)
         if not self.image:
             return None
         else:
