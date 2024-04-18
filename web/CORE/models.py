@@ -454,7 +454,7 @@ class P2POrderMessage(models.Model):
         else:
             side = 'SUPPORT'
 
-        return {
+        res = {
             'nick_name': self.nick_name,
             'text': self.text,
             'dt': self.dt.strftime('%d.%m.%Y %H:%M:%S') if self.dt else None,
@@ -462,3 +462,5 @@ class P2POrderMessage(models.Model):
             'image': self.get_image_base64(),
             'side': side,
         }
+        print(res)
+        return res
