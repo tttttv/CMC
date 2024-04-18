@@ -5,6 +5,9 @@ from time import sleep
 
 from django.http import JsonResponse
 from django.shortcuts import render
+import base64
+from django.core.files.base import ContentFile
+
 
 # Create your views here.
 from django.views.decorators.csrf import csrf_exempt
@@ -300,6 +303,18 @@ def send_chat_message_view(request):
 
 @csrf_exempt
 def send_chat_image_view(request):
-    image = request.POST.get("image")
-    print(image)
+    image_data = request.POST.get("image")
+    format, imgstr = image_data.split(';base64,')
+    print("format", format)
+    ext = format.split('/')[-1]
+
+    data = ContentFile(base64.b64decode(imgstr))
+    file_name = "'myphoto." + ext
+
+    message = P2POrderMessage(
+        order_id='1781097796773679104',
+        message_id='591828384'
+    )
+    message.save()
+    message.image.save(file_name, data, save=True)
     return JsonResponse({})

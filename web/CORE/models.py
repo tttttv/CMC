@@ -407,12 +407,14 @@ class P2POrderMessage(models.Model):
 
     message_id = models.CharField(max_length=50)
     account_id = models.CharField(max_length=50, blank=True, null=True)
-    text = models.TextField()
+    text = models.TextField(blank=True, null=True)
     dt = models.DateTimeField(blank=True, null=True)
     uuid = models.CharField(max_length=50, blank=True, null=True)
     user_id = models.CharField(max_length=50, blank=True, null=True)
     nick_name = models.CharField(max_length=50, blank=True, null=True)
-    type = models.CharField(max_length=50)  # 1 - переписка, иначе служебное
+    type = models.CharField(max_length=50, default=1)  # 1 - переписка, иначе служебное
+
+    image = models.ImageField(upload_to='sent', blank=True, null=True)
 
     @classmethod
     def create_from_parser(cls, order_id, data: OrderMessage):
