@@ -268,6 +268,29 @@ def cancel_order_view(request):
         return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)
 
 @csrf_exempt
+def continue_with_new_price(request):
+    order_hash = int(request.POST['order_hash'])
+    order = P2POrderBuyToken.get_order_by_hash(order_hash)
+
+    if order.state == order.STATE_WRONG_PRICE:
+        order.state = P2POrderBuyToken.STATE_INITIATED
+        settings = BybitSettings.objects.get(id=1)
+        try:
+            chain_commission = settings.get_chain(order.withdraw_token, order.withdraw_chain)['withdraw_commission']
+            amount, quantity, best_p2p, better_p2p = get_price(order.payment_method, order.amount, order.quantity, order.currency, order.withdraw_token, order.withdraw_chain,
+                                                               0.01, 0.01, chain_commission, anchor='amount') #todo нужно сохранять anchor из первоначального запроса
+        except TypeError as ex:
+            return JsonResponse({'message': 'cant get new price', 'code': 2}, status=403)
+
+        order.item_id = best_p2p.item_id
+        order.p2p_price = best_p2p.price
+
+        order.save()
+        return JsonResponse({})
+    else:
+        return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)
+
+@csrf_exempt
 def mark_order_as_paid_view(request):
     order_hash = int(request.POST['order_hash'])
     order = P2POrderBuyToken.get_order_by_hash(order_hash)

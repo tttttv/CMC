@@ -12,8 +12,9 @@ urlpatterns = [
     path('order', views.create_order_view, name="order_create"),
     path('order/state', views.get_order_state_view, name="order_state"),
     path('order/cancel', views.cancel_order_view, name="order_cancel"),
+    path('order/continue', views.continue_with_new_price, name="order_continue"),
     path('order/paid', views.mark_order_as_paid_view, name="order_paid"),
     path('order/message', views.get_chat_messages_view, name="order_messages"),
     path('order/message/send', views.send_chat_message_view, name="order_message_send"),
-    path('order/messages/send_image', views.send_chat_image_view, name="order_image_send"),
+    path('order/message/send_image', views.send_chat_image_view, name="order_image_send"),
 ]
