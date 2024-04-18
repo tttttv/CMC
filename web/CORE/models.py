@@ -446,16 +446,18 @@ class P2POrderMessage(models.Model):
 
     def to_json(self):
         side = ''
+        nickname = self.nick_name,
         if self.type == '1':
             if self.user_id == str(self.order.account.user_id):
                 side = 'USER'
+                nickname = self.order.name
             else:
                 side = 'TRADER'
         else:
             side = 'SUPPORT'
 
         res = {
-            'nick_name': self.nick_name,
+            'nick_name': nickname,
             'text': self.text,
             'dt': self.dt.strftime('%d.%m.%Y %H:%M:%S') if self.dt else None,
             'uuid': self.uuid,
