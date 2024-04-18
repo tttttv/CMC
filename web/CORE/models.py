@@ -442,7 +442,7 @@ class P2POrderMessage(models.Model):
         if not self.image:
             return None
         else:
-            return image_as_base64(settings.MEDIA_ROOT + self.image.path)
+            return image_as_base64(self.image.path)
 
     def to_json(self):
         side = ''
