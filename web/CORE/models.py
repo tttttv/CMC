@@ -3,6 +3,7 @@ import hashlib
 import random
 import time
 
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
@@ -10,6 +11,7 @@ from CORE.service.bybit.api import BybitAPI
 from CORE.service.bybit.code_2fa import get_ga_token
 from CORE.service.bybit.models import OrderMessage
 from CORE.service.CONFIG import  TOKENS_DIGITS
+from CORE.service.tools.formats import image_as_base64
 
 
 class BybitSettings(models.Model):
@@ -434,6 +436,13 @@ class P2POrderMessage(models.Model):
     def order(self): #todo сделать нормально
         return P2POrderBuyToken.objects.get(order_id=self.order_id)
 
+    def get_image_base64(self):
+        # settings.MEDIA_ROOT = '/path/to/env/projectname/media'
+        if not self.image:
+            return None
+        else:
+            return image_as_base64(settings.MEDIA_ROOT + self.image.path)
+
     def to_json(self):
         side = ''
         if self.type == '1':
@@ -447,8 +456,8 @@ class P2POrderMessage(models.Model):
         return {
             'nick_name': self.nick_name,
             'text': self.text,
-            'dt': self.dt.strftime('%d.%m.%Y %H:%M:%S'),
+            'dt': self.dt.strftime('%d.%m.%Y %H:%M:%S') if self.dt else None,
             'uuid': self.uuid,
-            'image_url': None,
+            'image': self.get_image_base64(),
             'side': side,
         }
