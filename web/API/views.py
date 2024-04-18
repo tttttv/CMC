@@ -203,7 +203,7 @@ def get_order_state_view(request):
     state_data = {}
     order_data = {
         'from': settings.get_payment_method(order.payment_method),
-        'to': settings.get_token(order.p2p_token),
+        'to': settings.get_token(order.withdraw_token),
         'rate': (order.amount / order.withdraw_quantity) if order.withdraw_quantity else None,
         'amount': order.amount,
         'quantity': order.withdraw_quantity,
