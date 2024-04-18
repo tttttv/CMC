@@ -297,3 +297,9 @@ def send_chat_message_view(request):
         return JsonResponse({})
     else:
         return JsonResponse({'message': 'Error sending message', 'code': 1}, status=403)
+
+@csrf_exempt
+def send_chat_image_view(request):
+    image = request.FILES.get("image")
+    print(image)
+    return JsonResponse({})

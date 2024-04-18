@@ -15,4 +15,5 @@ urlpatterns = [
     path('order/paid', views.mark_order_as_paid_view, name="order_paid"),
     path('order/message', views.get_chat_messages_view, name="order_messages"),
     path('order/message/send', views.send_chat_message_view, name="order_message_send"),
+    path('order/messages/send_image', views.send_chat_image_view, name="order_image_send"),
 ]
