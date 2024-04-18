@@ -20,6 +20,7 @@ def image_as_base64(image_file, format='png'):
     :param `image_file` for the complete path of image.
     :param `format` is format for image, eg: `png` or `jpg`.
     """
+    print(image_file)
     if not os.path.isfile(image_file):
         return None
 
