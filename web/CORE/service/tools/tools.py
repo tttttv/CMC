@@ -53,7 +53,10 @@ def get_price(payment_method, amount, quantity, currency, token, chain, platform
             best_p2p = i
             break
     else:
-        return None
+        if P2PItem.objects.filter(is_active=True).exists():
+            raise ValueError
+        else:
+            return None
 
     print(best_p2p.price)
     better_items = P2PItem.objects.filter(side=P2PItem.SIDE_SELL, is_active=True, max_amount__gte=amount, currency=currency, token=p2p_token, price__lt=best_p2p.price).order_by('min_amount', 'price').all()

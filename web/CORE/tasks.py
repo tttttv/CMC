@@ -22,7 +22,7 @@ def update_p2pitems_task():
             accounts = BybitAccount.objects.filter(is_active=True)
             account = random.choice(accounts)
             s = BybitSession(account)
-
+            #todo нужно проверять продавцов на онлайн
             items_sale= s.get_prices_list(token_id='USDT', currency_id='RUB',
                               payment_methods=token['payment_methods'], side="1") #лоты на продажу
             items_buy = s.get_prices_list(token_id='USDT', currency_id='RUB', #todo другие валюты
