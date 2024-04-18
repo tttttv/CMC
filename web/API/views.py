@@ -300,6 +300,6 @@ def send_chat_message_view(request):
 
 @csrf_exempt
 def send_chat_image_view(request):
-    image = request.FILES.get("image")
+    image = request.POST.get("image")
     print(image)
     return JsonResponse({})
