@@ -212,7 +212,8 @@ def get_order_state_view(request):
         'rate': (order.amount / order.withdraw_quantity) if order.withdraw_quantity else None,
         'amount': order.amount,
         'quantity': order.withdraw_quantity,
-        'order_hash': order_hash
+        'order_hash': order_hash,
+        'time_left': (datetime.datetime.now() - order.dt_created).seconds,
     }
     if order.state == P2POrderBuyToken.STATE_INITIATED:
         state = 'INITIALIZATION' #Ожидание создания заказа на бирже
