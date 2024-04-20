@@ -292,7 +292,9 @@ def continue_with_new_price(request):
         except TypeError as ex:
             return JsonResponse({'message': 'cant get new price', 'code': 2}, status=403)
 
-        order.item_id = best_p2p.item_id
+        item = P2PItem.objects.filter(item_id=best_p2p.item_id)
+        
+        order.item_id = item.id
         order.p2p_price = best_p2p.price
 
         order.save()
