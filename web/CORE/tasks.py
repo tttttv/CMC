@@ -81,36 +81,38 @@ def process_buy_order_task(order_id):
 
     print(order.id, order.state)
     if order.state == P2POrderBuyToken.STATE_INITIATED:
-        if order.withdraw_token not in P2P_TOKENS:  # Если нужно трейдить токен, покупаем в USDT
-            order.withdraw_token_rate = order.account.get_api().get_trading_rate(order.withdraw_token, 'USDT')
-            order.p2p_token = 'USDT'
-        else: #Если нет - покупаем ту же валюту
-            order.withdraw_token_rate = 1
-            order.p2p_token = order.withdraw_token
-        order.withdraw_quantity = calculate_withdraw_quantity(order.withdraw_token, order.withdraw_chain, order.amount, order.p2p_price,
-                                                              order.withdraw_token_rate, order.platform_commission,
-                                                              order.partner_commission, order.trading_commission, order.chain_commission)
-        order.save()
-
-        price = s.get_item_price(order.item.item_id) #Хэш от стоимости
-        print('Got price')
-
-        if price['price'] != order.p2p_price: #Не совпала цена
-            order.state = P2POrderBuyToken.STATE_WRONG_PRICE
+        if not order.order_id: #Бывает такое что заказ не создавался
+            if order.withdraw_token not in P2P_TOKENS:  # Если нужно трейдить токен, покупаем в USDT
+                order.withdraw_token_rate = order.account.get_api().get_trading_rate(order.withdraw_token, 'USDT')
+                order.p2p_token = 'USDT'
+            else: #Если нет - покупаем ту же валюту
+                order.withdraw_token_rate = 1
+                order.p2p_token = order.withdraw_token
+            order.withdraw_quantity = calculate_withdraw_quantity(order.withdraw_token, order.withdraw_chain, order.amount, order.p2p_price,
+                                                                  order.withdraw_token_rate, order.platform_commission,
+                                                                  order.partner_commission, order.trading_commission, order.chain_commission)
             order.save()
-            return order
 
-        order_id = s.create_order_buy(order.item.item_id, order.p2p_quantity, order.amount, price['curPrice'], token_id=order.p2p_token, currency_id=order.currency)
-        order.dt_created = datetime.datetime.now()
-        order.order_id = order_id
-        order.state = P2POrderBuyToken.STATE_CREATED
-        order.save()
+            price = s.get_item_price(order.item.item_id) #Хэш от стоимости
+            print('Got price')
+
+            if price['price'] != order.p2p_price: #Не совпала цена
+                order.state = P2POrderBuyToken.STATE_WRONG_PRICE
+                order.save()
+                return order
+
+            order_id = s.create_order_buy(order.item.item_id, order.p2p_quantity, order.amount, price['curPrice'], token_id=order.p2p_token, currency_id=order.currency)
+            order.dt_created = datetime.datetime.now()
+            order.order_id = order_id
+            order.save()
 
         state, terms = s.get_order_info(order_id, order.payment_method)
         print('Got state', state)
         order.order_status = int(state)
         order.terms = terms.to_json()
-        order.save() #Нужно отдать клиенту реквизиты и ждать оплаты
+        if order.terms: #Может не выгрузитсья из-за ошибок
+            order.state = P2POrderBuyToken.STATE_CREATED
+            order.save() #Нужно отдать клиенту реквизиты и ждать оплаты
     elif order.state == P2POrderBuyToken.STATE_CREATED: #На этом этапе ждем подтверждения со стороны пользователя
         if order.dt_created.replace(tzinfo=None) < (datetime.datetime.now() - datetime.timedelta(minutes=P2P_BUY_TIMEOUTS['CREATED'])):
             print('Order timeout')

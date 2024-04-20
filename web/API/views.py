@@ -118,7 +118,7 @@ def create_order_view(request):
     print(request.POST)
     name = request.POST['name']
     card_number = request.POST['card_number']
-    payment_method = int(request.GET.get('payment_method', 377))
+    payment_method = int(request.POST.get('payment_method', 377))
     amount = float(request.POST['amount'])
     price = float(request.POST['price'])
     token = request.POST.get('token', 'USDT')
