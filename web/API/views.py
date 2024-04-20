@@ -222,6 +222,9 @@ def get_order_state_view(request):
     if order.state == P2POrderBuyToken.STATE_INITIATED:
         state = 'INITIALIZATION' #Ожидание создания заказа на бирже
     elif order.state == P2POrderBuyToken.STATE_WRONG_PRICE: #Ошибка создания - цена изменилась
+        state_data = {
+            'withdraw_quantity': order.withdraw_quantity
+        }
         state = order.state
     elif order.state == P2POrderBuyToken.STATE_CREATED: #Заказ создан, ожидаем перевод
         state = 'PENDING'
@@ -284,7 +287,7 @@ def continue_with_new_price(request):
         settings = BybitSettings.objects.get(id=1)
         try:
             chain_commission = settings.get_chain(order.withdraw_token, order.withdraw_chain)['withdraw_commission']
-            amount, quantity, best_p2p, better_p2p = get_price(order.payment_method, order.amount, order.quantity, order.currency, order.withdraw_token, order.withdraw_chain,
+            amount, quantity, best_p2p, better_p2p = get_price(order.payment_method, order.amount, order.withdraw_quantity, order.currency, order.withdraw_token, order.withdraw_chain,
                                                                0.01, 0.01, chain_commission, anchor='amount') #todo нужно сохранять anchor из первоначального запроса
         except TypeError as ex:
             return JsonResponse({'message': 'cant get new price', 'code': 2}, status=403)
