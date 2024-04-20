@@ -88,19 +88,27 @@ def process_buy_order_task(order_id):
             else: #Если нет - покупаем ту же валюту
                 order.withdraw_token_rate = 1
                 order.p2p_token = order.withdraw_token
+
+            price = s.get_item_price(order.item.item_id)  # Хэш от стоимости
+            print('Got price')
+            
+            order.withdraw_quantity = calculate_withdraw_quantity(order.withdraw_token, order.withdraw_chain,
+                                                                  order.amount, price['price'],
+                                                                  order.withdraw_token_rate, order.platform_commission,
+                                                                  order.partner_commission, order.trading_commission,
+                                                                  order.chain_commission)
+
+            if price['price'] != order.p2p_price:  # Не совпала цена
+                order.state = P2POrderBuyToken.STATE_WRONG_PRICE
+                order.save()
+                return order
+
             order.withdraw_quantity = calculate_withdraw_quantity(order.withdraw_token, order.withdraw_chain, order.amount, order.p2p_price,
                                                                   order.withdraw_token_rate, order.platform_commission,
                                                                   order.partner_commission, order.trading_commission, order.chain_commission)
             order.save()
 
-            price = s.get_item_price(order.item.item_id) #Хэш от стоимости
-            print('Got price')
-
-            if price['price'] != order.p2p_price: #Не совпала цена
-                order.state = P2POrderBuyToken.STATE_WRONG_PRICE
-                order.save()
-                return order
-
+            #todo {'ret_code': 912100027, 'ret_msg': 'The ad status of your P2P order has been changed. Please try another ad.', 'result': None, 'ext_code': '', 'ext_info': {}, 'time_now': '1713650504.469008'}
             order_id = s.create_order_buy(order.item.item_id, order.p2p_quantity, order.amount, price['curPrice'], token_id=order.p2p_token, currency_id=order.currency)
             if order_id is None: #Забанен за отмену заказов
                 order.account.is_active = False

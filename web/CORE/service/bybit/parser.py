@@ -80,7 +80,7 @@ class BybitSession(Session):
         data = {
             "item_id": item_id,
         }
-
+        #{'ret_code': 912300001, 'ret_msg': 'Insufficient ad inventory, please try other ads', 'result': None, 'ext_code': '', 'ext_info': None, 'time_now': '1713650165.224304'}
         r = self.session.post('https://api2.bybit.com/fiat/otc/item/simple', json=data)
         resp = r.json()
         print(resp)
