@@ -91,7 +91,7 @@ def process_buy_order_task(order_id):
 
             price = s.get_item_price(order.item.item_id)  # Хэш от стоимости
             print('Got price')
-            
+
             order.withdraw_quantity = calculate_withdraw_quantity(order.withdraw_token, order.withdraw_chain,
                                                                   order.amount, price['price'],
                                                                   order.withdraw_token_rate, order.platform_commission,
@@ -100,7 +100,7 @@ def process_buy_order_task(order_id):
 
             if price['price'] != order.p2p_price:  # Не совпала цена
                 order.state = P2POrderBuyToken.STATE_WRONG_PRICE
-                order.save()
+                order.save() #withdraw_quantity сохраняется для передачи нового количества. Пользователь может согласиться или нет
                 return order
 
             order.withdraw_quantity = calculate_withdraw_quantity(order.withdraw_token, order.withdraw_chain, order.amount, order.p2p_price,
@@ -114,7 +114,7 @@ def process_buy_order_task(order_id):
                 order.account.is_active = False
                 order.account.is_active_commentary = 'Banned for frod at ' + datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
                 order.account.save()
-                order.account = None
+                #order.account = None todo убирать аккаунт с заказа
                 order.save()
                 return
 
