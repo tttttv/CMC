@@ -102,6 +102,14 @@ def process_buy_order_task(order_id):
                 return order
 
             order_id = s.create_order_buy(order.item.item_id, order.p2p_quantity, order.amount, price['curPrice'], token_id=order.p2p_token, currency_id=order.currency)
+            if order_id is None: #Забанен за отмену заказов
+                order.account.is_active = False
+                order.account.is_active_commentary = 'Banned for frod at ' + datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
+                order.account.save()
+                order.account = None
+                order.save()
+                return
+
             order.dt_created = datetime.datetime.now()
             order.order_id = order_id
             order.save()

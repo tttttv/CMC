@@ -117,7 +117,10 @@ class BybitSession(Session):
             return resp['result']['orderId']
         else:
             print(resp)
-            raise ValueError
+            if resp['ret_code'] == 912120110:
+                return None
+            else:
+                raise ValueError
 
 
     def create_order_sell(self, item_id, quantity, amount, cur_price, payment_type, payment_id, token_id="USDT", currency_id="RUB", risk_token=''):

@@ -143,6 +143,8 @@ class BybitAccount(models.Model):
     api_key = models.CharField(max_length=50, blank=True, null=True)
     api_secret = models.CharField(max_length=50, blank=True, null=True)
 
+    is_active_commentary = models.CharField(max_length=200, default='')
+
 
     def risk_get_ga_code(self):
         return get_ga_token(self.ga_secret)
