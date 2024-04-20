@@ -119,6 +119,8 @@ class BybitSession(Session):
             print(resp)
             if resp['ret_code'] == 912120110:
                 return None
+            elif resp['ret_code'] == 912100052:
+                return None
             else:
                 raise ValueError
 
