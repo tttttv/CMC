@@ -410,7 +410,7 @@ class P2POrderMessage(models.Model):
     message_id = models.CharField(max_length=50)
     account_id = models.CharField(max_length=50, blank=True, null=True)
     text = models.TextField(blank=True, null=True)
-    dt = models.DateTimeField(blank=True, null=True)
+    dt = models.DateTimeField(blank=True, null=True, default=datetime.datetime.now)
     uuid = models.CharField(max_length=50, blank=True, null=True)
     user_id = models.CharField(max_length=50, blank=True, null=True)
     nick_name = models.CharField(max_length=50, blank=True, null=True)

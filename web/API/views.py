@@ -213,8 +213,12 @@ def get_order_state_view(request):
         'amount': order.amount,
         'quantity': order.withdraw_quantity,
         'order_hash': order_hash,
-        'time_left': (datetime.datetime.now() - order.dt_created + datetime.timedelta(minutes=60)).seconds,
     }
+    if order.dt_created:
+        order_data['time_left'] = (order.dt_created - datetime.datetime.now()  + datetime.timedelta(minutes=60)).seconds
+    else:
+        order_data['time_left'] = 0
+
     if order.state == P2POrderBuyToken.STATE_INITIATED:
         state = 'INITIALIZATION' #Ожидание создания заказа на бирже
     elif order.state == P2POrderBuyToken.STATE_WRONG_PRICE: #Ошибка создания - цена изменилась
