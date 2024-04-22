@@ -16,4 +16,8 @@ export default defineConfig({
 			plugins: [autoprefixer],
 		},
 	},
+	server: {
+        host: true,
+        port: 8080
+    }
 })
