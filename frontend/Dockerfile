@@ -17,4 +17,4 @@ RUN npm list -g --depth=4
 
 # start app
 #CMD ["npm", "run", "dev"]
-ENTRYPOINT ["tail", "-f", "/dev/null"]
+ENTRYPOINT ["npm", "run", "dev"]
