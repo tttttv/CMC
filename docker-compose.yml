@@ -6,7 +6,7 @@ services:
     environment:
       REACT_APP_SERVER: "${SERVER}"
     volumes:
-      - /home/tttttv/ControlCRM/frontend:/app
+      - /home/tttttv/CMC/frontend:/app
     ports:
       - "3000:3000"
     depends_on:
