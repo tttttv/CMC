@@ -1,0 +1,17 @@
+.modalDescription {
+	max-width: 390px;
+	padding: 16px;
+	background: #ffd1d1;
+	border-radius: 12px;
+	letter-spacing: -2%;
+	font-weight: 500;
+	font-size: var(--font-size);
+
+	text-align: center;
+}
+
+@media (max-width: 560px) {
+	.modalDescription {
+		max-height: 100px;
+	}
+}

@@ -1,0 +1,8 @@
+.container {
+	padding: 24px;
+	box-shadow: 0 0 24px 0 rgba(90, 89, 89, 0.1);
+	border-radius: 20px;
+	& > :first-child {
+		margin-bottom: 37px;
+	}
+}

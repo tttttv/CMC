@@ -1,0 +1,30 @@
+.button {
+	display: block;
+	width: 100%;
+	padding: 16px 0 !important;
+	border: 1px solid var(--green-color);
+	font-weight: var(--font-weight);
+	color: var(--white-color) !important;
+	background: var(--green-color) !important;
+	border-radius: var(--button-radius);
+	text-transform: uppercase;
+	transition-duration: 0.2s;
+	text-align: center;
+
+	&:disabled {
+		background: var(--palegray-color) !important;
+		border-color: var(--palegray-color) !important;
+		color: var(--gray-color) !important;
+		cursor: default;
+	}
+
+	&:not(:disabled):hover {
+		background: var(--lightgreen-color) !important;
+		border-color: var(--green-color) !important;
+	}
+
+	&:not(:disabled):active {
+		background: var(--green-color) !important;
+		border-color: var(--green-color) !important;
+	}
+}

@@ -1,0 +1,33 @@
+.list {
+	display: flex;
+	padding-block: 12px;
+	margin-bottom: 8px;
+	gap: 10px;
+}
+
+.listItem {
+	-webkit-text-fill-color: var(--gray-color);
+	-webkit-opacity: 1;
+	opacity: 1;
+	color: var(--gray-color);
+	font-size: 0.875rem;
+	padding: 4px 12px 6px;
+	border: 1px solid #fff;
+	border-radius: 6px;
+	&.active {
+		-webkit-text-fill-color: var(--darkgray-color);
+		opacity: 1;
+		color: var(--darkgray-color);
+		border-color: var(--green-color);
+
+		& > button {
+			cursor: default;
+		}
+	}
+	&:hover {
+		opacity: 1;
+		-webkit-text-fill-color: var(--darkgray-color);
+		color: var(--darkgray-color);
+		border-color: var(--green-color);
+	}
+}

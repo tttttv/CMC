@@ -1,0 +1,39 @@
+.window {
+	padding: 44px 48.5px 24px;
+	@media (max-width: 470px) {
+		padding: 32px clamp(15px, 4.5vw, 20px) clamp(10px, 4.5vw, 20px);
+	}
+}
+.modalTitle {
+	font-weight: 600;
+	font-size: 1.25rem;
+	text-wrap: wrap;
+	color: var(--darkgray-color);
+	text-align: center;
+	margin-bottom: 10px;
+}
+
+.closeButton {
+	position: absolute;
+	right: 0;
+	top: 0;
+	margin: -20px -20px 0 0;
+	color: white;
+}
+
+@media (max-width: 500px) {
+	.closeButton {
+		margin: -30px 0 0 0;
+	}
+}
+
+.newAmount {
+	font-weight: 500;
+	margin-bottom: 32px;
+	text-wrap: wrap;
+	text-align: center;
+	.amount {
+		color: var(--green-color);
+		font-weight: 700;
+	}
+}

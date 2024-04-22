@@ -1,0 +1,51 @@
+.stagesContainer {
+	width: 100%;
+	display: grid;
+	grid-template-columns: 7fr 10fr;
+	gap: 24px;
+	padding-block: clamp(1.25rem, 9.877vw - 1.404rem, 6.25rem);
+	.left {
+		gap: 24px;
+		display: flex;
+		flex-direction: column;
+		@media (max-width: 1024px) {
+			gap: 20px;
+		}
+	}
+
+	@media (max-width: 1024px) {
+		grid-template-columns: 1fr;
+		gap: 32px;
+	}
+	&.chatOpened {
+		display: flex;
+		flex-direction: column;
+	}
+}
+
+.chatButtonContainer {
+	margin-top: 32px;
+	padding-inline: 20px;
+	> button {
+		width: 100%;
+	}
+	.chatButton {
+		position: relative;
+		&::after {
+			content: attr(data-amount);
+			position: absolute;
+			top: -10px;
+			right: 10px;
+
+			background-color: #ff0000;
+			font-weight: 700;
+			font-size: 14px;
+			border-radius: 50%;
+			width: 20px;
+			height: 20px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+	}
+}

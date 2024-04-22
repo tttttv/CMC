@@ -1,0 +1,10 @@
+.container {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 20px;
+	padding-block: clamp(1.25rem, 9.877vw - 1.404rem, 6.25rem);
+	@media (max-width: 1220px) {
+		display: flex;
+		flex-direction: column;
+	}
+}

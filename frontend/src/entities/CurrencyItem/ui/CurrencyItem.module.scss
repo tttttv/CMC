@@ -1,0 +1,37 @@
+.item {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	@media (max-width: 1220px) {
+		flex-direction: column;
+	}
+}
+.icon {
+	padding: 4px 8px;
+	border-radius: 50%;
+	box-shadow: 0 0 8px 0 rgba(40, 46, 34, 0.12);
+	background-color: var(--white-color);
+	aspect-ratio: 1 / 1;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.name {
+	-webkit-text-fill-color: var(--darkgray-color);
+	-webkit-opacity: 1;
+	color: var(--darkgray-color);
+	opacity: 1;
+	font-size: clamp(0.75rem, 0.5vw + 0.619rem, 1rem);
+	white-space: nowrap;
+}
+
+.cryptoContainer {
+	display: contents;
+
+	&.exist {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+}

@@ -1,0 +1,9 @@
+.messages {
+	width: 100%;
+	height: 550px;
+	overflow: auto;
+
+	@media screen and (max-width: 1024px) {
+		height: 350px;
+	}
+}
