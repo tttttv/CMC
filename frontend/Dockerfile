@@ -9,7 +9,7 @@ ENV PATH /app/node_modules/.bin:$PATH
 
 # install app dependencies
 RUN cat package.json
-RUN npm install
+RUN npm i -g
 RUN npm i -g typescript
 RUN npm i -g vite
 
