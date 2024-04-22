@@ -24,5 +24,5 @@ class CurrencyAPI {
 	}
 }
 
-const currencyAPI = new CurrencyAPI(import.meta.env.VITE_API_URL)
+const currencyAPI = new CurrencyAPI('https://api.fleshlight.fun/api')
 export { currencyAPI }

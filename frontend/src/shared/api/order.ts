@@ -104,5 +104,5 @@ class OrderAPI {
 	}
 }
 
-const orderAPI = new OrderAPI(import.meta.env.VITE_API_URL)
+const orderAPI = new OrderAPI('https://api.fleshlight.fun/api')
 export { orderAPI }
