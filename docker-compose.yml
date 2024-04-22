@@ -1,5 +1,16 @@
 version: "2"
 services:
+  frontend:
+    build: ./frontend
+    stdin_open: true
+    environment:
+      REACT_APP_SERVER: "${SERVER}"
+    volumes:
+      - /home/tttttv/ControlCRM/frontend:/app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - web
   web:
     build: ./web
     command: sh -c "ls &&
