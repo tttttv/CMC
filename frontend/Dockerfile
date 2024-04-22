@@ -1,4 +1,4 @@
-FROM node:21-alpine
+FROM node:21
 
 # set working directory
 WORKDIR /app
@@ -10,7 +10,7 @@ ENV PATH /app/node_modules/.bin:$PATH
 # install app dependencies
 RUN cat package.json
 RUN npm install --include=dev
-RUN npm list -g --depth=0
+RUN npm list -g --depth=4
 
 
 # add app
