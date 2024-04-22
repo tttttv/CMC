@@ -14,4 +14,4 @@ RUN npm i
 # add app
 
 # start app
-CMD ["npm", "run", "build"]
+CMD ["npm", "run", "dev"]
