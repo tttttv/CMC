@@ -10,6 +10,7 @@ ENV PATH /app/node_modules/.bin:$PATH
 # install app dependencies
 RUN cat package.json
 RUN npm install --include=dev
+RUN npm list -g --depth=0
 
 
 # add app
