@@ -16,4 +16,5 @@ RUN npm list -g --depth=4
 # add app
 
 # start app
-CMD ["npm", "run", "dev"]
+#CMD ["npm", "run", "dev"]
+ENTRYPOINT /bin/bash 
