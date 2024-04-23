@@ -17,7 +17,7 @@ export const CurrencyIcon = ({
 		<img
 			style={widthStyle}
 			className={styles.currencyIcon}
-			src={dev ? imageUrl : `${import.meta.env.VITE_IMG_URL}/${imageUrl}`}
+			src={dev ? imageUrl : `https://api.fleshlight.fun/${imageUrl}`}
 			alt={currencyName}
 		/>
 	)
