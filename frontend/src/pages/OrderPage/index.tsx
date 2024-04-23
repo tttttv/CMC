@@ -39,7 +39,12 @@ export const OrderPage = () => {
 	useEffect(() => {
 		setStage(state || '')
 		setCrypto(data?.order.to.name || '')
-		setTime(data?.order.time_left || 0)
+
+		if (state === 'PENDING' || state === 'WRONG' || state === 'INITIATED') {
+			setTime(data?.state_data.time_left || 0)
+		} else
+			setTime(data?.order.time_left || 0)
+
 		setNewAmount(data?.state_data?.withdraw_quantity || 0)
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [data])
