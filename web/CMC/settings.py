@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-aopxkfkgx_t8=p@55@io!v*&rxbq%jt*)3f@8%hqrelzhp9mc2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['158.160.113.89', '127.0.0.1', 'fleshlight.fun', 'api.fleshlight.fun']
+ALLOWED_HOSTS = ['158.160.113.89', '127.0.0.1', 'fleshlight.fun', 'api.fleshlight.fun', 'https://api.fleshlight.fun']
 
 
 # Application definition

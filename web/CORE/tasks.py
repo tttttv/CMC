@@ -75,7 +75,7 @@ def process_orders_task():
 @shared_task
 def process_buy_order_task(order_id):
     order = P2POrderBuyToken.objects.get(id=order_id)
-    accounts = BybitAccount.objects.filter(is_active=True)
+    accounts = BybitAccount.objects.filter(is_active=True) #todo надо прикреплять аккаунт к заказу
     account = random.choice(accounts)
     s = BybitSession(account)
 
@@ -160,7 +160,7 @@ def process_buy_order_task(order_id):
             process_buy_order_task(order.id) #Вызывает себя со следующим статусом
         elif state == 20:
             print('Waiting for seller')
-        elif state == 30:
+        elif state == 30: #Выводить ошибку
             print('Appeal')
         else:
             raise ValueError("Unknown state", state)
