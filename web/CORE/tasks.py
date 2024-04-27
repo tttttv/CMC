@@ -68,9 +68,9 @@ def update_latest_email_codes_task(user_id=None):
 
 @shared_task
 def process_orders_task():
-    orders_buy_token = P2POrderBuyToken.objects.filter(~Q(state=P2POrderBuyToken.STATE_WITHDRAWN))
+    orders_buy_token = P2POrderBuyToken.objects.filter(~Q(state=P2POrderBuyToken.STATE_WITHDRAWN)) #todo ошибочные статусы итд
     for order in orders_buy_token:
-        process_buy_order_task(order.id)
+        process_buy_order_task(order.id) #todo delay
 
 @shared_task
 def process_buy_order_task(order_id):
