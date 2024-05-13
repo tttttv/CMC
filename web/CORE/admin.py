@@ -3,7 +3,7 @@ from django.contrib import admin
 # Register your models here.
 from CORE.models import *
 
-admin.site.register(BybitSettings)
+admin.site.register(BybitCurrency)
 admin.site.register(BybitAccount)
 admin.site.register(RiskEmail)
 

@@ -30,14 +30,3 @@ class PaymentTerm:
 
     def print(self):
         print(' '.join([self.paymentId, str(self.paymentType), self.realName, self.accountNo]))
-
-class OrderMessage:
-    def __init__(self, item):
-        self.id = item['id']
-        self.accountId = item['accountId']
-        self.text = item['message']
-        self.createdDate = int(item.get('createDate', 0))
-        self.msgUuid = item['msgUuid']
-        self.userId = item['userId']
-        self.nickName = item['nickName']
-        self.msgType = item['msgType'] #1 - переписка, иначе служебное

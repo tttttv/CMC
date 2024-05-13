@@ -25,7 +25,15 @@ SECRET_KEY = 'django-insecure-aopxkfkgx_t8=p@55@io!v*&rxbq%jt*)3f@8%hqrelzhp9mc2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['158.160.113.89', '127.0.0.1', 'fleshlight.fun', 'api.fleshlight.fun']
+# from dotenv import load_dotenv  # FIXME TEST
+# load_dotenv()
+
+SERVER = os.getenv('SERVER', 'PROD')
+if SERVER == 'LOCAL':
+    CORS_ORIGIN_ALLOW_ALL = True
+    ALLOWED_HOSTS = ['*']
+else:
+    ALLOWED_HOSTS = ['158.160.113.89', '127.0.0.1', 'fleshlight.fun', 'api.fleshlight.fun']
 
 
 # Application definition
@@ -48,7 +56,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',  # FIXME MUST
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -110,7 +118,7 @@ DATABASES = {
         'NAME': os.getenv('POSTGRES_DATABASE'),
         'USER': os.getenv('POSTGRES_USER'),
         'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
-        'HOST': 'db',
+        'HOST': os.getenv('POSTGRES_HOST', 'db'),
         'PORT': '5432',
     },
 }
@@ -158,18 +166,17 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-
 CELERY_TIMEZONE = 'Europe/Moscow'
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_BROKER_URL = 'redis://' + os.getenv('REDIS_USER', '') + ':' + os.getenv('REDIS_PASSWORD', '') + '@redis:6379/0'
+CELERY_BROKER_URL = f"redis://{os.getenv('REDIS_USER', '')}:{os.getenv('REDIS_PASSWORD', '')}" \
+                    f"@{os.getenv('REDIS_HOST', 'redis')}:6379/0"
 CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_DEFAULT_QUEUE = 'default'
 CELERY_TASK_RESULT_EXPIRES = 604800
 CELERY_RESULT_EXTENDED = True
-
 
 
 MEDIA_URL = '/media/'

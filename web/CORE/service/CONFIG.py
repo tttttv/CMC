@@ -1,9 +1,9 @@
+
+
 TOKENS_DIGITS = {
     'USDT': 4,
     'NEAR': 2,
 }
-
-
 
 P2P_BUY_TIMEOUTS = {
     'CREATED': 30,

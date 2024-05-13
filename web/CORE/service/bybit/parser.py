@@ -3,10 +3,11 @@ import time
 import requests
 from requests import Session
 import uuid
+from typing import Optional
 
 from websocket import create_connection
 
-from CORE.service.bybit.models import PaymentTerm, OrderMessage
+from CORE.service.bybit.models import PaymentTerm  # , OrderMessage
 from CORE.models import P2PItem
 from CORE.service.tools.formats import format_float
 
@@ -18,10 +19,12 @@ def get_cookies():
         cookies = json.load(f)
     return cookies
 
+
 class TimeoutRequestsSession(requests.Session):
     def request(self, *args, **kwargs):
         kwargs.setdefault('timeout', P2P_EMAIL_SEND_TIMEOUT)
         return super(TimeoutRequestsSession, self).request(*args, **kwargs)
+
 
 class BybitSession(Session):
     def __init__(self, user):
@@ -45,18 +48,19 @@ class BybitSession(Session):
         self.session.headers.update(self.headers)
         print('COOKIES SUCCESSFULLY SET')
 
-    def get_prices_list(self, token_id='USDT', currency_id='RUB', payment_methods=["379"], items=[], amount="", side="1"):
+    def get_prices_list(self, token_id='USDT', currency_id='RUB', payment_methods=["379"], items=[], amount="",
+                        side="1"):
         """Выгружает список цен на п2п"""
         data = {
             "userId": self.user_id,
             "tokenId": token_id,  # Покупка USDT за RUB
             "currencyId": currency_id,
-            "payment": [str(p) for p in payment_methods], #379 - Альфа банк
-            "side": side, #1 - лоты на продажу токенов, 0 - лоты на покупку токенов
+            "payment": [str(p) for p in payment_methods],  # 379 - Альфа банк
+            "side": side,  # 1 - лоты на продажу токенов, 0 - лоты на покупку токенов
             "size": "10000",
             "page": "1",
             "amount": amount,
-            #"authMaker": True, - подтвержденный
+            # "authMaker": True, - подтвержденный
             "canTrade": True
         }
 
@@ -68,7 +72,7 @@ class BybitSession(Session):
         if resp['ret_code'] == 0:
             p2p = []
             for item in resp['result']['items']:
-                if (not items) or (item['id'] in items): #Фильтруем только тех кого запросили
+                if (not items) or (item['id'] in items):  # Фильтруем только тех кого запросили
                     p2p.append(P2PItem.from_json(item))
             return p2p
         else:
@@ -76,11 +80,11 @@ class BybitSession(Session):
             raise ValueError
 
     def get_item_price(self, item_id):
-        """Уточняет сцену по айтему перед сделкой"""
+        """Уточняет цену по айтему перед сделкой"""
         data = {
             "item_id": item_id,
         }
-        #{'ret_code': 912300001, 'ret_msg': 'Insufficient ad inventory, please try other ads', 'result': None, 'ext_code': '', 'ext_info': None, 'time_now': '1713650165.224304'}
+        # {'ret_code': 912300001, 'ret_msg': 'Insufficient ad inventory, please try other ads', 'result': None, 'ext_code': '', 'ext_info': None, 'time_now': '1713650165.224304'}
         r = self.session.post('https://api2.bybit.com/fiat/otc/item/simple', json=data)
         resp = r.json()
         print(resp)
@@ -106,8 +110,9 @@ class BybitSession(Session):
             "currencyId": currency_id,
             "securityRiskToken": "",
             "side": "0",
-            "quantity": str(format_float(float(quantity), token=token_id)), #сумма в крипте, точность зависит от токена
-            "amount": str(amount), #сумма в фиате
+            "quantity": str(format_float(float(quantity), token=token_id)),
+            # сумма в крипте, точность зависит от токена
+            "amount": str(amount),  # сумма в фиате
             "curPrice": cur_price,
         }
         print(data)
@@ -124,8 +129,8 @@ class BybitSession(Session):
             else:
                 raise ValueError
 
-
-    def create_order_sell(self, item_id, quantity, amount, cur_price, payment_type, payment_id, token_id="USDT", currency_id="RUB", risk_token=''):
+    def create_order_sell(self, item_id, quantity, amount, cur_price, payment_type, payment_id, token_id="USDT",
+                          currency_id="RUB", risk_token=''):
         """Создает ордер на обмен валюты"""
         data = {
             "itemId": item_id,
@@ -134,9 +139,10 @@ class BybitSession(Session):
             "tokenId": token_id,
             "currencyId": currency_id,
             "securityRiskToken": risk_token,
-            "side": "1", #1 - продажа крипты,  0 - покупка
-            "quantity": str(format_float(float(quantity), token=token_id)), #сумма в крипте, тут не совсем понятно как округлять и сколько знаков
-            "amount": str(amount), #сумма в фиате
+            "side": "1",  # 1 - продажа крипты,  0 - покупка
+            "quantity": str(format_float(float(quantity), token=token_id)),
+            # сумма в крипте, тут не совсем понятно как округлять и сколько знаков
+            "amount": str(amount),  # сумма в фиате
             "curPrice": cur_price,
             "paymentType": payment_type,
             "paymentId": payment_id,
@@ -147,25 +153,25 @@ class BybitSession(Session):
         r = self.session.post("https://api2.bybit.com/fiat/otc/order/create", json=data)
         resp = r.json()
         if resp['ret_code'] == 0:
-            return resp['result']['orderId'], resp['result']['securityRiskToken'] #order, risk_token
+            return resp['result']['orderId'], resp['result']['securityRiskToken']  # order, risk_token
         elif resp['ret_code'] == 912120030:
             raise ValueError('The price has been changed')
         else:
             print(resp)
             raise ValueError
 
-    def get_order_info(self, order_id, payment_type=None):
+    def get_order_info(self, order_id, payment_type: Optional[int] = None):
         data = {
             "orderId": order_id
         }
         r = self.session.post("https://api2.bybit.com/fiat/otc/order/info", json=data)
         resp = r.json()
         if resp['ret_code'] == 0:
-            terms = []
             for term in resp['result']['paymentTermList']:
                 term = PaymentTerm(term)
-                if (not payment_type) or (str(term.paymentType) == str(payment_type)):
-                    return resp['result']['status'], term #10 - в процессе, 50 - совершено, 20 - при продаже отправили монеты
+                if not payment_type or str(term.paymentType) == str(payment_type):
+                    return resp['result'][
+                               'status'], term  # 10 - в процессе, 50 - совершено, 20 - при продаже отправили монеты
             else:
                 print(resp)
                 raise NotImplementedError
@@ -173,7 +179,7 @@ class BybitSession(Session):
             print(resp)
             raise ValueError
 
-    def mark_order_as_paid(self, order_id, payment_id, payment_type="379"):
+    def mark_order_as_paid(self, order_id, payment_id: int, payment_type="379"):
         data = {
             "orderId": order_id,
             "paymentId": payment_id,
@@ -201,7 +207,8 @@ class BybitSession(Session):
         if resp['ret_code'] == 0:
             messages = []
             for item in resp['result']['result']:
-                messages.append(OrderMessage(item))
+                # messages.append(OrderMessage(item))
+                messages.append(item)
             return messages
         else:
             print(resp)
@@ -216,20 +223,22 @@ class BybitSession(Session):
             result = resp['result']
             deviceId = self.session.cookies.get_dict()['deviceId']
             url = "wss://ws2.bybit.com/private?appid=bybit&os=web&deviceid=" + deviceId
-            ws = create_connection(url) #Установка соединения с веб сокетом
+            ws = create_connection(url)  # Установка соединения с веб сокетом
 
             req_id = self.session.cookies.get_dict()['_by_l_g_d']
             data = {"req_id": req_id, "op": "login", "args": [result]}
-            ws.send(json.dumps(data)) #Запрос на авторизацию
+            ws.send(json.dumps(data))  # Запрос на авторизацию
             result = json.loads(ws.recv())
 
             if result['success'] == True:  # success auth
-                myuuid = str(uuid.uuid4()) #генерация uuid для сообщения
+                myuuid = str(uuid.uuid4())  # генерация uuid для сообщения
                 data = {
                     "op": "input",
                     "args": [
                         "FIAT_OTC_TOPIC",
-                        "{\"topic\":\"OTC_USER_CHAT_MSG_V2\",\"type\":\"SEND\",\"data\":{\"userId\":" + str(self.user_id) + ",\"orderId\":\"" + str(order_id) + "\",\"message\":\"" + message + "\",\"contentType\":\"str\",\"msgUuid\":\"" + myuuid + "\",\"roleType\":\"user\"},\"msgId\":\"OTC_USER_CHAT_MSG_V2-SEND-" + str(
+                        "{\"topic\":\"OTC_USER_CHAT_MSG_V2\",\"type\":\"SEND\",\"data\":{\"userId\":" + str(
+                            self.user_id) + ",\"orderId\":\"" + str(
+                            order_id) + "\",\"message\":\"" + message + "\",\"contentType\":\"str\",\"msgUuid\":\"" + myuuid + "\",\"roleType\":\"user\"},\"msgId\":\"OTC_USER_CHAT_MSG_V2-SEND-" + str(
                             int(time.time())) + "-" + str(order_id) + "\",\"reqId\":\"" + req_id + "\"}"
                     ]
                 }
@@ -252,18 +261,19 @@ class BybitSession(Session):
         files = {'upload_file': file}
         r = s.post('https://api2.bybit.com/fiat/p2p/oss/upload_file', data=files)
         resp = r.json()
-
+        print(f'upload_file resp: {resp}')
         if resp['ret_code'] == 0:
             return True
+        return False
 
-    def get_withdraw_risk_token(self, address, amount:float, token='USDT', chain='MANTLE'):
+    def get_withdraw_risk_token(self, address, amount: float, token='USDT', chain='MANTLE'):
         r = self.session.get(
-            "https://api2.bybit.com/v3/private/cht/asset-withdraw/withdraw/risk-token?" + \
-            "coin=" + token + \
-            "&chain=" + chain + \
-            "&address=" + address + \
-            "&tag=" + \
-            "&amount=" + str(format_float(float(amount), token=token)) + \
+            "https://api2.bybit.com/v3/private/cht/asset-withdraw/withdraw/risk-token?" +
+            "coin=" + token +
+            "&chain=" + chain +
+            "&address=" + address +
+            "&tag=" +
+            "&amount=" + str(format_float(float(amount), token=token)) +
             "&withdrawType=0", headers=self.headers)
         resp = r.json()
         if resp['ret_code'] == 0:
@@ -323,7 +333,8 @@ class BybitSession(Session):
             "address_type": 0
         }
         print(data)
-        r = self.session.post("https://api2.bybit.com/v3/private/cht/asset-withdraw/address/address-is-verified", json=data)
+        r = self.session.post("https://api2.bybit.com/v3/private/cht/asset-withdraw/address/address-is-verified",
+                              json=data)
         resp = r.json()
         print(resp)
         if resp['ret_code'] == 0:
@@ -350,7 +361,9 @@ class BybitSession(Session):
             raise ValueError
 
     def verify_risk_withdraw_fee(self, amount, token, chain):
-        r = self.session.get('https://api2.bybit.com/v3/private/cht/asset-withdraw/withdraw/withdraw-fee?coin=' + token + '&amount=' + str(amount) + '&withdraw_type=0&is_all=0&chain=' + chain)
+        r = self.session.get(
+            'https://api2.bybit.com/v3/private/cht/asset-withdraw/withdraw/withdraw-fee?coin=' + token + '&amount=' + str(
+                amount) + '&withdraw_type=0&is_all=0&chain=' + chain)
         resp = r.json()
         if resp['ret_code'] == 0:
             return resp['result']['fee']
@@ -359,8 +372,9 @@ class BybitSession(Session):
             raise ValueError
 
     def verify_risk_pre_check(self, address, amount, token, chain):
-        r = self.session.get('https://api2.bybit.com/v3/private/cht/asset-withdraw/address/pre-check-withdraw-address' + \
-                '?coin=' + token + '&chain=' + chain + '&amount=' + str(amount) + '&address=' + address + '&tag=')
+        r = self.session.get('https://api2.bybit.com/v3/private/cht/asset-withdraw/address/pre-check-withdraw-address' +
+                             '?coin=' + token + '&chain=' + chain + '&amount=' + str(
+            amount) + '&address=' + address + '&tag=')
         resp = r.json()
         print(resp)
         if resp['ret_code'] == 0:
@@ -370,8 +384,9 @@ class BybitSession(Session):
             raise ValueError
 
     def verify_risk_is_travel_rule(self, address, amount, token, chain):
-        r = self.session.get('https://api2.bybit.com/v3/private/cht/asset-withdraw/withdraw/is-travel-rule' + \
-                '?coin=' + token + '&chain=' + chain + '&amount=' + str(amount) + '&address=' + address + '&tag=')
+        r = self.session.get('https://api2.bybit.com/v3/private/cht/asset-withdraw/withdraw/is-travel-rule' +
+                             '?coin=' + token + '&chain=' + chain + '&amount=' + str(
+            amount) + '&address=' + address + '&tag=')
         resp = r.json()
         print(resp)
         if resp['ret_code'] == 0:
@@ -380,9 +395,6 @@ class BybitSession(Session):
             print(resp)
             raise ValueError
 
-
-
-
     def verify_risk_token(self, risk_token, google_code, email_code=None):
         data = {
             "risk_token": risk_token,
@@ -390,7 +402,7 @@ class BybitSession(Session):
                 "google2fa": google_code
             }
         }
-        if email_code: #если заодно требуется email верификация
+        if email_code:  # если заодно требуется email верификация
             data['component_list']['email_verify'] = email_code
         print(data)
 
@@ -407,6 +419,7 @@ class BybitSession(Session):
         else:
             print(resp)
             raise ValueError
+
     {
         "ret_code": 0,
         "ret_msg": "success",
@@ -444,7 +457,8 @@ class BybitSession(Session):
         }
 
         print(data)
-        r = self.session.post("https://api2.bybit.com/v3/private/cht/asset-withdraw/withdraw/onChain-withdraw", json=data)
+        r = self.session.post("https://api2.bybit.com/v3/private/cht/asset-withdraw/withdraw/onChain-withdraw",
+                              json=data)
         resp = r.json()
         if resp['ret_code'] == 0:
             return True
@@ -637,7 +651,8 @@ class BybitSession(Session):
     Simple -> Create (risk token) -> components -> verify -> create -> info
     
     """
-    def get_risk_components(self, risk_token): #обязательно
+
+    def get_risk_components(self, risk_token):  # обязательно
         data = {
             "risk_token": risk_token
         }
@@ -692,11 +707,11 @@ class BybitSession(Session):
             "securityRiskToken": risk_token
         }
 
-        headers = { #без этого не работает
+        headers = {  # без этого не работает
             'guid': self.session.cookies.get_dict()['_by_l_g_d'],
         }
 
-        r = self.session.post('https://api2.bybit.com/fiat/otc/order/finish',  headers=headers, json=data)
+        r = self.session.post('https://api2.bybit.com/fiat/otc/order/finish', headers=headers, json=data)
         resp = r.json()
 
         if resp['ret_code'] == 0:
@@ -720,7 +735,7 @@ class BybitSession(Session):
         }
 
     def get_payment_methods(self):
-        "Список доступных способов оплаты"
+        """Список доступных способов оплаты"""
         r = self.session.post('https://api2.bybit.com/fiat/otc/configuration/queryAllPaymentList')
         resp = r.json()
         if resp['ret_code'] == 0:
@@ -746,27 +761,26 @@ class BybitSession(Session):
             print(resp)
             raise ValueError()
 
-
     def addressbook_get_risk_token(self, address, token='USDT', chain='MANTLE'):
         info = {
-                "addresses":
-                    [
-                        {
-                            "coin": token,
-                            "address": address,
-                            "chain_type": chain,
-                            "is_verified":False,
-                            "address_type":0
-                        }
-                    ]
-            }
+            "addresses":
+                [
+                    {
+                        "coin": token,
+                        "address": address,
+                        "chain_type": chain,
+                        "is_verified": False,
+                        "address_type": 0
+                    }
+                ]
+        }
         data = {
             'sence': '30062',
             'ext_info_str': json.dumps(info)
         }
 
-
-        r = self.session.post("https://api2.bybit.com/user/public/risk/default-intercept", data=data, headers=self.headers)
+        r = self.session.post("https://api2.bybit.com/user/public/risk/default-intercept", data=data,
+                              headers=self.headers)
         resp = r.json()
         print(resp)
         if resp['ret_code'] == 0:
@@ -780,7 +794,7 @@ class BybitSession(Session):
             "coin": token,
             "address": address,
             "chain_type": chain,
-            "is_verified": False, #Вывод без 2фа
+            "is_verified": False,  # Вывод без 2фа
             "address_type": 0,
             "risk_verified_result_token": risk_token
         }
@@ -790,10 +804,11 @@ class BybitSession(Session):
         print(resp)
         if resp['ret_code'] == 0:
             return True
-            return resp['result']['riskToken']
+            # return resp['result']['riskToken']
         else:
             print(resp)
             raise ValueError
+
 
 if __name__ == '__main__':
     s = BybitSession('147000319')
