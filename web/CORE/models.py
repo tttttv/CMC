@@ -372,7 +372,6 @@ class P2POrderBuyToken(models.Model):
     item = models.ForeignKey(P2PItem, on_delete=models.CASCADE)
     payment_method = models.ForeignKey(BybitCurrency, on_delete=models.CASCADE)
 
-    side = models.CharField(max_length=10, choices=ITEM_SIDE)  # TODO NEW
     currency = models.CharField(max_length=10)
     p2p_token = models.CharField(max_length=30, default='USDT')
     p2p_price = models.FloatField()
