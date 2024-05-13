@@ -174,7 +174,7 @@ def create_order_view(request):
     address = request.POST['address']
     email = request.POST['email']
     item_id = request.POST['item_id']
-    anchor = request.GET.get('anchor', 'currency')  # FIXME NEW IN FRONT
+    anchor = request.POST.get('anchor', 'currency')  # FIXME NEW IN FRONT
 
     order = P2POrderBuyToken()
     order.name = name
@@ -406,7 +406,7 @@ def send_chat_image_view(request):
     data = ContentFile(base64.b64decode(imgstr))
     file_name = "'myphoto." + ext
 
-    message = P2POrderMessage(
+    message = P2POrderMessage(   # TEST ONLY
         order_id='1781097796773679104',
         message_id='-1',
         image=data

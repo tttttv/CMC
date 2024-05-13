@@ -3,4 +3,11 @@
 /web/CORE/migrations/
 .idea
 /.env
+**/.env
+
 /nginx/cert
+/web/INFO
+**/__pycache__/
+*.py[cod]
+
+docker-compose.local.yml

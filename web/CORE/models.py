@@ -227,7 +227,7 @@ class P2PItem(models.Model):
     max_amount = models.FloatField()  # Максимум фиата
     dt_updated = models.DateTimeField(default=datetime.datetime.now)  # Время выгрузки данных
     side = models.CharField(max_length=10, choices=ITEM_SIDE)
-    payment_methods = models.JSONField(default=list)  # Список айди методов
+    payment_methods = models.JSONField(default=list)  # Список айди методов  FIXME
     remark = models.TextField(blank=True, null=True)  # Ремарка к лоту
 
     currency = models.CharField(max_length=50, default='RUB')
@@ -300,8 +300,7 @@ class Widget(models.Model):
     email = models.CharField(max_length=50, default=None, blank=True, null=True)
     full_name = models.CharField(max_length=50, default=None, blank=True, null=True)
     color_palette = models.JSONField(default=DEFAULT_PALETTE, blank=True, null=True)
-    # payment_method = models.JSONField(default=dict, blank=True, null=True)
-    payment_methods = models.ManyToManyField(BybitCurrency, null=True, default=None, verbose_name='Способы оплаты',
+    payment_methods = models.ManyToManyField(BybitCurrency, default=None, verbose_name='Способы оплаты',
                                              related_name="widget_payment")
     # private
     redirect_url = models.TextField(validators=[URLValidator()], default=None, blank=True, null=True)
@@ -369,7 +368,7 @@ class P2POrderBuyToken(models.Model):
     email = models.CharField(max_length=100, default='')
 
     item = models.ForeignKey(P2PItem, on_delete=models.CASCADE)
-    payment_method = models.ForeignKey(BybitCurrency, on_delete=models.CASCADE)
+    payment_method = models.ForeignKey(BybitCurrency, on_delete=models.CASCADE, blank=True, null=True)  # FIXME
 
     currency = models.CharField(max_length=10)
     p2p_token = models.CharField(max_length=30, default='USDT')
