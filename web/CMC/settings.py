@@ -81,7 +81,6 @@ CORS_ALLOW_HEADERS = [
     'Content-Type'
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
 
 TEMPLATES = [
     {
@@ -181,3 +180,4 @@ CELERY_RESULT_EXTENDED = True
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+

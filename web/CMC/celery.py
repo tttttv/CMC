@@ -23,4 +23,10 @@ def setup_periodic_tasks(sender, **kwargs):
             'task': 'CORE.tasks.process_orders_task',
             'schedule': crontab(hour='*', minute='*/1'),
         },
+
+        'process_orders_messages': {
+            'task': 'CORE.tasks.process_orders_messages_task',
+            'schedule': crontab(hour='*', minute='*/1'),
+        },
+
     }
