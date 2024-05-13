@@ -303,9 +303,8 @@ class Widget(models.Model):
     # payment_method = models.JSONField(default=dict, blank=True, null=True)
     payment_methods = models.ManyToManyField(BybitCurrency, null=True, default=None, verbose_name='Способы оплаты',
                                              related_name="widget_payment")
-
     # private
-    redirect_url = models.TextField(validators=[URLValidator()])
+    redirect_url = models.TextField(validators=[URLValidator()], default=None, blank=True, null=True)
 
 
 def default_order_hash():
