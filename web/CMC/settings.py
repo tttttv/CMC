@@ -33,9 +33,9 @@ if SERVER == 'LOCAL':
     CORS_ORIGIN_ALLOW_ALL = True
     ALLOWED_HOSTS = ['*']
 else:
-    ALLOWED_HOSTS = ['158.160.113.89', '127.0.0.1', 'fleshlight.fun', 'api.fleshlight.fun']
+    ALLOWED_HOSTS = ['158.160.113.89', '127.0.0.1', 'fleshlight.fun', 'api.fleshlight.fun', 'https://*.fleshlight.fun']
 
-
+CSRF_TRUSTED_ORIGINS = ['https://*.fleshlight.fun']
 # Application definition
 
 INSTALLED_APPS = [

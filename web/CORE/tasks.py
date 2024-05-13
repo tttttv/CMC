@@ -213,7 +213,7 @@ def process_buy_order_task(order_id):
                 process_buy_order_task(order.id)  # Вызывает себя со следующим статусом
             elif state == 20:
                 print('Waiting for seller')
-            elif state == 30:
+            elif state == 30:  # todo Выводить ошибку
                 print('Appeal')
             else:
                 raise ValueError("Unknown state", state)

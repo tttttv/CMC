@@ -258,7 +258,7 @@ def get_order_state_view(request):
         'order_hash': order_hash,
     }
     if order.dt_created:
-        order_data['time_left'] = (order.dt_created - datetime.datetime.now() + datetime.timedelta(minutes=60)).seconds
+        order_data['time_left'] = max((order.dt_created - datetime.datetime.now() + datetime.timedelta(minutes=60)).seconds, 0)
     else:
         order_data['time_left'] = 0
 
