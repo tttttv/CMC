@@ -3,8 +3,9 @@ import hashlib
 import random
 import time
 import secrets
-
+import base64
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.validators import URLValidator
 from django.db import models
 from django.db.models import Q
@@ -13,7 +14,10 @@ from CORE.service.bybit.api import BybitAPI
 from CORE.service.bybit.code_2fa import get_ga_token
 # from CORE.service.bybit.models import OrderMessage
 from CORE.service.CONFIG import TOKENS_DIGITS
-from CORE.service.tools.formats import image_as_base64
+from CORE.service.bybit.parser import BybitSession
+from CORE.service.tools.formats import file_as_base64
+from CORE.service.CONFIG import P2P_TOKENS
+from CORE.service.tools.tools import calculate_withdraw_quantity
 
 
 class BybitCurrency(models.Model):
@@ -196,6 +200,12 @@ class BybitAccount(models.Model):
     def get_random_account(cls):
         return random.choice(BybitAccount.objects.filter(is_active=True).all())
 
+    def set_banned(self):
+        self.is_active = False
+        self.is_active_commentary = 'Banned for frod at ' + datetime.datetime.now().strftime(
+            '%d.%m.%Y %H:%M')
+        self.save()
+
 
 class RiskEmail(models.Model):
     """Парсинг верификационных писем с email"""
@@ -329,9 +339,12 @@ class P2POrderBuyToken(models.Model):
     STATE_WITHDRAWING = 'WITHDRAWING'  # Токен получен
     STATE_WAITING_VERIFICATION = 'VERIFICATION'  # Ожидание верификации по почте
     STATE_WITHDRAWN = 'WITHDRAWN'  # Токен выведен на кошелек
+
     STATE_TIMEOUT = 'TIMEOUT'  # Отменен по времени
     STATE_ERROR = 'ERROR'  # Ошибка вывода после получения средств клиента
     STATE_CANCELLED = 'CANC'  # Отменен пользователем
+    STATE_ACCOUNT_BANNED = 'ACC_BANNED'
+    STATE_P2P_APPEAL = 'P2P_APPEAL'
 
     STATES = (
         (STATE_INITIATED, 'Инициализирован'),
@@ -347,13 +360,17 @@ class P2POrderBuyToken(models.Model):
         (STATE_WITHDRAWN, 'Средства выведены'),
         (STATE_TIMEOUT, 'Просрочен'),
         (STATE_ERROR, 'Ошибка вывода валюты'),
-        (STATE_CANCELLED, 'Отменен пользователем')
+        (STATE_CANCELLED, 'Отменен пользователем'),
+
+        (STATE_ACCOUNT_BANNED, 'Заблокирован аккаунт'),  # state только системный
+        (STATE_P2P_APPEAL, 'Создана апелляция')
     )
 
     ANCHOR_CURRENCY = 'currency'
     ANCHOR_TOKEN = 'token'
     # TODO весь нейминг к одному виду: fiat currency crypro token
     # TODO anchor - Поменять на side 1 / 0 Первая валюта или вторая
+
     ANCHORS = (
         (ANCHOR_CURRENCY, 'Фиат'),
         (ANCHOR_TOKEN, 'Крипта')
@@ -422,6 +439,8 @@ class P2POrderBuyToken(models.Model):
     # CHECK NEW
     is_executing = models.BooleanField(default=False)
     anchor = models.CharField(max_length=20, default=ANCHOR_CURRENCY, choices=ANCHORS)
+    is_stopped = models.BooleanField(default=False)  # Долгое выполнение / Возникла ошибка
+    stopped_status = models.TextField(blank=True, null=True)
 
     @property
     def p2p_quantity(self):  # Сколько нужно купить на п2п
@@ -457,22 +476,85 @@ class P2POrderBuyToken(models.Model):
     def risk_get_email_code(self):
         return self.account.risk_get_email_code(self.withdraw_address, self.withdraw_quantity)
 
+    def create_order(self):
+        if self.account is None:  # АКК Был забанен
+            # accounts = BybitAccount.objects.filter(is_active=True)
+            # account = random.choice(accounts)
+            account = BybitAccount.get_free()
+            if not account:
+                raise Exception("No available account")
+            self.account = account
+            self.save()
+
+        bybit_session = BybitSession(self.account)
+        bybit_api = self.account.get_api()
+
+        if self.withdraw_token not in P2P_TOKENS:  # Если нужно трейдить токен, покупаем в USDT
+            self.withdraw_token_rate = bybit_api.get_trading_rate(self.withdraw_token, 'USDT')
+            self.p2p_token = 'USDT'
+        else:  # Если нет - покупаем ту же валюту
+            self.withdraw_token_rate = 1
+            self.p2p_token = self.withdraw_token
+
+        price = bybit_session.get_item_price(self.item.item_id)  # Хэш от стоимости
+
+        self.withdraw_quantity = calculate_withdraw_quantity(self.withdraw_token, self.withdraw_chain,
+                                                             self.amount, price['price'],
+                                                             self.withdraw_token_rate,
+                                                             self.platform_commission,
+                                                             self.partner_commission,
+                                                             self.trading_commission,
+                                                             self.chain_commission)
+
+        if price['price'] != self.p2p_price:  # Не совпала цена
+            self.state = P2POrderBuyToken.STATE_WRONG_PRICE
+            self.save()  # withdraw_quantity сохраняется для передачи нового количества. Пользователь может согласиться или нет
+            return
+
+        self.withdraw_quantity = calculate_withdraw_quantity(self.withdraw_token, self.withdraw_chain,
+                                                             self.amount, self.p2p_price,
+                                                             self.withdraw_token_rate,
+                                                             self.platform_commission,
+                                                             self.partner_commission,
+                                                             self.trading_commission,
+                                                             self.chain_commission)
+        self.save()
+
+        # todo {'ret_code': 912100027, 'ret_msg': 'The ad status of your P2P order has been changed. Please try another ad.', 'result': None, 'ext_code': '', 'ext_info': {}, 'time_now': '1713650504.469008'}
+        order_id = bybit_session.create_order_buy(self.item.item_id, self.p2p_quantity, self.amount,
+                                                  price['curPrice'],
+                                                  token_id=self.p2p_token, currency_id=self.currency)
+        if order_id is None:  # Забанен за отмену заказов
+            self.account.set_banned()
+            self.account = None
+            self.save()
+            return
+
+        self.dt_created = datetime.datetime.now()
+        self.order_id = order_id
+        self.save()
+
 
 class P2POrderMessage(models.Model):
     order = models.ForeignKey(P2POrderBuyToken, on_delete=models.CASCADE)
 
+    TYPE_STR = 'str'
+    TYPE_PDF = 'pdf'
+    TYPE_VIDEO = 'video'
+    TYPE_PIC = 'pic'
+
     message_id = models.CharField(max_length=50)
     account_id = models.CharField(max_length=50, blank=True, null=True)
-    text = models.TextField(blank=True, null=True)
+    text = models.TextField(default='', blank=True, null=True)
     dt = models.DateTimeField(blank=True, null=True, default=datetime.datetime.now)
     uuid = models.CharField(max_length=50, blank=True, null=True)
     user_id = models.CharField(max_length=50, blank=True, null=True)
     nick_name = models.CharField(max_length=50, blank=True, null=True)
     type = models.CharField(max_length=50, default=1)  # 1 - переписка, иначе служебное
 
-    file = models.FileField(upload_to='sent', blank=True, null=True)
+    file = models.FileField(upload_to='sent', blank=True, null=True)  # TODO Папка sent закрыта для доступа из вне
 
-    # image = models.ImageField(upload_to='sent', blank=True, null=True)
+    # content_type = models.CharField(default=TYPE_STR, choices=CONTENT_TYPE, max_length=50)
 
     @classmethod
     def from_json(cls, order_id, data):
@@ -480,24 +562,26 @@ class P2POrderMessage(models.Model):
             message = P2POrderMessage(order_id=order_id)
             message.message_id = data['id']
             message.account_id = data['accountId']
-            message.text = data['message']
             message.dt = datetime.datetime.utcfromtimestamp(int(data.get('createDate', 0)) / 1000)
             message.uuid = data['msgUuid']
             message.user_id = data['userId']
             message.nick_name = data['nickName']
             message.type = data['msgType']
+            if data['contentType'] == cls.TYPE_STR:
+                message.text = data['message']
+            elif data['contentType'] in [cls.TYPE_PIC, cls.TYPE_PDF, cls.TYPE_VIDEO]:
+                filename, content = BybitSession.download_p2p_file_attachment(file_path=data['message'])
+                message.file = ContentFile(content, name=filename)
+            else:  # NON IMPLEMENTED
+                message.text = data['message']
+
             return message
 
     def get_file_base64(self):
-        # settings.MEDIA_ROOT = '/path/to/env/projectname/media'
-        print('GETTING FILE IMAGE/VIDEO', self.file)
-        if not self.file:
-            return None
-        else:
-            return image_as_base64(self.file.path)
+        if self.file:
+            return file_as_base64(self.file.path)
 
     def to_json(self):
-        side = ''
         nickname = self.nick_name,
         if self.type == '1':
             if self.user_id == str(self.order.account.user_id):
@@ -513,7 +597,7 @@ class P2POrderMessage(models.Model):
             'text': self.text,
             'dt': self.dt.strftime('%d.%m.%Y %H:%M:%S') if self.dt else None,
             'uuid': self.uuid,
-            'image': self.get_file_base64(),
+            'file': self.get_file_base64(),
             'side': side,
         }
         print(res)

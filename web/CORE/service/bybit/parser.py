@@ -48,8 +48,8 @@ class BybitSession(Session):
         self.session.headers.update(self.headers)
         print('COOKIES SUCCESSFULLY SET')
 
-    def get_prices_list(self, token_id='USDT', currency_id='RUB', payment_methods=["379"], items=[], amount="",
-                        side="1"):
+    def get_prices_list(self, token_id='USDT', currency_id='RUB', payment_methods=("379", ),
+                        items: Optional[list] = None, amount="", side="1", filter_online: bool = True):
         """Выгружает список цен на п2п"""
         data = {
             "userId": self.user_id,
@@ -72,7 +72,11 @@ class BybitSession(Session):
         if resp['ret_code'] == 0:
             p2p = []
             for item in resp['result']['items']:
-                if (not items) or (item['id'] in items):  # Фильтруем только тех кого запросили
+                print(f"Seller id {data['accountId']} online: {data['isOnline']}")
+                if filter_online and not data['isOnline']:
+                    continue
+
+                if not items or item['id'] in items:  # Фильтруем только тех кого запросили
                     p2p.append(P2PItem.from_json(item))
             return p2p
         else:
@@ -258,8 +262,8 @@ class BybitSession(Session):
             raise ValueError()
 
     def upload_file(self, file):
-        files = {'upload_file': file}
-        r = s.post('https://api2.bybit.com/fiat/p2p/oss/upload_file', data=files)
+        files = {'upload_file': file}  # (file.name, file, 'application/pdf')
+        r = self.session.post('https://api2.bybit.com/fiat/p2p/oss/upload_file', files=files)
         resp = r.json()
         print(f'upload_file resp: {resp}')
         if resp['ret_code'] == 0:
@@ -809,8 +813,20 @@ class BybitSession(Session):
             print(resp)
             raise ValueError
 
+    @classmethod
+    def download_p2p_file_attachment(cls, file_path):  # Можно без сессии получать
+        r = requests.get(f'https://api2.bybit.com/{file_path}')
+        if r.status_code == 200:
+            filename = file_path.split('/')[-1]
+            return filename, r.content
+        return None, None
+
 
 if __name__ == '__main__':
-    s = BybitSession('147000319')
+    from CORE.models import BybitAccount
+    account = BybitAccount.objects.get(id=1)
+
+    account = BybitAccount()
+    s = BybitSession(account)
     payments = s.get_payments_list()
     print(payments)

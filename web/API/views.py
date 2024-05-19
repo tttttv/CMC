@@ -2,7 +2,7 @@ import datetime
 import hashlib
 import time
 from time import sleep
-
+import uuid
 from django.http import JsonResponse
 from django.shortcuts import render
 import base64
@@ -16,7 +16,9 @@ from CORE.models import P2POrderBuyToken, BybitAccount, P2PItem, P2POrderMessage
 from CORE.service.CONFIG import P2P_TOKENS, TOKENS_DIGITS
 from CORE.service.bybit.parser import BybitSession
 from CORE.service.tools.tools import get_price, calculate_withdraw_quantity
-from CORE.tasks import process_buy_order_task, update_latest_email_codes_task, update_p2pitems_task
+from CORE.tasks import process_buy_order_task, update_latest_email_codes_task, update_p2pitems_task, \
+    process_receive_order_message_task_direct
+
 
 def get_widget_palette_view(request):  # Для Партнеров
     """ Список цветов """
@@ -70,7 +72,7 @@ def create_widget_view(request):  # Для Партнеров
 
     widget.save()
 
-    return JsonResponse({'widget': widget.hash})
+    return JsonResponse({'widget_hash': widget.hash})
 
 
 @csrf_exempt
@@ -82,11 +84,9 @@ def get_widget_settings_view(request):
         return JsonResponse({"token": widget.withdrawing_token,
                              "chain": widget.withdrawing_chain,
                              "address": widget.withdrawing_address,
-
                              "full_name": widget.full_name,
                              'email': widget.email,
                              "color_palette": widget.color_palette,
-
                              'payment_methods': list(widget.payment_methods.values_list('id', flat=True))
                              })
     except Exception as e:
@@ -113,14 +113,14 @@ def get_available_to_view(request):
 def get_price_view(request):
     """
     amount - сколько валюты заплатить
-    quantity - сколько крипты получит
+    quantity - сколько крипты получить
 
     :param request:
     :return:
     """
     anchor = request.GET.get('anchor', 'currency')
 
-    currency_id = int(request.GET.get('payment_method', 0))
+    currency_id = int(request.GET.get('payment_method', 0))  # 3  4
     amount = float(request.GET.get('amount', 0))
     quantity = float(request.GET.get('quantity', 0))
     token = request.GET.get('token', 'USDT')
@@ -137,7 +137,7 @@ def get_price_view(request):
         if token != widget.withdrawing_token or chain != widget.withdrawing_chain:
             return JsonResponse({}, status=404)
 
-    pm = BybitCurrency.get_currency(currency_id)
+    pm = BybitCurrency.get_currency(currency_id)  # 3, 4 => 377 379
 
     try:
         chain_commission = pm.get_chain(chain)['withdraw_commission']
@@ -181,7 +181,7 @@ def create_order_view(request):
     order.card_number = card_number
     order.email = email
 
-    if False:  # Todo валидация адреса
+    if False:  # todo валидация адреса
         return JsonResponse({'message': 'wrong address', 'code': 7}, status=403)
 
     account = BybitAccount.get_free()
@@ -395,28 +395,43 @@ def send_chat_message_view(request):
 
 @csrf_exempt
 def send_chat_image_view(request):
-    order_hash = request.GET['order_hash']
+    order_hash = request.POST.get('order_hash')
+
     order = P2POrderBuyToken.objects.get(hash=order_hash)
 
     image_data = request.POST.get("image")
     format, imgstr = image_data.split(';base64,')
-    print("format", format, imgstr)
+
     ext = format.split('/')[-1]
+    if ext not in ['png', 'jpg', 'jpeg', 'mp4', 'pdf']:
+        return JsonResponse({'error': 'Bad file extension. Allowed only: jpeg, png, mp4, pdf.'}, status=400)
 
-    data = ContentFile(base64.b64decode(imgstr))
-    file_name = "'myphoto." + ext
+    file_name = request.POST.get('file_name', f'upload_file.{ext}')  # NEW INPUT
+    data = ContentFile(base64.b64decode(imgstr), name=file_name)
 
-    message = P2POrderMessage(   # TEST ONLY
-        order_id='1781097796773679104',
-        message_id='-1',
-        image=data
-    )
+    mime_types = {
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'mp4': 'video/mp4',
+        'pdf': 'application/pdf'
+    }
+
+    # message = P2POrderMessage(
+    #     order_id=order.order_id,
+    #     message_id=str(uuid.uuid4()),
+    #     file=data
+    # )
+
+    file_data = (file_name, data, mime_types[ext])
 
     bybit_session = BybitSession(order.account)
-    if bybit_session.upload_file(image_data):  # FIXME TEST
-        message.save()
-        message.image.save(file_name, data, save=True)
+    if bybit_session.upload_file(file_data):  # FIXME TEST
+        # message.save()
+        # message.file.save(file_name, data, save=True)
 
+        process_receive_order_message_task_direct.delay(order.id)
+        # Возвращается другое сообщение, не ясно как создать сразу P2POrderMessage и не получить дубль
         return JsonResponse({})
     else:
         return JsonResponse({'message': 'Error sending message', 'code': 1}, status=403)

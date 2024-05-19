@@ -103,14 +103,47 @@ class BybitAPI():
         else:
             raise ValueError(json.dumps(r))
 
+    def get_price(self, token_sell, token_buy, side='a'):
+        """
+        a Ask seller - ордеры на продажу NEAR   По этой цене и выше будем лесенкой выкупать
+        b Bid buyer - ордеры на покупку NEAR
+        """
+        r = self.session.get_orderbook(category="spot", symbol=token_sell+token_buy, limit=25)
+        # r = self.session.get_orderbook(category="linear", symbol=token_sell + token_buy)
+
+        if r['retCode'] == 0:
+            return r['result'][side]
+
+    def get_price_for_amount(self, token_sell: str, token_buy: str, amount: float, side: str = 'a'):  # NEARUSDT (важен порядок)
+        prices = self.get_price(token_sell, token_buy, side)  # a - Покупаем NEAR / b USDT за NEAR
+        total_price = 0.0
+        for (bid_price, bid_amount) in prices:
+            if side == 'a':  # ASC
+                total_price += float(bid_price) * min(amount, float(bid_amount))
+            else:  # DESC
+                total_price += 1.0 / float(bid_price) * min(amount, float(bid_amount))
+            amount -= float(bid_amount)
+            print('bid', bid_price, bid_amount, 'left', amount)
+            if amount < 0.0:
+                return total_price
+        raise Exception("Не хватило на бирже предложений на покупку")
+
 
 if __name__ == '__main__':
     api = BybitAPI("lBRokZFJSDNcuQXpcL", "ZmoAS7JbkL4o4BFtKosoCn0e9A6ebcpZ14AE")
-    # price = api.get_price('NEAR', 'USDT')
+
+    amount = 10
+    price = api.get_price_for_amount('NEAR', 'USDT', amount, side='b')
+    print('price', price)
+
+    rate = api.get_trading_rate('NEAR', 'USDT')
+    # rate = api.get_trading_rate('USDT', 'NEAR')
+    print(rate * amount)
+
     # tr_id = print(api.place_order('NEAR', 'USDT', 5)
     # order_id = api.transfer_to_trade('USDT', 5)
     # status = api.get_order(1633785335043596032)
     # api.withdraw('USDT', 'MANTLE', '0xcb689021987ee9a838081fb27f9dee02098566ee', 3)
     # api.withdraw('NEAR', 'NEAR', '9bfbc37407cbe64cd7b56fc6ef7fa2dfb07210ad6a4c497c831d8ddfc331ca6b', 0.5)
     # api.withdraw('NEAR', 'NEAR', 'b8c72480a7d962f389ff2954386e3f529770991df04d6c750923a1b3625bbf9d', 0.5)
-    api.withdraw('USDT', 'TRX', 'TAibabMu5sWJBunQQHKj5QLQ4k4rDMLSeB', 3)
+    # api.withdraw('USDT', 'TRX', 'TAibabMu5sWJBunQQHKj5QLQ4k4rDMLSeB', 3)

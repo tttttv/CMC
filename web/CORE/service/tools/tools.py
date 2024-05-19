@@ -14,7 +14,7 @@ def calculate_withdraw_quantity(token, chain, amount, p2p_price, withdraw_token_
 
 def calculate_topup_amount(token, quantity, p2p_price, trade_rate, platform_commission, partner_commission,
                            trading_commission, chain_commission):
-    digits = TOKENS_DIGITS[token]
+    # digits = TOKENS_DIGITS[token]
     return format_float_up(
         (((quantity + chain_commission) / (1 - trading_commission)) * trade_rate / (
                     1 - partner_commission - platform_commission)) * p2p_price
@@ -22,15 +22,14 @@ def calculate_topup_amount(token, quantity, p2p_price, trade_rate, platform_comm
 
 
 # todo заложить комиссию трейдинга на бирже
-def get_price(payment_method, amount, quantity, currency, token, chain, platform_commission, partner_commission,
+def get_price(payment_method: int, amount, quantity, currency, token, chain, platform_commission, partner_commission,
               chain_commission, trading_commission=0.001,
               anchor=P2POrderBuyToken.ANCHOR_CURRENCY):  # anchor currency - фикс сумма фиата, token - фикс крипта
     from CORE.models import BybitAccount, P2PItem
 
-    if not (token in P2P_TOKENS):
-        print(1)
-        p2p_token = 'USDT'
-        trade_rate = BybitAccount.get_random_account().get_api().get_trading_rate(token, 'USDT')  # Todo тут только usdt
+    if token not in P2P_TOKENS:
+        p2p_token = 'USDT'   # todo тут только usdt
+        trade_rate = BybitAccount.get_random_account().get_api().get_trading_rate(token, 'USDT')
     else:
         p2p_token = token
         trade_rate = 1

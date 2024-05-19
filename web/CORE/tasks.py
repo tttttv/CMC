@@ -1,18 +1,12 @@
 import datetime
 import logging
 import random
-
 from django.db.models import Q
-
 from CORE.models import BybitAccount, RiskEmail, P2POrderBuyToken, P2PItem, P2POrderMessage, BybitCurrency
 from CORE.service.bybit.parser import BybitSession
 from CORE.service.bybit.code_2fa import get_codes, get_addressbook_codes
-
 from CORE.service.CONFIG import P2P_BUY_TIMEOUTS, P2P_EMAIL_SEND_TIMEOUT, P2P_WITHDRAW_TIMEOUT, P2P_TOKENS
-
 from celery import shared_task
-
-from CORE.service.tools.tools import calculate_withdraw_quantity
 from CORE.utils import order_task_lock
 
 
@@ -22,25 +16,23 @@ def update_p2pitems_task():
     account = random.choice(accounts)
     bybit_session = BybitSession(account)
 
-    for token in BybitCurrency.objects.filter(type=BybitCurrency.TYPE_CRYPTO).all():
-        # todo нужно проверять продавцов на онлайн
-        payment_methods = token.payment_methods()
-        if payment_methods:
-            items_sale = bybit_session.get_prices_list(token_id='USDT', currency_id='RUB',
-                                                       payment_methods=payment_methods, side="1")  # лоты на продажу
-            items_buy = bybit_session.get_prices_list(token_id='USDT', currency_id='RUB',  # todo другие валюты
-                                                      payment_methods=payment_methods, side="0")  # лоты на покупку
+    payment_methods = [payment.payment_id for payment in BybitCurrency.all_payment_methods()]
 
-            P2PItem.objects.filter(is_active=True).update(is_active=False)
+    items_sale = bybit_session.get_prices_list(token_id='USDT', currency_id='RUB',
+                                               payment_methods=payment_methods, side="1", filter_online=False)  # лоты на продажу
+    items_buy = bybit_session.get_prices_list(token_id='USDT', currency_id='RUB',  # todo другие валюты
+                                              payment_methods=payment_methods, side="0", filter_online=False)  # лоты на покупку
 
-            for item in (items_sale + items_buy):
-                print(item)
-                if P2PItem.objects.filter(item_id=item.item_id).exists():
-                    item.id = P2PItem.objects.get(item_id=item.item_id).id
-                    print(item.id)
-                item.is_active = True
-                item.save()
-                print('SAVED ID', item.id)
+    P2PItem.objects.filter(is_active=True).update(is_active=False)
+
+    for item in (items_sale + items_buy):
+        print(item)
+        if P2PItem.objects.filter(item_id=item.item_id).exists():
+            item.id = P2PItem.objects.get(item_id=item.item_id).id
+            print(item.id)
+        item.is_active = True
+        item.save()
+        print('SAVED ID', item.id)
 
 
 @shared_task
@@ -74,14 +66,6 @@ def update_latest_email_codes_task(user_id=None):
 
 
 @shared_task
-def process_orders_task():  # Ошибочные статусы доп проверки
-    orders_buy_token = P2POrderBuyToken.objects.filter(~Q(state=P2POrderBuyToken.STATE_WITHDRAWN),
-                                                       is_executing=False)
-    for order in orders_buy_token:
-        process_buy_order_task.delay(order.id)
-
-
-@shared_task
 def process_orders_messages_task():  # Ошибочные статусы доп проверки
     orders_buy_token = P2POrderBuyToken.objects.filter(state__in=[P2POrderBuyToken.STATE_WITHDRAWN,
                                                                   P2POrderBuyToken.STATE_TRANSFERRED,
@@ -99,23 +83,30 @@ def process_receive_order_message_task(order_id):
                        P2POrderBuyToken.STATE_PAID]:
 
         bybit_session = BybitSession(order.account)
-        messages = bybit_session.get_order_messages(order.order_id)  # Выгружаем сообщения из базы
-        print('process_receive_order_message_task', order_id, messages)
+        messages = bybit_session.get_order_messages(order.order_id)  # Выгружаем сообщения
         for msg in messages:
             P2POrderMessage.from_json(order.order_id, msg).save()
 
+@shared_task
+def process_receive_order_message_task_direct(order_id):
+    order = P2POrderBuyToken.objects.get(id=order_id)
+    bybit_session = BybitSession(order.account)
+    messages = bybit_session.get_order_messages(order.order_id)
+    for msg in messages:
+        P2POrderMessage.from_json(order.order_id, msg).save()
+
+
+@shared_task
+def process_orders_task():  # Ошибочные статусы доп проверки
+    orders_buy_token = P2POrderBuyToken.objects.filter(~Q(state=P2POrderBuyToken.STATE_WITHDRAWN),
+                                                       is_executing=False,
+                                                       is_stopped=False)
+    for order in orders_buy_token:
+        process_buy_order_task.delay(order.id)
 
 @shared_task
 def process_buy_order_task(order_id):
     order: P2POrderBuyToken = P2POrderBuyToken.objects.get(id=order_id)
-
-    if order.account is None:
-        # raise exc
-        raise Exception(f"ORDER {order_id} ACCOUNT IS NONE")
-        # logging.error(f"ORDER {order_id} ACCOUNT IS NONE")  # TODO logger
-        # accounts = BybitAccount.objects.filter(is_active=True)
-        # order.account = random.choice(accounts)
-        # order.save()
 
     with order_task_lock(order.id):
         bybit_session = BybitSession(order.account)
@@ -124,60 +115,13 @@ def process_buy_order_task(order_id):
         print('ORDER', order.id, order.state, order.account.imap_username)  # email
         if order.state == P2POrderBuyToken.STATE_INITIATED:
             if not order.order_id:  # Бывает такое что заказ не создавался
-                if order.withdraw_token not in P2P_TOKENS:  # Если нужно трейдить токен, покупаем в USDT
-                    order.withdraw_token_rate = bybit_api.get_trading_rate(order.withdraw_token, 'USDT')
-                    order.p2p_token = 'USDT'
-                else:  # Если нет - покупаем ту же валюту
-                    order.withdraw_token_rate = 1
-                    order.p2p_token = order.withdraw_token
-
-                price = bybit_session.get_item_price(order.item.item_id)  # Хэш от стоимости
-                print('Got price')
-
-                order.withdraw_quantity = calculate_withdraw_quantity(order.withdraw_token, order.withdraw_chain,
-                                                                      order.amount, price['price'],
-                                                                      order.withdraw_token_rate,
-                                                                      order.platform_commission,
-                                                                      order.partner_commission,
-                                                                      order.trading_commission,
-                                                                      order.chain_commission)
-
-                if price['price'] != order.p2p_price:  # Не совпала цена
-                    order.state = P2POrderBuyToken.STATE_WRONG_PRICE
-                    order.save()  # withdraw_quantity сохраняется для передачи нового количества. Пользователь может согласиться или нет
-                    return order
-
-                order.withdraw_quantity = calculate_withdraw_quantity(order.withdraw_token, order.withdraw_chain,
-                                                                      order.amount, order.p2p_price,
-                                                                      order.withdraw_token_rate,
-                                                                      order.platform_commission,
-                                                                      order.partner_commission,
-                                                                      order.trading_commission,
-                                                                      order.chain_commission)
-                order.save()
-
-                # todo {'ret_code': 912100027, 'ret_msg': 'The ad status of your P2P order has been changed. Please try another ad.', 'result': None, 'ext_code': '', 'ext_info': {}, 'time_now': '1713650504.469008'}
-                order_id = bybit_session.create_order_buy(order.item.item_id, order.p2p_quantity, order.amount,
-                                                          price['curPrice'],
-                                                          token_id=order.p2p_token, currency_id=order.currency)
-                if order_id is None:  # Забанен за отмену заказов
-                    order.account.is_active = False
-                    order.account.is_active_commentary = 'Banned for frod at ' + datetime.datetime.now().strftime(
-                        '%d.%m.%Y %H:%M')
-                    order.account.save()
-                    # order.account = None todo убирать аккаунт с заказа
-                    order.save()
-                    return
-
-                order.dt_created = datetime.datetime.now()
-                order.order_id = order_id
-                order.save()
+                order.create_order()
 
             state, terms = bybit_session.get_order_info(order_id, order.payment_method.payment_id)
             print('Got state', state)
             order.order_status = int(state)
             order.terms = terms.to_json()
-            if order.terms:  # Может не выгрузитсья из-за ошибок
+            if order.terms:  # Может не выгрузиться из-за ошибок
                 order.state = P2POrderBuyToken.STATE_CREATED
                 order.save()  # Нужно отдать клиенту реквизиты и ждать оплаты
         elif order.state == P2POrderBuyToken.STATE_CREATED:  # На этом этапе ждем подтверждения со стороны пользователя
@@ -207,7 +151,7 @@ def process_buy_order_task(order_id):
 
             if state == 50:
                 print('Token received')
-                order.state = P2POrderBuyToken.STATE_RECEIVED
+                order.state = P2POrderBuyToken.STATE_RECEIVED  # todo доп. проверять
                 order.dt_received = datetime.datetime.now()
                 order.save()
                 process_buy_order_task(order.id)  # Вызывает себя со следующим статусом
@@ -215,12 +159,16 @@ def process_buy_order_task(order_id):
                 print('Waiting for seller')
             elif state == 30:  # todo Выводить ошибку
                 print('Appeal')
+                # order.is_stopped = True
+                order.state = P2POrderBuyToken.STATE_P2P_APPEAL
+                order.save()
             else:
                 raise ValueError("Unknown state", state)
 
             if order.dt_paid.replace(tzinfo=None) < (
                     datetime.datetime.now() - datetime.timedelta(minutes=P2P_BUY_TIMEOUTS['CREATED'])):
                 print('SELLER timeout')
+                # order.is_stopped = True
                 order.state = P2POrderBuyToken.STATE_ERROR
                 order.save()
         elif order.state == P2POrderBuyToken.STATE_RECEIVED:  # Переводим на биржу
@@ -234,7 +182,11 @@ def process_buy_order_task(order_id):
                 order.state = P2POrderBuyToken.STATE_TRADING
                 order.dt_trading = datetime.datetime.now()
                 order.save()
-        elif order.state == P2POrderBuyToken.STATE_TRADING:  # Todo добавить проверку на волатильность
+        elif order.state == P2POrderBuyToken.STATE_TRADING:  # Todo добавить проверку на волатильность TEST
+            total_price = bybit_api.get_price_for_amount(order.withdraw_token, order.p2p_token, order.trading_quantity)
+            # if total_price > order. ??
+            # FIXME
+
             market_order_id = bybit_api.place_order(order.withdraw_token, order.p2p_token, order.trading_quantity)
             order.market_order_id = market_order_id
             order.state = P2POrderBuyToken.STATE_TRADED
@@ -276,10 +228,11 @@ def process_buy_order_task(order_id):
             print(order.withdraw_quantity)
             if bybit_api.withdraw(order.withdraw_token, order.withdraw_chain, order.withdraw_address,
                                   order.withdraw_quantity):  # todo выводить минус комиссия вывода 0.01 near
-                print('Witdrawn successfully')
+                print('Withdrawn successfully')
                 order.state = P2POrderBuyToken.STATE_WITHDRAWN
                 order.dt_withdrawn = datetime.datetime.now()
                 order.save()
+
 
         """Заменено на вывод через API 
         elif order.state == P2POrderBuyToken.STATE_WITHDRAWING: #Инициализируем вывод крипты
