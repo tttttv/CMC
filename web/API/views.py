@@ -434,4 +434,4 @@ def send_chat_image_view(request):
         # Возвращается другое сообщение, не ясно как создать сразу P2POrderMessage и не получить дубль
         return JsonResponse({})
     else:
-        return JsonResponse({'message': 'Error sending message', 'code': 1}, status=403)
+        return JsonResponse({'message': 'Error sending message', 'code': 1}, status=400)

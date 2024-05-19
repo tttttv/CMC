@@ -266,7 +266,7 @@ class BybitSession(Session):
         r = self.session.post('https://api2.bybit.com/fiat/p2p/oss/upload_file', files=files)
         resp = r.json()
         print(f'upload_file resp: {resp}')
-        if resp['ret_code'] == 0:
+        if resp['retCode'] == 0:
             return True
         return False
 
