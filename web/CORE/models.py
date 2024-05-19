@@ -14,10 +14,8 @@ from CORE.service.bybit.api import BybitAPI
 from CORE.service.bybit.code_2fa import get_ga_token
 # from CORE.service.bybit.models import OrderMessage
 from CORE.service.CONFIG import TOKENS_DIGITS
-from CORE.service.bybit.parser import BybitSession
 from CORE.service.tools.formats import file_as_base64
 from CORE.service.CONFIG import P2P_TOKENS
-from CORE.service.tools.tools import calculate_withdraw_quantity
 
 
 class BybitCurrency(models.Model):
@@ -477,6 +475,9 @@ class P2POrderBuyToken(models.Model):
         return self.account.risk_get_email_code(self.withdraw_address, self.withdraw_quantity)
 
     def create_order(self):
+        from CORE.service.bybit.parser import BybitSession  # FIXME
+        from CORE.service.tools.tools import calculate_withdraw_quantity
+
         if self.account is None:  # АКК Был забанен
             # accounts = BybitAccount.objects.filter(is_active=True)
             # account = random.choice(accounts)
