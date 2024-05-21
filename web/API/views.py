@@ -204,9 +204,12 @@ def create_order_view(request):
         count = query.count()
         if count == 0:
             return JsonResponse({'message': 'No free accounts available', 'code': 1}, status=403)
+            # print('==0')
         random_index = random.randint(0, count - 1)
-
         account_query = query.select_for_update(of=("self", ))[random_index:random_index + 1].all()
+        # a = account_query[0]
+        # print(a, type(a))
+        # print(a.id, a.user_id)
 
         if not account_query:
             return JsonResponse({'message': 'No free accounts available', 'code': 1}, status=403)
@@ -251,8 +254,10 @@ def create_order_view(request):
             order.platform_commission = 0.02
 
         account = account_query[0]
+        if account is None:
+            return JsonResponse({'message': 'No free accounts available', 'code': 777}, status=403)
         account.active_order = order
-
+        order.account = account
         order.save()
         account.save()
 
