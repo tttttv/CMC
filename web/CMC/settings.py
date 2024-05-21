@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'django_celery_results',
     'CORE',
     'API',
+    'CRM_ADMIN.apps.CrmAdminConfig'
 ]
 
 MIDDLEWARE = [
@@ -56,10 +57,11 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',  # FIXME MUST
+    'django.middleware.csrf.CsrfViewMiddleware', # FIXME TEST
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # 'CORE.middleware.ExceptionLoggerMiddleware',  # FIXME
 ]
 
 ROOT_URLCONF = 'CMC.urls'

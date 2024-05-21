@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+{% load static %}
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>admin</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+
+    <body class="loading authentication-bg" data-layout-config='{"leftSideBarTheme":"dark","layoutBoxed":false, "leftSidebarCondensed":false, "leftSidebarScrollable":false,"darkMode":false, "showRightSidebarOnStart": true}'>
+
+            <div class="account-pages pt-2 pt-sm-5 pb-4 pb-sm-5">
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-xxl-4 col-lg-5">
+                        <div class="card">
+
+                            <div class="card-body p-4">
+
+                                <div class="text-center w-75 m-auto">
+                                    <h4 class="text-dark-50 text-center pb-0 fw-bold">Вход в аккаунт</h4>
+                                    <p class="text-muted mb-4">Введите вашу почту и пароль, чтобы получить доступ к CRM-системе</p>
+                                </div>
+
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <div class="mb-3">
+                                        <label for="emailaddress" class="form-label">Логин</label>
+                                        <input class="form-control"  name="email" required="" placeholder="Введите логин">
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <a href="pages-recoverpw.html" class="text-muted float-end"><small>Забыли пароль?</small></a>
+                                        <label for="password" class="form-label">Пароль</label>
+                                        <div class="input-group input-group-merge">
+                                            <input type="password" name="password" class="form-control" placeholder="Введите ваш пароль">
+                                            <div class="input-group-text" data-password="false">
+                                                <span class="password-eye"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" id="checkbox-signin" checked>
+                                            <label class="form-check-label" for="checkbox-signin">Запомнить меня</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-0 text-center">
+                                        <button class="btn btn-primary" type="submit"> Войти </button>
+                                    </div>
+
+                                </form>
+                            </div> <!-- end card-body -->
+                        </div>
+                        <!-- end card -->
+
+
+                    </div> <!-- end col -->
+                </div>
+                <!-- end row -->
+            </div>
+            <!-- end container -->
+        </div>
+            <!-- end page -->
+        
+    </body>
+</html>

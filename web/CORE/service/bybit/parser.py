@@ -26,7 +26,7 @@ class TimeoutRequestsSession(requests.Session):
         return super(TimeoutRequestsSession, self).request(*args, **kwargs)
 
 
-class BybitSession(Session):
+class BybitSession():
     def __init__(self, user):
         self.user_id = user.user_id
         self.session = TimeoutRequestsSession()
@@ -64,16 +64,16 @@ class BybitSession(Session):
             "canTrade": True
         }
 
-        print(data)
+        # print(data)
         r = self.session.post('https://api2.bybit.com/fiat/otc/item/online', json=data)
         resp = r.json()
 
-        print(resp)
+        # print(resp)
         if resp['ret_code'] == 0:
             p2p = []
             for item in resp['result']['items']:
-                print(f"Seller id {data['accountId']} online: {data['isOnline']}")
-                if filter_online and not data['isOnline']:
+                print(f"Seller id {item['accountId']} online: {item['isOnline']}")
+                if filter_online and not item['isOnline']:
                     continue
 
                 if not items or item['id'] in items:  # Фильтруем только тех кого запросили
@@ -218,7 +218,7 @@ class BybitSession(Session):
             print(resp)
             raise ValueError
 
-    def send_message(self, order_id, message):
+    def send_message(self, order_id, message_uuid, message):
         """Отправляет сообщение в переписку"""
         r = self.session.post('https://api2.bybit.com/user/private/ott')
         resp = r.json()
@@ -235,19 +235,20 @@ class BybitSession(Session):
             result = json.loads(ws.recv())
 
             if result['success'] == True:  # success auth
-                myuuid = str(uuid.uuid4())  # генерация uuid для сообщения
+                # myuuid = str(uuid.uuid4())  # генерация uuid для сообщения
                 data = {
                     "op": "input",
                     "args": [
                         "FIAT_OTC_TOPIC",
                         "{\"topic\":\"OTC_USER_CHAT_MSG_V2\",\"type\":\"SEND\",\"data\":{\"userId\":" + str(
                             self.user_id) + ",\"orderId\":\"" + str(
-                            order_id) + "\",\"message\":\"" + message + "\",\"contentType\":\"str\",\"msgUuid\":\"" + myuuid + "\",\"roleType\":\"user\"},\"msgId\":\"OTC_USER_CHAT_MSG_V2-SEND-" + str(
+                            order_id) + "\",\"message\":\"" + message + "\",\"contentType\":\"str\",\"msgUuid\":\"" + message_uuid + "\",\"roleType\":\"user\"},\"msgId\":\"OTC_USER_CHAT_MSG_V2-SEND-" + str(
                             int(time.time())) + "-" + str(order_id) + "\",\"reqId\":\"" + req_id + "\"}"
                     ]
                 }
                 ws.send(json.dumps(data))
                 result = json.loads(ws.recv())
+
                 if result['success'] == True:
                     return True
                 else:
@@ -256,7 +257,6 @@ class BybitSession(Session):
             else:
                 ws.close()
                 raise ConnectionRefusedError()
-            ws.close()
         else:
             print(resp)
             raise ValueError()
@@ -266,7 +266,7 @@ class BybitSession(Session):
         r = self.session.post('https://api2.bybit.com/fiat/p2p/oss/upload_file', files=files)
         resp = r.json()
         print(f'upload_file resp: {resp}')
-        if resp['retCode'] == 0:
+        if resp['ret_code'] == 0:
             return True
         return False
 
@@ -825,8 +825,7 @@ class BybitSession(Session):
 if __name__ == '__main__':
     from CORE.models import BybitAccount
     account = BybitAccount.objects.get(id=1)
-
-    account = BybitAccount()
+    # account = BybitAccount()
     s = BybitSession(account)
     payments = s.get_payments_list()
     print(payments)

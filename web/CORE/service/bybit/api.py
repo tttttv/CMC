@@ -110,7 +110,6 @@ class BybitAPI():
         """
         r = self.session.get_orderbook(category="spot", symbol=token_sell+token_buy, limit=25)
         # r = self.session.get_orderbook(category="linear", symbol=token_sell + token_buy)
-
         if r['retCode'] == 0:
             return r['result'][side]
 
@@ -123,7 +122,7 @@ class BybitAPI():
             else:  # DESC
                 total_price += 1.0 / float(bid_price) * min(amount, float(bid_amount))
             amount -= float(bid_amount)
-            print('bid', bid_price, bid_amount, 'left', amount)
+            # print('bid', bid_price, bid_amount, 'left', amount)
             if amount < 0.0:
                 return total_price
         raise Exception("Не хватило на бирже предложений на покупку")
@@ -132,13 +131,14 @@ class BybitAPI():
 if __name__ == '__main__':
     api = BybitAPI("lBRokZFJSDNcuQXpcL", "ZmoAS7JbkL4o4BFtKosoCn0e9A6ebcpZ14AE")
 
-    amount = 10
-    price = api.get_price_for_amount('NEAR', 'USDT', amount, side='b')
-    print('price', price)
+    trading_quantity = 1
+    total_price = api.get_price_for_amount('NEAR', 'USDT', trading_quantity, side='a')
+    print('bins total_price', total_price)
+    trade_rate = total_price / trading_quantity
+    print('bins trade_rate', trade_rate)
 
     rate = api.get_trading_rate('NEAR', 'USDT')
-    # rate = api.get_trading_rate('USDT', 'NEAR')
-    print(rate * amount)
+    print('last rate', rate, ' last price:', rate * trading_quantity)
 
     # tr_id = print(api.place_order('NEAR', 'USDT', 5)
     # order_id = api.transfer_to_trade('USDT', 5)

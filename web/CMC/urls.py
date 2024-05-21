@@ -20,6 +20,8 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('django/', admin.site.urls),
     path('api/', include(('API.urls', 'reviews'), namespace='Core')),
+    path('admin/', include(('CRM_ADMIN.urls', 'reviews'), namespace='Admin')),
+
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

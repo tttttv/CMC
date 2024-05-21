@@ -1,0 +1,26 @@
+/* .table tr {
+    border: inherit !important;
+} */
+
+.dripicons-user-id {
+    font-size: 21px !important;
+}
+
+.dripicons-camera {
+    font-size: 21px !important;
+}
+
+#choosen_fines{
+    background-color: cadetblue;
+    /* position:-webkit-sticky; */
+    position: fixed !important;
+    bottom: 0 !important;
+    right: 0 !important;
+} 
+
+.nav-link.active{
+    border-top: 1px solid rgba(152,166,173,.2) !important;
+    border-left: 1px solid rgba(152,166,173,.2) !important;
+    border-right: 1px solid rgba(152,166,173,.2) !important;
+}
+

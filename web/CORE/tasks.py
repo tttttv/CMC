@@ -7,13 +7,13 @@ from CORE.service.bybit.parser import BybitSession
 from CORE.service.bybit.code_2fa import get_codes, get_addressbook_codes
 from CORE.service.CONFIG import P2P_BUY_TIMEOUTS, P2P_EMAIL_SEND_TIMEOUT, P2P_WITHDRAW_TIMEOUT, P2P_TOKENS
 from celery import shared_task
-from CORE.utils import order_task_lock
+from CORE.utils import order_task_lock, get_active_celery_tasks
 
 
 @shared_task
 def update_p2pitems_task():
     accounts = BybitAccount.objects.filter(is_active=True)
-    account = random.choice(accounts)
+    account: BybitAccount = random.choice(accounts)
     bybit_session = BybitSession(account)
 
     payment_methods = [payment.payment_id for payment in BybitCurrency.all_payment_methods()]
@@ -24,6 +24,10 @@ def update_p2pitems_task():
                                               payment_methods=payment_methods, side="0", filter_online=False)  # лоты на покупку
 
     P2PItem.objects.filter(is_active=True).update(is_active=False)
+
+    if not items_sale and not items_buy:
+        account.set_banned()  # FIXME TEST
+        return
 
     for item in (items_sale + items_buy):
         print(item)
@@ -97,12 +101,33 @@ def process_receive_order_message_task_direct(order_id):
 
 
 @shared_task
-def process_orders_task():  # Ошибочные статусы доп проверки
-    orders_buy_token = P2POrderBuyToken.objects.filter(~Q(state=P2POrderBuyToken.STATE_WITHDRAWN),
+def process_orders_task():
+    orders_buy_token = P2POrderBuyToken.objects.filter(~Q(state=P2POrderBuyToken.STATE_WITHDRAWN),  # Ошибочные статусы доп проверки
                                                        is_executing=False,
                                                        is_stopped=False)
     for order in orders_buy_token:
         process_buy_order_task.delay(order.id)
+
+
+@shared_task
+def healthcare_orders_task():  # Проверяем время выполнение таска
+    orders_buy_token = P2POrderBuyToken.objects.filter(
+        ~Q(state=P2POrderBuyToken.STATE_WITHDRAWN), is_stopped=False)
+
+    dt_now = datetime.datetime.now() - datetime.timedelta(minutes=60)
+
+    for order in orders_buy_token:
+        if order.dt_created < dt_now:
+            order.is_stopped = True
+            order.error_status = 'task timeout'
+            order.save()
+        elif order.is_executing:
+            order_tasks = get_active_celery_tasks()
+            for task in order_tasks:
+                if task['name'] == 'CORE.tasks.process_buy_order_task' and task['args'][0] == order.order_id:
+                    break
+            else:
+                print('Order task worker die!')  # FIXME нет атомарности / таска в запуске
 
 @shared_task
 def process_buy_order_task(order_id):
@@ -114,7 +139,7 @@ def process_buy_order_task(order_id):
 
         print('ORDER', order.id, order.state, order.account.imap_username)  # email
         if order.state == P2POrderBuyToken.STATE_INITIATED:
-            if not order.order_id:  # Бывает такое что заказ не создавался
+            if not order.order_id:  # Бывает такое что заказ не создавался / Запрос к bybit еще не делали
                 order.create_order()
 
             state, terms = bybit_session.get_order_info(order_id, order.payment_method.payment_id)
@@ -183,9 +208,20 @@ def process_buy_order_task(order_id):
                 order.dt_trading = datetime.datetime.now()
                 order.save()
         elif order.state == P2POrderBuyToken.STATE_TRADING:  # Todo добавить проверку на волатильность TEST
+            # trading_quantity = order.withdraw_from_trading_account / (1 - order.trading_commission)
+            # buy_p2p = order.amount / order.p2p_price
+
             total_price = bybit_api.get_price_for_amount(order.withdraw_token, order.p2p_token, order.trading_quantity)
-            # if total_price > order. ??
-            # FIXME
+            trade_rate = total_price / order.trading_quantity
+
+            # trade_rate = bybit_api.get_trading_rate(order.withdraw_token, order.p2p_token)
+
+            # buy_p2p * (1 - platform_commission) / withdraw_token_rate > buy_p2p / trade_rate * 1.03
+
+            if trade_rate > ((1 - order.platform_commission) * order.withdraw_token_rate * 1.03):
+                print('diff', trade_rate, order.withdraw_token_rate * 1.03, ((1 - order.platform_commission) * order.withdraw_token_rate * 1.03))
+                order.state = P2POrderBuyToken.STATE_ERROR
+                order.save()
 
             market_order_id = bybit_api.place_order(order.withdraw_token, order.p2p_token, order.trading_quantity)
             order.market_order_id = market_order_id
@@ -218,6 +254,7 @@ def process_buy_order_task(order_id):
                     bybit_session.verify_risk_token(risk_token, order.account.risk_get_ga_code(), email_code=code)
                 else:
                     bybit_session.verify_risk_token(risk_token, order.account.risk_get_ga_code())
+
                 bybit_session.addressbook_create_address(order.withdraw_address, risk_token, order.withdraw_token,
                                                          order.withdraw_chain)
 
