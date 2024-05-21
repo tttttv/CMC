@@ -200,7 +200,7 @@ def create_order_view(request):
         return JsonResponse({'message': 'Item is not active anymore', 'code': 2}, status=403)
 
     with transaction.atomic():
-        query = BybitAccount.objects.only('id').filter(active_order__isnull=True)
+        query = BybitAccount.objects.only('id').filter(is_active=True, active_order__isnull=True)
         count = query.count()
         if count == 0:
             return JsonResponse({'message': 'No free accounts available', 'code': 1}, status=403)

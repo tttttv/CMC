@@ -514,7 +514,7 @@ class P2POrderBuyToken(models.Model):
 
         if self.account is None:  # FIXME Можно убрать
             with transaction.atomic():
-                query = BybitAccount.objects.only('id').filter(active_order__isnull=True)
+                query = BybitAccount.objects.only('id').filter(is_active=True, active_order__isnull=True)
                 count = query.count()
                 if count == 0:
                     raise Exception("No available account")
