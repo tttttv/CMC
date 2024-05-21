@@ -176,12 +176,16 @@ def create_order_view(request):
     currency_id = int(request.POST.get('payment_method', 0))
     amount = float(request.POST['amount'])
     price = float(request.POST['price'])
-    token = request.POST.get('token', 'USDT')
+    token_id = request.POST.get('token', 0)
     chain = request.POST.get('chain', 'MANTLE')
     address = request.POST['address']
     email = request.POST['email']
     item_id = request.POST['item_id']
     anchor = request.POST.get('anchor', 'currency')  # FIXME NEW IN FRONT
+
+    withdraw_currency = BybitCurrency.get_currency(token_id)
+    if not withdraw_currency.validate_chain(chain):
+        return JsonResponse({'message': 'chain invalid'}, status=403)
 
     order = P2POrderBuyToken()
     order.name = name
@@ -213,8 +217,8 @@ def create_order_view(request):
 
         order.payment_method = BybitCurrency.get_currency(currency_id)
 
-        withdraw_currency = BybitCurrency.get_token(token)
-        order.withdraw_token = token
+        # withdraw_currency = BybitCurrency.get_currency(token)
+        order.withdraw_token = withdraw_currency.token
         withdraw_chain = withdraw_currency.get_chain(chain)
 
         if not withdraw_chain:
