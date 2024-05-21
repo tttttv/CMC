@@ -14,7 +14,7 @@ from CORE.service.bybit.api import BybitAPI
 from CORE.service.bybit.code_2fa import get_ga_token
 # from CORE.service.bybit.models import OrderMessage
 from CORE.service.CONFIG import TOKENS_DIGITS
-from CORE.service.bybit.parser import BybitSession
+
 from CORE.service.tools.formats import file_as_base64
 from CORE.service.CONFIG import P2P_TOKENS
 
@@ -604,6 +604,8 @@ class P2POrderMessage(models.Model):
 
     @classmethod
     def from_json(cls, order_id, data):
+        from CORE.service.bybit.parser import BybitSession  # FIXME
+
         if P2POrderMessage.objects.filter(message_id=data['id']).exists():
             return
 
