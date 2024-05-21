@@ -147,7 +147,7 @@ def get_price_view(request):
     pm = BybitCurrency.get_currency(currency_id)  # 3, 4 => 377 379
 
     try:
-        chain_commission = pm.get_chain(chain)['withdraw_commission']
+        chain_commission = token.get_chain(chain)['withdraw_commission']
         amount, quantity, best_p2p, better_p2p = get_price(pm.payment_id, amount, quantity, pm.token, token.token,
                                                            chain, 0.01, 0.01, chain_commission, anchor=anchor)
     except TypeError as ex:
