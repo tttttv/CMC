@@ -144,7 +144,7 @@ def process_buy_order_task(order_id):
             if not order.order_id:  # Бывает такое что заказ не создавался / Запрос к bybit еще не делали
                 order.create_order()
 
-            state, terms = bybit_session.get_order_info(order_id, order.payment_method.payment_id)
+            state, terms = bybit_session.get_order_info(order.order_id, order.payment_method.payment_id)
             print('Got state', state)
             order.order_status = int(state)
             order.terms = terms.to_json()
