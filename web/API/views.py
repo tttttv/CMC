@@ -417,7 +417,7 @@ def send_chat_message_view(request):
 
     bybit_session = BybitSession(order.account)
 
-    message_uuid = uuid.uuid4()  # генерация uuid для сообщения
+    message_uuid = str(uuid.uuid4())  # генерация uuid для сообщения
     message = P2POrderMessage(
         order_id=order.order_id,
         message_id=-1,
@@ -426,7 +426,8 @@ def send_chat_message_view(request):
 
         account_id=order.account_id,
         user_id=order.account.user_id,
-        nick_name=order.account.nick_name
+        nick_name='me'
+        # nick_name=order.account.nick_name
     )
 
     if bybit_session.send_message(order.order_id, message_uuid, text):

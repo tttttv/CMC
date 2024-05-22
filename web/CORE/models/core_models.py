@@ -158,7 +158,7 @@ class BybitCurrency(models.Model):
 class BybitAccount(models.Model):
     is_active = models.BooleanField(default=True)
     user_id = models.IntegerField(unique=True)  # Айди пользователя
-    nick_name = models.CharField(default='')  # Ник пользователя
+    # nick_name = models.CharField(default='')  # Ник пользователя
     cookies = models.JSONField(default=list)  # Куки пользователя
     cookies_updated = models.DateTimeField(default=datetime.datetime.now)  # Время установки кук
     cookies_valid = models.BooleanField(default=True)  # Не возникало ошибок с куками

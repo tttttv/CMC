@@ -13,6 +13,9 @@ from CORE.utils import order_task_lock, get_active_celery_tasks
 @shared_task
 def update_p2pitems_task():
     accounts = BybitAccount.objects.filter(is_active=True)
+    if not accounts:
+        print('No active accounts')
+        return
     account: BybitAccount = random.choice(accounts)
     bybit_session = BybitSession(account)
 
