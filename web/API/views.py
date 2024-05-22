@@ -424,7 +424,7 @@ def send_chat_message_view(request):
         uuid=message_uuid,
         text=text,
 
-        accountId=order.account_id,
+        account_id=order.account_id,
         user_id=order.account.user_id,
         nick_name=order.account.nick_name
     )
