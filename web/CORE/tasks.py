@@ -203,7 +203,7 @@ def process_buy_order_task(order_id):
                 order.state = P2POrderBuyToken.STATE_WITHDRAWING
                 order.save()
                 process_buy_order_task(order.id)
-                return order
+                return
             else:  # Нужно менять
                 bybit_api.transfer_to_trading(order.p2p_token, order.p2p_available_balance)  # Переводим на биржу
                 order.state = P2POrderBuyToken.STATE_TRADING
@@ -344,4 +344,4 @@ def process_buy_order_task(order_id):
                     order.save()
                     process_buy_order_task(order.id)
         """
-    return order
+    return
