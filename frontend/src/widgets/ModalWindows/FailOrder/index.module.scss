@@ -1,75 +1,75 @@
 .container {
-	width: 100%;
-	background: var(--white-color);
-	padding: 60px 40px;
-	display: flex;
-	justify-content: center;
+  width: 100%;
+  background: var(--white-color);
+  padding: 60px 40px;
+  display: flex;
+  justify-content: center;
 
-	.content {
-		display: flex;
-		gap: 100px;
-		@media (max-width: 660px) {
-			flex-direction: column;
-		}
-		.titleContainer {
-			display: flex;
-			align-items: center;
-			justify-content: center;
+  .content {
+    display: flex;
+    gap: 100px;
+    @media (max-width: 660px) {
+      flex-direction: column;
+    }
+    .titleContainer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
 
-			img {
-				width: 75px;
-				height: 75px;
-				margin-right: 16px;
-			}
+      img {
+        width: 75px;
+        height: 75px;
+        margin-right: 16px;
+      }
 
-			.title {
-				color: #ff0000;
-				font-size: 48px;
-				font-weight: 700;
-			}
-		}
+      .title {
+        color: #ff0000;
+        font-size: 48px;
+        font-weight: 700;
+      }
+    }
 
-		.info {
-			max-width: 395px;
-			margin: 0 10px;
+    .info {
+      max-width: 395px;
+      margin: 0 10px;
 
-			.infoTitle {
-				font-weight: 700;
-				color: var(--green-color);
-				font-size: 24px;
-				margin-bottom: 16px;
-			}
+      .infoTitle {
+        font-weight: 700;
+        color: var(--accentColor);
+        font-size: 24px;
+        margin-bottom: 16px;
+      }
 
-			.infoDescription {
-				color: var(--darkgray-color);
-				font-size: 18px;
-				margin-bottom: 32px;
+      .infoDescription {
+        color: var(--textColor);
+        font-size: 18px;
+        margin-bottom: 32px;
 
-				a {
-					color: #0000ff;
-				}
-			}
-		}
-	}
+        a {
+          color: #0000ff;
+        }
+      }
+    }
+  }
 }
 
 @media (max-width: 813px) {
-	.container {
-		.content {
-			gap: 32px !important;
+  .container {
+    .content {
+      gap: 32px !important;
 
-			.titleContainer {
-				.title {
-					font-size: 32px;
-				}
-			}
+      .titleContainer {
+        .title {
+          font-size: 32px;
+        }
+      }
 
-			.info {
-				_ .infoTitle {
-					font-size: 22px !important;
-					text-align: start;
-				}
-			}
-		}
-	}
+      .info {
+        .infoTitle {
+          font-size: 22px !important;
+          text-align: start;
+        }
+      }
+    }
+  }
 }

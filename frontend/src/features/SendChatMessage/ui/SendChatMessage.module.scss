@@ -1,68 +1,73 @@
 .container {
-	position: relative;
-	padding: 14px 24px;
-	width: 100%;
-	.inputContainer {
-		height: 52px;
-		cursor: text;
-		&:has(.input:focus) {
-			border: 1px solid var(--green-color);
-		}
-		border-radius: 12px;
-		border: 1px solid var(--lightgray-color);
-		padding: 13px 24px;
-		padding-right: 0;
+  position: relative;
+  padding: 14px 24px;
+  width: 100%;
+  .inputContainer {
+    height: 52px;
+    cursor: text;
+    &:has(.input:focus) {
+      border: 1px solid var(--accentColor);
+    }
+    border-radius: 12px;
+    border: 1px solid var(--uiKitBorderColor);
+    padding: 13px 24px;
+    padding-right: 0;
 
-		display: flex;
-		gap: 5px;
-		justify-content: space-between;
-		.input {
-			width: 100%;
-			border: none;
-			flex-grow: 1;
-			caret-color: var(--green-color);
-		}
-	}
+    display: flex;
+    gap: 5px;
+    justify-content: space-between;
+    .input {
+      width: 100%;
+      border: none;
+      flex-grow: 1;
+      background-color: transparent;
+      caret-color: var(--accentColor);
+      color: var(--textColor);
+      &::placeholder {
+        color: var(--secondaryTextColor);
+      }
+    }
+  }
 }
 .inputButtons {
-	z-index: 100;
-	display: flex;
-	padding-right: 24px;
+  z-index: 100;
+  display: flex;
+  padding-right: 24px;
 
-	.image,
-	.send {
-		width: 24px;
-		height: 24px;
-	}
-	.send {
-		cursor: pointer;
-		position: relative;
-		pointer-events: auto;
-		&:disabled {
-			cursor: default;
-		}
-		&:not(:disabled) {
-			path {
-				fill: var(--green-color);
-			}
-		}
-	}
-	.image {
-		position: relative;
-		.imageInput {
-			cursor: pointer;
+  .image,
+  .send {
+    width: 24px;
+    height: 24px;
+  }
+  .send {
+    cursor: pointer;
+    position: relative;
+    pointer-events: auto;
+    &:disabled {
+      cursor: default;
+    }
+    &:not(:disabled) {
+      path {
+        fill: var(--accentColor);
+      }
+    }
+  }
+  .image {
+    position: relative;
+    .imageInput {
+      cursor: pointer;
 
-			position: absolute;
-			top: 0;
-			left: 0;
-			width: 100%;
-			height: 100%;
-			opacity: 0;
-		}
-	}
-	.divider {
-		width: 2px;
-		margin-inline: 6px;
-		background-color: #e2e2e2;
-	}
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+    }
+  }
+  .divider {
+    width: 2px;
+    margin-inline: 6px;
+    background-color: #e2e2e2;
+  }
 }

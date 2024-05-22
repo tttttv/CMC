@@ -1,8 +1,12 @@
-import { BankList } from './lists/BankList'
+import { SettingsProps } from "../ChooseCurrency";
+import { BankList } from "./lists/BankList";
 
-interface Props {
-	property: string
-}
-
-export const CurrencyRowList = ({ property }: Props) =>
-	property === 'getting' ? <></> : <BankList />
+export const CurrencyRowList = ({
+  currencyType,
+  changingProperty,
+}: SettingsProps) =>
+  currencyType === "crypto" ? (
+    <></>
+  ) : (
+    <BankList changingProperty={changingProperty} />
+  );

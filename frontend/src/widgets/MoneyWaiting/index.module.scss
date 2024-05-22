@@ -1,148 +1,151 @@
 .container {
-	border-radius: 20px;
-	box-shadow: 0px 0px 24px 0px #5a59591a;
-	padding: clamp(1.25rem, 0.494vw + 1.117rem, 1.5rem);
-	max-width: 519px;
-	width: 100%;
+  border-radius: 20px;
+  box-shadow: 0px 0px 24px 0px #5a59591a;
+  padding: clamp(1.25rem, 0.494vw + 1.117rem, 1.5rem);
+  max-width: 519px;
+  width: 100%;
+  background-color: var(--blockColor);
 
-	.title {
-		color: var(--darkgray-color);
-		font-weight: 700;
-		font-size: clamp(1.25rem, 0.494vw + 1.117rem, 1.5rem);
-		margin-bottom: clamp(20px, 3.5vw, 40px);
-	}
+  .title {
+    color: var(--textColor);
+    font-weight: 700;
+    font-size: clamp(1.25rem, 0.494vw + 1.117rem, 1.5rem);
+    margin-bottom: clamp(20px, 3.5vw, 40px);
+  }
 
-	.changeMoney {
-		display: flex;
-		align-items: center;
-		margin-bottom: clamp(20px, 3.5vw, 40px);
-		@media (max-width: 680px) {
-			flex-direction: column;
-			gap: 12px;
-			align-items: flex-start;
-		}
-		@media (max-width: 450px) {
-		}
+  .changeMoney {
+    display: flex;
+    align-items: center;
+    margin-bottom: clamp(20px, 3.5vw, 40px);
+    @media (max-width: 680px) {
+      flex-direction: column;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    @media (max-width: 450px) {
+    }
 
-		div {
-			display: flex;
-			align-items: center;
-			img {
-				width: 62px;
-				height: 24px;
-			}
-		}
+    div {
+      display: flex;
+      align-items: center;
+      svg {
+        width: 62px;
+        height: 24px;
+      }
+    }
 
-		.titleSubsection {
-			color: #9e9e9e;
-			font-weight: 500;
-			margin-right: 12px;
-		}
-		.cards {
-			width: 100%;
-			display: flex;
-			.firstPlace,
-			.secondPlace {
-				display: flex;
-				align-items: center;
-				box-shadow: 0px 0px 16px 0px #282e2214;
-				flex: 0 0 calc(50% - 31px);
-				border-radius: 40px 8px 8px 40px;
-				gap: 8px;
+    .titleSubsection {
+      font-weight: 500;
+      margin-right: 12px;
+    }
+    .cards {
+      width: 100%;
+      display: flex;
+      .firstPlace,
+      .secondPlace {
+        display: flex;
+        align-items: center;
+        box-shadow: 0px 0px 16px 0px #282e2214;
+        flex: 0 0 calc(50% - 31px);
+        border-radius: 40px 8px 8px 40px;
+        gap: 8px;
 
-				.icon {
-					height: 32px;
-					width: 32px;
-					border-radius: 50%;
-					box-shadow: 0px 0px 8px 0px #282e221f;
-					display: flex;
-					justify-content: center;
-					align-items: center;
-				}
+        .icon {
+          height: 32px;
+          width: 32px;
+          border-radius: 50%;
+          box-shadow: 0px 0px 8px 0px #282e221f;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
 
-				.currency {
-					color: var(--darkgray-color);
-					font-size: 12px;
-					font-weight: 600;
-					white-space: normal;
-				}
-			}
-		}
-	}
+        .currency {
+          color: var(--textColor);
+          font-size: 12px;
+          font-weight: 600;
+          white-space: normal;
+        }
+      }
+    }
+  }
 
-	.orderInfo {
-		padding: clamp(1.125rem, 0.741vw + 0.926rem, 1.5rem);
-		border-radius: 12px;
-		box-shadow: 0px 0px clamp(2rem, -1.975vw + 2.531rem, 1rem) 0px #282e2214;
-		background: var(--almostwhite-color);
-		margin-bottom: clamp(2rem, -1.975vw + 2.531rem, 1rem);
+  .orderInfo {
+    padding: clamp(1.125rem, 0.741vw + 0.926rem, 1.5rem);
+    border-radius: 12px;
+    box-shadow: 0px 0px clamp(2rem, -1.975vw + 2.531rem, 1rem) 0px #282e2214;
+    background: var(--secondaryAccentColor);
+    margin-bottom: clamp(2rem, -1.975vw + 2.531rem, 1rem);
 
-		.infoBlock {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			padding: 8px 0px;
-			&:not(:last-child) {
-				border-bottom: 1px dashed var(--green-color);
-			}
-			.infoBlockTitle {
-				display: flex;
-				align-items: center;
-				gap: 8px;
+    .infoBlock {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0px;
+      gap: 8px;
+      &:not(:last-child) {
+        border-bottom: 1px dashed var(--accentColor);
+      }
+      .infoBlockTitle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
 
-				.infoBlockText {
-					font-weight: 700;
-					color: #000000;
-					font-size: clamp(0.75rem, 0.494vw + 0.617rem, 1rem);
-				}
+        .infoBlockText {
+          font-weight: 700;
 
-				.icon {
-					height: 32px;
-					width: 32px;
-					border-radius: 50%;
-					box-shadow: 0px 0px 8px 0px #282e221f;
-					display: flex;
-					justify-content: center;
-					align-items: center;
-					margin-right: 12px;
-					background: var(--white-color);
-				}
-			}
-			.infoBlockValueContainer {
-				&[data-special='bank'] {
-					gap: 12px;
-				}
-				display: flex;
-				align-items: center;
-				.infoBlockValue {
-					color: var(--darkgray-color);
-					font-size: clamp(0.75rem, 0.494vw + 0.617rem, 1rem);
-				}
-				.copyButton {
-					margin-left: 8px;
-					margin-right: 0;
-					cursor: pointer;
-					position: relative;
-					.copyMessage {
-						position: absolute;
-						top: calc(100% + 10px);
-						left: -500%;
-						background: var(--gray-color);
-						border-radius: 22px;
-						padding: 8px 20px;
-						color: var(--white-color);
-					}
-				}
-			}
-		}
-	}
+          font-size: clamp(0.75rem, 0.494vw + 0.617rem, 1rem);
+        }
 
-	.description {
-		border-radius: 12px;
-		background: var(--lime-color);
-		padding: 24px;
-		color: var(--darkgray-color);
-		margin-bottom: 32px;
-		letter-spacing: -2%;
-	}
+        .icon {
+          height: 32px;
+          width: 32px;
+          border-radius: 50%;
+          box-shadow: 0px 0px 8px 0px #282e221f;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          margin-right: 12px;
+          background: var(--white-color);
+        }
+      }
+      .infoBlockValueContainer {
+        &[data-special="bank"] {
+          gap: 12px;
+        }
+        display: flex;
+        align-items: center;
+
+        .infoBlockValue {
+          color: var(--textColor);
+          font-size: clamp(0.75rem, 0.494vw + 0.617rem, 1rem);
+          text-align: right;
+        }
+        .copyButton {
+          margin-left: 8px;
+          margin-right: 0;
+          cursor: pointer;
+          position: relative;
+          .copyMessage {
+            position: absolute;
+            top: calc(100% + 10px);
+            left: -500%;
+            background: var(--secondaryTextColor);
+            border-radius: 22px;
+            padding: 8px 20px;
+            color: var(--white-color);
+          }
+        }
+      }
+    }
+  }
+
+  .description {
+    border-radius: 12px;
+    background: var(--secondaryAccentColor);
+    padding: 24px;
+    color: var(--textColor);
+    margin-bottom: 32px;
+    letter-spacing: -2%;
+  }
 }

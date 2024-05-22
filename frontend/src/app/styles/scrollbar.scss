@@ -1,11 +1,11 @@
 .os-scrollbar-track {
-	width: 4px;
-	border-radius: 20px;
-	background-color: var(--whitesmoke-color) !important;
-	width: 100%;
+  width: 4px;
+  border-radius: 20px;
+  background-color: var(--uiKitBackgroundColor) !important;
+  width: 100%;
 }
 
 .os-scrollbar-handle {
-	background-color: var(--green-color) !important;
-	border-radius: 20px;
+  background-color: var(--accentColor) !important;
+  border-radius: 20px;
 }

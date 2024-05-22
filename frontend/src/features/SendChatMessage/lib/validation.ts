@@ -1,3 +1,3 @@
 export const validateInputFile = (file: File | undefined) => {
-	return file && file.name && file.name.match(/\.(jpg|jpeg|png|gif)$/i)
-}
+  return file && file.name.match(/\.(jpeg|png|mp4|pdf)$/i);
+};

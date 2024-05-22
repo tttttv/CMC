@@ -1,0 +1,52 @@
+.chooseCurrency {
+  display: flex;
+
+  border-radius: 8px;
+
+  background-color: var(--uiKitBackgroundColor);
+
+  margin-bottom: 20px;
+  @media (max-width: 360px) {
+    flex-direction: column;
+  }
+  &:has(> *:not(:disabled):hover) {
+    > *:disabled {
+      background-color: transparent;
+      color: var(--textColor);
+    }
+  }
+}
+.chooseCurrencyCrypto,
+.chooseCurrencyBank {
+  border-radius: inherit;
+  font-weight: 500;
+  flex: 0 0 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-block: 8px;
+  &.active {
+    cursor: default;
+    color: var(--white-color);
+    background-color: var(--accentColor);
+    transition: 0.2s;
+  }
+  transition: 0.7s;
+  &:hover {
+    background-color: var(--accentColor);
+    color: var(--white-color);
+  }
+}
+
+.chooseCurrencyBank {
+  padding-inline: 57px;
+  @media (max-width: 430px) {
+    padding-inline: clamp(5px, 6.7vw, 29px);
+  }
+}
+.chooseCurrencyCrypto {
+  padding-inline: 29px;
+  @media (max-width: 430px) {
+    padding-inline: clamp(5px, 2vw, 14px);
+  }
+}

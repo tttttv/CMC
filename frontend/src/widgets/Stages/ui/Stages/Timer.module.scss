@@ -1,10 +1,10 @@
 .waitTime {
-	margin-bottom: 24px;
-	display: block;
-	line-height: 1.23;
-	font-weight: bold;
-	.time {
-		display: inline;
-		color: var(--green-color);
-	}
+  margin-bottom: 24px;
+  display: block;
+  line-height: 1.23;
+  font-weight: bold;
+  .time {
+    display: inline;
+    color: var(--accentColor);
+  }
 }
