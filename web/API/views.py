@@ -402,7 +402,7 @@ def get_chat_messages_view(request):
     order_hash = request.GET['order_hash']
     order = P2POrderBuyToken.objects.get(hash=order_hash)
 
-    messages = P2POrderMessage.objects.filter(order_id=order.order_id).order_by('-dt')
+    messages = P2POrderMessage.objects.filter(order=order).order_by('-dt')
     data = [m.to_json() for m in messages]
 
     return JsonResponse({'messages': data, 'title': 'Иван Иванов', 'avatar': '/static/CORE/misc/default_avatar.png'})
@@ -419,11 +419,10 @@ def send_chat_message_view(request):
 
     message_uuid = str(uuid.uuid4())  # генерация uuid для сообщения
     message = P2POrderMessage(
-        order_id=order.order_id,
+        order=order,
         message_id=-1,
         uuid=message_uuid,
         text=text,
-
         account_id=order.account_id,
         user_id=order.account.user_id,
         nick_name='me'
@@ -462,15 +461,15 @@ def send_chat_image_view(request):
         'pdf': 'application/pdf'
     }
 
-    msg_type = {
-        'png': P2POrderMessage.TYPE_PIC,
-        'jpg': P2POrderMessage.TYPE_PIC,
-        'jpeg': P2POrderMessage.TYPE_PIC,
-        'mp4': P2POrderMessage.TYPE_VIDEO,
-        'pdf': P2POrderMessage.TYPE_PDF
-    }
+    # msg_type = {
+    #     'png': P2POrderMessage.TYPE_PIC,
+    #     'jpg': P2POrderMessage.TYPE_PIC,
+    #     'jpeg': P2POrderMessage.TYPE_PIC,
+    #     'mp4': P2POrderMessage.TYPE_VIDEO,
+    #     'pdf': P2POrderMessage.TYPE_PDF
+    # }
     # message = P2POrderMessage(
-    #     order_id=order.order_id,
+    #     order=order,
     #     message_id=-1,
     #     file=data,
     #     type=msg_type[ext],

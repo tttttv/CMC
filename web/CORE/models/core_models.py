@@ -604,7 +604,7 @@ class P2POrderMessage(models.Model):
     # content_type = models.CharField(default=TYPE_STR, choices=CONTENT_TYPE, max_length=50)
 
     @classmethod
-    def from_json(cls, order_id, data):
+    def from_json(cls, order_index, data):
         from CORE.service.bybit.parser import BybitSession  # FIXME
 
         if P2POrderMessage.objects.filter(message_id=data['id']).exists():
@@ -618,7 +618,7 @@ class P2POrderMessage(models.Model):
         #     if P2POrderMessage.objects.filter(file=file_name).exists():
         #         return
 
-        message = P2POrderMessage(order_id=order_id)
+        message = P2POrderMessage(order_id=order_index)
         message.message_id = data['id']
         message.account_id = data['accountId']
         message.dt = datetime.datetime.utcfromtimestamp(int(data.get('createDate', 0)) / 1000)

@@ -94,7 +94,7 @@ def process_receive_order_message_task(order_id):
         bybit_session = BybitSession(order.account)
         messages = bybit_session.get_order_messages(order.order_id)  # Выгружаем сообщения
         for msg in messages:
-            P2POrderMessage.from_json(order.order_id, msg).save()
+            P2POrderMessage.from_json(order.id, msg).save()
 
 @shared_task
 def process_receive_order_message_task_direct(order_id):
@@ -102,7 +102,7 @@ def process_receive_order_message_task_direct(order_id):
     bybit_session = BybitSession(order.account)
     messages = bybit_session.get_order_messages(order.order_id)
     for msg in messages:
-        P2POrderMessage.from_json(order.order_id, msg).save()
+        P2POrderMessage.from_json(order.id, msg).save()
 
 
 @shared_task
@@ -164,7 +164,7 @@ def process_buy_order_task(order_id):
                 print('WAITING FOR CUSTOMER TO PAY')
                 messages = bybit_session.get_order_messages(order.order_id)  # Выгружаем сообщения из базы
                 for msg in messages:
-                    P2POrderMessage.from_json(order.order_id, msg).save()
+                    P2POrderMessage.from_json(order.id, msg).save()
         elif order.state == P2POrderBuyToken.STATE_TRANSFERRED:  # Оплачен клиентом
             if bybit_session.mark_order_as_paid(order.order_id, order.terms['payment_id'],
                                                 order.payment_method.payment_id):
@@ -177,7 +177,7 @@ def process_buy_order_task(order_id):
 
             messages = bybit_session.get_order_messages(order.order_id)  # Выгружаем сообщения из базы
             for msg in messages:
-                P2POrderMessage.from_json(order.order_id, msg).save()
+                P2POrderMessage.from_json(order.id, msg).save()
 
             if state == 50:
                 print('Token received')
