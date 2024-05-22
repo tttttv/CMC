@@ -1,49 +1,58 @@
 .messageContainer {
-	padding: 16px 24px;
-	display: flex;
-	gap: 16px;
-	&.support {
-		background-color: var(--lime-color) !important;
-	}
+  padding: 16px 24px;
+  display: flex;
+  gap: 16px;
+  &.support {
+    background-color: var(--secondaryAccentColor) !important;
+  }
 }
 .left {
-	display: flex;
-	align-items: flex-start;
+  display: flex;
+  align-items: flex-start;
 }
 .message {
-	width: 100%;
-	display: flex;
-	flex-direction: column;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 
-	gap: 16px;
+  gap: 16px;
 }
 .messageHeader {
-	display: flex;
-	justify-content: space-between;
+  display: flex;
+  justify-content: space-between;
 }
-.messageImage {
-	max-width: 100%;
-	max-height: 40vh;
-}
+
 .nickName {
-	font-weight: bold;
+  font-weight: bold;
 }
 .time {
-	font-weight: 500;
-	color: var(--gray-color);
+  font-weight: 500;
+  color: var(--secondaryTextColor);
 }
 .messageText {
-	word-wrap: break-word;
-	word-break: break-all;
+  word-wrap: break-word;
+  word-break: break-all;
 }
 
 .supportIcon {
-	font-weight: 700;
-	width: 43px;
-	aspect-ratio: 1 / 1;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	border-radius: 50%;
-	background-color: #daf4ff;
+  font-weight: 700;
+  width: 43px;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  background-color: #daf4ff;
+}
+
+.video {
+  max-height: 200px;
+
+  height: min(100%, 200px);
+  aspect-ratio: 16/9;
+  background-color: var(--accentColor);
+}
+
+.link {
+  width: max-content;
 }

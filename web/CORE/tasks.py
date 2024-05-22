@@ -1,5 +1,4 @@
 import datetime
-import logging
 import random
 from django.db.models import Q
 from CORE.models import BybitAccount, RiskEmail, P2POrderBuyToken, P2PItem, P2POrderMessage, BybitCurrency
@@ -52,8 +51,7 @@ def update_latest_email_codes_task(user_id=None):
         accounts = BybitAccount.objects.filter(is_active=True)
 
     for account in accounts:
-        emails = get_codes(IMAP_USERNAME=account.imap_username, IMAP_PASSWORD=account.imap_password,
-                           IMAP_SERVER=account.imap_server)
+        emails = get_codes(IMAP_USERNAME=account.imap_username, IMAP_PASSWORD=account.imap_password, IMAP_SERVER=account.imap_server)
         for email in emails:
             risk = RiskEmail()
             risk.account = account
@@ -63,8 +61,7 @@ def update_latest_email_codes_task(user_id=None):
             risk.dt = email['dt']
             risk.save()
 
-        addressbook_emails = get_addressbook_codes(IMAP_USERNAME=account.imap_username,
-                                                   IMAP_PASSWORD=account.imap_password, IMAP_SERVER=account.imap_server)
+        addressbook_emails = get_addressbook_codes(IMAP_USERNAME=account.imap_username, IMAP_PASSWORD=account.imap_password, IMAP_SERVER=account.imap_server)
         print(addressbook_emails)
         for email in addressbook_emails:
             risk = RiskEmail()
@@ -72,7 +69,6 @@ def update_latest_email_codes_task(user_id=None):
             risk.code = email['code']
             risk.dt = email['dt']
             risk.save()
-
 
 @shared_task
 def process_orders_messages_task():  # Ошибочные статусы доп проверки
@@ -86,10 +82,19 @@ def process_orders_messages_task():  # Ошибочные статусы доп 
 @shared_task
 def process_receive_order_message_task(order_id):
     order = P2POrderBuyToken.objects.get(id=order_id)
+    accounts = BybitAccount.objects.filter(is_active=True) #todo надо прикреплять аккаунт к заказу
+    account = random.choice(accounts)
+    s = BybitSession(account)
 
-    if order.state in [P2POrderBuyToken.STATE_WITHDRAWN,
-                       P2POrderBuyToken.STATE_TRANSFERRED,
-                       P2POrderBuyToken.STATE_PAID]:
+    print(order.id, order.state)
+    if order.state == P2POrderBuyToken.STATE_INITIATED:
+        if not order.order_id: #Бывает такое что заказ не создавался
+            if order.withdraw_token not in P2P_TOKENS:  # Если нужно трейдить токен, покупаем в USDT
+                order.withdraw_token_rate = order.account.get_api().get_trading_rate(order.withdraw_token, 'USDT')
+                order.p2p_token = 'USDT'
+            else: #Если нет - покупаем ту же валюту
+                order.withdraw_token_rate = 1
+                order.p2p_token = order.withdraw_token
 
         bybit_session = BybitSession(order.account)
         messages = bybit_session.get_order_messages(order.order_id)  # Выгружаем сообщения
@@ -204,6 +209,8 @@ def process_buy_order_task(order_id):
         elif order.state == P2POrderBuyToken.STATE_RECEIVED:  # Переводим на биржу
             if order.p2p_token == order.withdraw_token:  # Если не нужно менять валюту на бирже
                 order.state = P2POrderBuyToken.STATE_WITHDRAWING
+                order.risk_token = None
+                print('returned to recevived')
                 order.save()
                 process_buy_order_task(order.id)
                 return
@@ -348,3 +355,5 @@ def process_buy_order_task(order_id):
                     process_buy_order_task(order.id)
         """
     return
+
+

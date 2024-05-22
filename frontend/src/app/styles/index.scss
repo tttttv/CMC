@@ -1,21 +1,21 @@
-@import 'null.scss';
-@import 'vars.scss';
+@import "null.scss";
+@import "vars.scss";
 
 body {
-	background-color: var(--background-color);
-	font-family: var(--font-family);
-	font-size: var(--font-size);
-	color: var(--darkgray-color);
+  background-color: var(--bodyColor);
+  font-family: var(--font-family);
+  font-size: var(--font-size);
+  color: var(--textColor);
 }
 
 .wrapper {
-	width: 100%;
-	min-height: 100%;
-	overflow: hidden;
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
 }
 
-[class*='__container'] {
-	max-width: calc(var(--width-container) + var(--inline-padding-container) * 2);
-	margin: 0 auto;
-	padding: 0 var(--inline-padding-container);
+[class*="__container"] {
+  max-width: calc(var(--width-container) + var(--inline-padding-container) * 2);
+  margin: 0 auto;
+  padding: 0 var(--inline-padding-container);
 }

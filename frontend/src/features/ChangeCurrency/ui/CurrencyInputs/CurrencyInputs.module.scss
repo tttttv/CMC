@@ -1,0 +1,36 @@
+.changeInputs {
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+  margin-bottom: 24px;
+}
+
+.exchangeRate {
+  .exchangeRateTitle {
+    display: flex;
+    justify-content: space-between;
+
+    padding-block: 8px;
+    font-size: 0.75rem;
+    .exchangeRateText {
+      color: var(--secondaryTextColor);
+    }
+    .exchangeRateValue {
+      font-weight: 600;
+    }
+    &:not(:last-child) {
+      border-bottom: 1px dashed var(--secondaryTextColor);
+    }
+  }
+}
+
+.refetchButton {
+  width: 40px;
+  height: 40px;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: max-content;
+  border-radius: 50%;
+  padding: 4px 8px;
+}

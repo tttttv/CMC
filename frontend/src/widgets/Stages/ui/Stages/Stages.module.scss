@@ -1,51 +1,51 @@
 .stages {
-	--status-bar-height: 28px;
-	--status-bar-width: 12px;
-	--gap: 16px;
-	--padding-top: 4px;
-	padding-top: var(var(--padding-top));
-	display: flex;
-	flex-direction: column;
-	gap: var(--gap);
-	position: relative;
+  --status-bar-height: 28px;
+  --status-bar-width: 12px;
+  --gap: 16px;
+  --padding-top: 4px;
+  padding-top: var(var(--padding-top));
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  position: relative;
 
-	.stage {
-		min-height: var(--status-bar-height);
-		color: var(--darkgray-color);
-		display: flex;
-		align-items: center;
-		padding-left: calc(var(--status-bar-width) + 12px);
-		position: relative;
-		&::before {
-			content: '';
-			position: absolute;
-			top: 0;
-			left: 0;
+  .stage {
+    min-height: var(--status-bar-height);
+    color: var(--textColor);
+    display: flex;
+    align-items: center;
+    padding-left: calc(var(--status-bar-width) + 12px);
+    position: relative;
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
 
-			border-radius: 12px;
-			background-color: var(--palegray-color);
-			width: var(--status-bar-width);
-			height: var(--status-bar-height);
-		}
-		&.active {
-			font-weight: bold;
-			color: var(--green-color);
-		}
-	}
-	.statusBar {
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: var(--status-bar-width);
-		height: 0px;
-		border-radius: 12px;
-		background-color: var(--green-color);
-		z-index: 1;
-	}
+      border-radius: 12px;
+      background-color: var(--palegray-color);
+      width: var(--status-bar-width);
+      height: var(--status-bar-height);
+    }
+    &.active {
+      font-weight: bold;
+      color: var(--accentColor);
+    }
+  }
+  .statusBar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--status-bar-width);
+    height: 0px;
+    border-radius: 12px;
+    background-color: var(--accentColor);
+    z-index: 1;
+  }
 }
 
 .modal {
-	padding-inline: 0;
-	display: flex;
-	align-items: flex-end;
+  padding-inline: 0;
+  display: flex;
+  align-items: flex-end;
 }
