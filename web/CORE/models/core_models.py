@@ -417,9 +417,9 @@ class P2POrderBuyToken(models.Model):
     email = models.CharField(max_length=100, default='')
 
     item = models.ForeignKey(P2PItem, on_delete=models.CASCADE)
-    payment_method = models.ForeignKey(BybitCurrency, on_delete=models.CASCADE, blank=True, null=True)  # FIXME
+    payment_method = models.ForeignKey(BybitCurrency, on_delete=models.CASCADE, blank=True, null=True)
 
-    currency = models.CharField(max_length=10)
+    # currency = models.CharField(max_length=10) FIXME
     p2p_token = models.CharField(max_length=30, default='USDT')
     p2p_price = models.FloatField()
 
@@ -444,7 +444,7 @@ class P2POrderBuyToken(models.Model):
     order_id = models.CharField(max_length=30, blank=True, null=True)
     order_status = models.IntegerField(default=10, blank=True, null=True)
     terms = models.JSONField(default=dict, blank=True, null=True)
-    payment_id = models.CharField(max_length=50, blank=True, null=True) # FIXME
+    # payment_id = models.CharField(max_length=50, blank=True, null=True) # FIXME
 
     # TRANSFERRED
     dt_transferred = models.DateTimeField(default=None, blank=True, null=True)
@@ -569,7 +569,8 @@ class P2POrderBuyToken(models.Model):
         # todo {'ret_code': 912100027, 'ret_msg': 'The ad status of your P2P order has been changed. Please try another ad.', 'result': None, 'ext_code': '', 'ext_info': {}, 'time_now': '1713650504.469008'}
         order_id = bybit_session.create_order_buy(self.item.item_id, self.p2p_quantity, self.amount,
                                                   price['curPrice'],
-                                                  token_id=self.p2p_token, currency_id=self.currency)
+                                                  token_id=self.p2p_token,
+                                                  currency_id=self.payment_method.token)
         if order_id is None:  # Забанен за отмену заказов
             self.account.set_banned()
             self.account = None

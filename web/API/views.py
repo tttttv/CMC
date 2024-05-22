@@ -364,7 +364,8 @@ def continue_with_new_price(request):
                 'withdraw_commission']
             amount, quantity, best_p2p, better_p2p = get_price(order.payment_method.payment_id, order.amount,
                                                                order.withdraw_quantity,
-                                                               order.currency, order.withdraw_token,
+                                                               order.payment_method.token,
+                                                               order.withdraw_token,
                                                                order.withdraw_chain,
                                                                # TODO widget.partner commisions
                                                                0.01, 0.01, chain_commission,  # 0.001
