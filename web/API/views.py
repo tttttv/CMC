@@ -15,7 +15,7 @@ from django.core.files.base import ContentFile
 # Create your views here.
 from django.views.decorators.csrf import csrf_exempt
 
-from CORE.models import P2POrderBuyToken, BybitAccount, P2PItem, BybitSettings, P2POrderMessage, Partner, Widget
+from CORE.models import P2POrderBuyToken, BybitAccount, P2PItem, P2POrderMessage, Partner, Widget
 from CORE.service.CONFIG import P2P_TOKENS, TOKENS_DIGITS
 from CORE.service.bybit.parser import BybitSession
 from CORE.service.tools.tools import get_price, calculate_withdraw_quantity
@@ -40,10 +40,6 @@ def get_widget_palette_view(request):  # Для Партнеров
 
     return JsonResponse({'widget_hash': widget.hash})
 
-def get_avalible_from_view(request):
-    settings = BybitSettings.objects.get(id=1)
-    methods = settings.get_avalible_topup_methods()
-    return JsonResponse({'methods': methods})
 
 @csrf_exempt
 def get_widget_settings_view(request):
@@ -86,7 +82,6 @@ def get_price_view(request):
     :param request:
     :return:
     """
-    settings = BybitSettings.objects.get(id=1)
     anchor = request.GET.get('anchor', 'currency')
 
     currency_id = int(request.GET.get('payment_method', 0))  # 3  4
@@ -134,11 +129,6 @@ def get_price_view(request):
 
 @csrf_exempt
 def create_order_view(request):
-    settings = BybitSettings.objects.get(id=1)
-
-    if not settings.is_working:
-        return JsonResponse({'message': 'not avalible now', 'code': 0}, status=403)
-    print(request.POST)
     name = request.POST['name']
     card_number = request.POST['card_number']
     payment_method = int(request.POST.get('payment_method', 377))
@@ -237,7 +227,6 @@ def create_order_view(request):
     return JsonResponse(data)
 
 def get_order_state_view(request):
-    settings = BybitSettings.objects.get(id=1)
     order_hash = int(request.GET['order_hash'])
     order = P2POrderBuyToken.get_order_by_hash(order_hash)
     if not order:
