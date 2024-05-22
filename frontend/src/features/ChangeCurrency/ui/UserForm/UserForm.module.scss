@@ -1,21 +1,21 @@
 .form {
-	.title {
-		font-size: 1.5rem;
-		font-weight: bold;
-		color: var(--green-color);
-		margin-bottom: 24px;
-	}
+  .title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--accentColor);
+    margin-bottom: 24px;
+  }
 
-	.inputs {
-		display: flex;
-		flex-direction: column;
-		gap: 24px;
-		margin-bottom: 24px;
-	}
-	.checkboxes {
-		display: flex;
-		flex-direction: column;
-		gap: 25px;
-		margin-bottom: 32px;
-	}
+  .inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  .checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    margin-bottom: 32px;
+  }
 }

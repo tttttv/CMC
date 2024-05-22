@@ -1,14 +1,14 @@
 .time {
-	text-align: center;
-	color: var(--darkgray-color);
-	font-weight: 700;
-	margin-bottom: 70px;
-	@media (max-width: 500px) {
-		margin-bottom: 200px;
-	}
-	span {
-		color: var(--green-color);
-		font-size: 20px;
-		margin: 0 12px;
-	}
+  text-align: center;
+  color: var(--textColor);
+  font-weight: 700;
+  margin-bottom: 70px;
+  @media (max-width: 500px) {
+    margin-bottom: 200px;
+  }
+  span {
+    color: var(--accentColor);
+    font-size: 20px;
+    margin: 0 12px;
+  }
 }

@@ -1,76 +1,76 @@
 .inputWrapper {
-	display: flex;
-	flex-direction: column;
+  display: flex;
+  flex-direction: column;
 
-	.input {
-		width: 100%;
-		padding: 18.5px 16px;
-		background-color: #fff;
-		border-radius: 12px;
-		border: 1px solid var(--lightgray-color);
-		font-weight: 500;
-		&:not(:disabled):hover {
-			border: 1px solid var(--green-color);
-		}
-		&:focus {
-			caret-color: var(--green-color);
-		}
-		&::placeholder {
-			font-weight: normal;
-			color: #a9abad;
-		}
-	}
-	.inputContainer {
-		width: 100%;
-		position: relative;
-		&:has(.icon) {
-			.input {
-				padding-left: 68px;
-			}
-		}
-		&:has(+ .importantMessage) {
-			margin-bottom: 8px;
-		}
-		.error {
-			font-size: 12px;
-			color: var(--negative-color);
-			text-align: end;
-			display: block;
-		}
-		&:has(.error) {
-			.input {
-				background-color: var(--lightpink);
-				border-color: var(--negative-color);
-				margin-bottom: 6px;
-				&::placeholder {
-					color: var(--negative-color);
-				}
-			}
-		}
-	}
-	.icon {
-		position: absolute;
-		top: 50%;
-		transform: translateY(-50%);
-		left: 21px;
-	}
-	.label {
-		margin-bottom: 8px;
-	}
-	.importantMessage {
-		display: flex;
-		align-items: center;
-		gap: 5px;
-		font-size: 12px;
-		color: var(--gray-color);
-	}
+  .input {
+    width: 100%;
+    padding: 18.5px 16px;
+    background: transparent;
+    border-radius: 12px;
+    border: 1px solid var(--uiKitBorderColor);
+    font-weight: 500;
+    &:not(:disabled):hover {
+      border: 1px solid var(--accentColor);
+    }
+    &:focus {
+      caret-color: var(--accentColor);
+    }
+    &::placeholder {
+      font-weight: normal;
+      color: var(--secondaryTextColor) !important;
+    }
+  }
+  .inputContainer {
+    width: 100%;
+    position: relative;
+    &:has(.icon) {
+      .input {
+        padding-left: 68px;
+      }
+    }
+    &:has(+ .importantMessage) {
+      margin-bottom: 8px;
+    }
+    .error {
+      font-size: 12px;
+      color: var(--negative-color);
+      text-align: end;
+      display: block;
+    }
+    &:has(.error) {
+      .input {
+        background-color: var(--lightpink);
+        border-color: var(--negative-color);
+        margin-bottom: 6px;
+        &::placeholder {
+          color: var(--negative-color);
+        }
+      }
+    }
+  }
+  .icon {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 21px;
+  }
+  .label {
+    margin-bottom: 8px;
+  }
+  .importantMessage {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--secondaryTextColor);
+  }
 
-	&:has(input[data-disabled='true']) {
-		.label {
-			margin-bottom: 12px;
-		}
-		.input {
-			background-color: var(--whitesmoke-color);
-		}
-	}
+  &:has(input[data-disabled="true"]) {
+    .label {
+      margin-bottom: 12px;
+    }
+    .input {
+      background-color: var(--uiKitBackgroundColor);
+    }
+  }
 }

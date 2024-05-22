@@ -1,108 +1,106 @@
-import axios from 'axios'
+import axios from "axios";
 
-import getCookieValue from '../helpers/getCookie'
-import { Messages, OrderHash, OrderState } from '../types/api/enitites'
-import { Order } from '../types/api/params'
+import getCookieValue from "../helpers/getCookie";
+import { Messages, OrderHash, OrderState } from "../types/api/enitites";
+import { Order } from "../types/api/params";
 
 class OrderAPI {
-	private apiUrl: string
-	constructor(apiUrl: string) {
-		this.apiUrl = apiUrl
-	}
-	private convertToBase64 = (file: File) =>
-		new Promise<string>((resolve, reject) => {
-			const reader = new FileReader()
-			reader.readAsDataURL(file)
-			reader.onload = () => resolve(reader.result as string)
-			reader.onerror = error => reject(error)
-		})
-	private getHash = () => {
-		return getCookieValue('order_hash') || ''
-	}
-	private createConfig = (url: string, data: FormData, method?: string) => {
-		return {
-			method: method || 'post',
-			maxBodyLength: Infinity,
-			url,
-			data,
-		}
-	}
+  private apiUrl: string;
+  constructor(apiUrl: string) {
+    this.apiUrl = apiUrl;
+  }
 
-	createOrder = async (order: Order) => {
-		const data = new FormData()
-		for (const [key, value] of Object.entries(order)) {
-			data.append(key, value)
-		}
-		const config = this.createConfig(`${this.apiUrl}/order`, data)
-		return await axios.request<OrderHash>(config)
-	}
+  private getHash = () => {
+    return getCookieValue("order_hash") || "";
+  };
+  private createConfig = (url: string, data: FormData, method?: string) => {
+    return {
+      method: method || "post",
+      maxBodyLength: Infinity,
+      url,
+      data,
+    };
+  };
 
-	getOrderState = async () => {
-		return await axios.get<OrderState>(`${this.apiUrl}/order/state`, {
-			params: {
-				order_hash: this.getHash(),
-			},
-		})
-	}
+  createOrder = async (order: Order) => {
+    const data = new FormData();
+    for (const [key, value] of Object.entries(order)) {
+      data.append(key, value);
+    }
+    const config = this.createConfig(`${this.apiUrl}/order`, data);
+    return await axios.request<OrderHash>(config);
+  };
 
-	cancelOrder = async () => {
-		const data = new FormData()
-		data.append('order_hash', this.getHash())
+  getOrderState = async () => {
+    return await axios.get<OrderState>(`${this.apiUrl}/order/state`, {
+      params: {
+        order_hash: this.getHash(),
+      },
+    });
+  };
 
-		const config = this.createConfig(`${this.apiUrl}/order/cancel`, data)
+  cancelOrder = async () => {
+    const data = new FormData();
+    data.append("order_hash", this.getHash());
 
-		return await axios.request<{ code: number; message: string }>(config)
-	}
+    const config = this.createConfig(`${this.apiUrl}/order/cancel`, data);
 
-	payOrder = async () => {
-		const data = new FormData()
-		data.append('order_hash', this.getHash())
+    return await axios.request<{ code: number; message: string }>(config);
+  };
 
-		const config = this.createConfig(`${this.apiUrl}/order/paid`, data)
+  payOrder = async () => {
+    const data = new FormData();
+    data.append("order_hash", this.getHash());
 
-		return await axios.request(config)
-	}
+    const config = this.createConfig(`${this.apiUrl}/order/paid`, data);
 
-	getOrderMessages = async () => {
-		return await axios.get<Messages>(`${this.apiUrl}/order/message`, {
-			params: {
-				order_hash: this.getHash(),
-			},
-		})
-	}
+    return await axios.request(config);
+  };
 
-	sendOrderMessage = async (text: string) => {
-		const data = new FormData()
-		data.append('order_hash', this.getHash())
-		data.append('text', text)
+  getOrderMessages = async () => {
+    return await axios.get<Messages>(`${this.apiUrl}/order/message`, {
+      params: {
+        order_hash: this.getHash(),
+      },
+    });
+  };
 
-		const config = this.createConfig(`${this.apiUrl}/order/message/send`, data)
-		return await axios.request(config)
-	}
-	sendImageMessage = async (image: File) => {
-		const data = new FormData()
-		data.append('order_hash', this.getHash())
+  sendOrderMessage = async (text: string) => {
+    const data = new FormData();
+    data.append("order_hash", this.getHash());
+    data.append("text", text);
 
-		const base64Img = await this.convertToBase64(image)
-		data.append('image', base64Img)
+    const config = this.createConfig(`${this.apiUrl}/order/message/send`, data);
+    return await axios.request(config);
+  };
 
-		const config = this.createConfig(
-			`${this.apiUrl}/order/message/send_image`,
-			data,
-		)
+  sendImageMessage = async (base64Img: string) => {
+    const data = new FormData();
+    data.append("order_hash", this.getHash());
 
-		return await axios.request(config)
-	}
+    data.append("image", base64Img);
 
-	continueOrder = async () => {
-		const data = new FormData()
-		data.append('order_hash', this.getHash())
+    const config = this.createConfig(
+      `${this.apiUrl}/order/message/send_image`,
+      data
+    );
 
-		const config = this.createConfig(`${this.apiUrl}/order/continue`, data)
+    return await axios.request(config);
+  };
 
-		return await axios.request(config)
-	}
+  continueOrder = async () => {
+    const data = new FormData();
+    data.append("order_hash", this.getHash());
+
+    const config = this.createConfig(`${this.apiUrl}/order/continue`, data);
+
+    return await axios.request(config);
+  };
+
+  getAPILink = () => {
+    return `${this.apiUrl}/order`;
+  };
 }
 
-const orderAPI = new OrderAPI('https://api.fleshlight.fun/api')
-export { orderAPI }
+const orderAPI = new OrderAPI("https://api.fleshlight.fun/api");
+export { orderAPI };
