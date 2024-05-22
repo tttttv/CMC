@@ -11,11 +11,11 @@ from django.shortcuts import render
 import base64
 from django.core.files.base import ContentFile
 
-
 # Create your views here.
 from django.views.decorators.csrf import csrf_exempt
 
-from CORE.models import P2POrderBuyToken, BybitAccount, P2PItem, P2POrderMessage, Partner, Widget
+from CORE.models import P2POrderBuyToken, BybitAccount, P2PItem, P2POrderMessage, Partner, Widget, \
+    BybitCurrency
 from CORE.service.CONFIG import P2P_TOKENS, TOKENS_DIGITS
 from CORE.service.bybit.parser import BybitSession
 from CORE.service.tools.tools import get_price, calculate_withdraw_quantity
@@ -26,16 +26,53 @@ from CORE.tasks import process_buy_order_task, update_latest_email_codes_task, u
 def get_widget_palette_view(request):  # Для Партнеров
     """ Список цветов """
     partner_code = request.POST['partner_code']
+    if Partner.objects.filter(code=partner_code).exists():
+        return JsonResponse(Widget.DEFAULT_PALETTE)  # TODO default color взять с фронта?
+    return JsonResponse({}, status=404)
+
+def get_payment_methods_view(request):  # Для Партнеров
+    """ Список валют """
+    partner_code = request.POST['partner_code']
+    if Partner.objects.filter(code=partner_code).exists():
+        return [payment_method.to_json() for payment_method in BybitCurrency.all_payment_methods()]
+    return JsonResponse({}, status=404)
+
+def create_widget_view(request):  # Для Партнеров
+    partner_code = request.POST['partner_code']
     try:
         partner = Partner.objects.get(code=partner_code)
     except:
         return JsonResponse({}, status=404)
 
-    widget = Widget(partner=partner)
-    widget.withdrawing_token = request.POST['withdrawing_token']
+    widget = Widget(partner=partner)  # Фиксируем address token chain
+    widget.withdrawing_token = request.POST['withdrawing_token']  # на что меняем
     widget.withdrawing_chain = request.POST['withdrawing_chain']
     widget.withdrawing_address = request.POST['withdrawing_address']
+
     widget.partner_commission = float(request.POST['partner_commission'])
+    widget.platform_commission = partner.platform_commission
+
+    if 'color_palette' in request.POST:
+        input_palette = request.POST['color_palette']
+        color_palette = {input_palette[color] if color in input_palette else None
+                         for color in widget.DEFAULT_PALETTE}
+        widget.color_palette = color_palette  # else DEFAULT_PALETTE
+
+    if 'redirect_url' in request.POST:
+        widget.redirect_url = request.POST['redirect_url']
+        # их url параметры + hash, status
+
+    if 'payment_methods' in request.POST:  # currency
+        for currency_id in request.POST['payment_methods']:
+            payment_method = BybitCurrency.get_currency(currency_id)
+            widget.payment_methods.add(payment_method)
+
+    if 'full_name' in request.POST:
+        widget.full_name = request.POST['full_name']
+
+    if 'email' in request.POST:
+        widget.full_name = request.POST['email']
+
     widget.save()
 
     return JsonResponse({'widget_hash': widget.hash})
@@ -64,15 +101,17 @@ def get_available_from_view(request):
     widget_hash = request.GET.get('widget', None)
     if widget_hash:
         widget = Widget.objects.get(hash=widget_hash)
-        for method in methods:
-            if method['id'] == widget.withdrawing_token:
-                for chain in method['chains']:
-                    if chain['id'] == widget.withdrawing_chain:
-                        method['chains'] = chain
-                        methods = [method]
-                        break
+        return JsonResponse(BybitCurrency.cache_exchange_from(widget.payment_methods))
+    return JsonResponse({'methods': BybitCurrency.cache_exchange_from()})
 
-    return JsonResponse({'methods': methods})
+
+def get_available_to_view(request):
+    widget_hash = request.GET.get('widget', None)
+    if widget_hash:
+        widget = Widget.objects.get(hash=widget_hash)
+        return JsonResponse(BybitCurrency.cache_exchange_to(widget.withdrawing_token, widget.withdrawing_chain))
+    return JsonResponse({'methods': BybitCurrency.cache_exchange_to()})
+
 
 def get_price_view(request):
     """
@@ -90,9 +129,9 @@ def get_price_view(request):
     token_id = request.GET.get('token', 0)
     chain = request.GET.get('chain', 'MANTLE')
 
-    if anchor == 'currency' and amount == 0:
+    if anchor == P2POrderBuyToken.ANCHOR_CURRENCY and amount == 0:
         return JsonResponse({'message': 'amount is zero with anchor=currency', 'code': 3}, status=403)
-    elif anchor == 'token' and quantity == 0:
+    elif anchor == P2POrderBuyToken.ANCHOR_TOKEN and quantity == 0:
         return JsonResponse({'message': 'quantity is zero with anchor=token', 'code': 3}, status=403)
 
     token = BybitCurrency.get_currency(token_id)
@@ -100,7 +139,7 @@ def get_price_view(request):
         return JsonResponse({'message': 'chain invalid'}, status=403)
 
     widget_hash = request.GET.get('widget', None)
-    if widget_hash: #Если вдруг по виджету передана не та крипта
+    if widget_hash:  # Если вдруг по виджету передана не та крипта
         widget = Widget.objects.get(hash=widget_hash)
         if token.token != widget.withdrawing_token or chain != widget.withdrawing_chain:
             return JsonResponse({}, status=404)
@@ -114,9 +153,10 @@ def get_price_view(request):
     except TypeError as ex:
         return JsonResponse({'message': 'Биржа не работает', 'code': 2}, status=403)
     except ValueError:
-        return JsonResponse({'message': 'Ошибка получения цены. Попробуйте другую цену или другой способ пополнения.', 'code': 3}, status=403)
+        return JsonResponse(
+            {'message': 'Ошибка получения цены. Попробуйте другую цену или другой способ пополнения.', 'code': 3},
+            status=403)
 
-    price = amount / quantity
     data = {
         'price': "%.2f" % (amount / quantity),
         'amount': amount,
@@ -127,11 +167,13 @@ def get_price_view(request):
     }
     return JsonResponse(data)
 
+
 @csrf_exempt
 def create_order_view(request):
+    print(request.POST)
     name = request.POST['name']
     card_number = request.POST['card_number']
-    payment_method = int(request.POST.get('payment_method', 377))
+    currency_id = int(request.POST.get('payment_method', 0))
     amount = float(request.POST['amount'])
     price = float(request.POST['price'])
     token_id = request.POST.get('token', 0)
@@ -222,67 +264,69 @@ def create_order_view(request):
     process_buy_order_task.apply_async(args=[order.id])
 
     data = {
-        'order_hash': str(order.get_hash())
+        'order_hash': str(order.hash)
     }
     return JsonResponse(data)
 
+
 def get_order_state_view(request):
-    order_hash = int(request.GET['order_hash'])
-    order = P2POrderBuyToken.get_order_by_hash(order_hash)
+    order_hash = request.GET['order_hash']
+    order = P2POrderBuyToken.objects.get(hash=order_hash)
     if not order:
         return JsonResponse({}, status=404)
 
     state = None
     state_data = {}
     order_data = {
-        'from': settings.get_payment_method(order.payment_method),
-        'to': settings.get_token(order.withdraw_token),
+        'from': order.payment_method.id,
+        'to': BybitCurrency.get_token(order.withdraw_token).to_json(),
         'rate': (order.amount / order.withdraw_quantity) if order.withdraw_quantity else None,
         'amount': order.amount,
         'quantity': order.withdraw_quantity,
         'order_hash': order_hash,
     }
     if order.dt_created:
-        order_data['time_left'] = max((order.dt_created - datetime.datetime.now()  + datetime.timedelta(minutes=60)).seconds, 0)
+        order_data['time_left'] = max((order.dt_created - datetime.datetime.now() + datetime.timedelta(minutes=60)).seconds, 0)
     else:
         order_data['time_left'] = 0
 
     if order.state == P2POrderBuyToken.STATE_INITIATED:
-        state = 'INITIALIZATION' #Ожидание создания заказа на бирже
-    elif order.state == P2POrderBuyToken.STATE_WRONG_PRICE: #Ошибка создания - цена изменилась
+        state = 'INITIALIZATION'  # Ожидание создания заказа на бирже
+    elif order.state == P2POrderBuyToken.STATE_WRONG_PRICE:  # Ошибка создания - цена изменилась
         state_data = {
             'withdraw_quantity': order.withdraw_quantity
         }
         state = order.state
-    elif order.state == P2POrderBuyToken.STATE_CREATED: #Заказ создан, ожидаем перевод
+    elif order.state == P2POrderBuyToken.STATE_CREATED:  # Заказ создан, ожидаем перевод
         state = 'PENDING'
         state_data = {
-            'terms': order.terms, #{'real_name': 'Dzhabbarov Vladimir', 'account_no': '2202205075821931', 'payment_id': '2657782', 'payment_type': 377}
+            'terms': order.terms,
+            # {'real_name': 'Dzhabbarov Vladimir', 'account_no': '2202205075821931', 'payment_id': '2657782', 'payment_type': 377}
             'time_left': (order.dt_created - datetime.datetime.now() + datetime.timedelta(minutes=20)).seconds,
             'commentary': "Просим вас не указывать комментарии к платежу. ФИО плательщика должно соответствовать тому, которое вы указывали при создании заявки, платежи от третьих лиц не принимаются."
         }
-    elif order.state == P2POrderBuyToken.STATE_TRANSFERRED: #Пользователь пометил как отправленный - ждем подтверждение
+    elif order.state == P2POrderBuyToken.STATE_TRANSFERRED:  # Пользователь пометил как отправленный - ждем подтверждение
         state = 'RECEIVING'
-    elif order.state == P2POrderBuyToken.STATE_PAID: #Заказ помечен как оплаченный - ждем подтверждение
+    elif order.state == P2POrderBuyToken.STATE_PAID:  # Заказ помечен как оплаченный - ждем подтверждение
         state = 'RECEIVING'
-    elif order.state == P2POrderBuyToken.STATE_RECEIVED:  #Продавец подтвердил получение денег
-        state = 'BUING'
-    elif order.state == P2POrderBuyToken.STATE_TRADING: #Меняем на бирже
+    elif order.state == P2POrderBuyToken.STATE_RECEIVED:  # Продавец подтвердил получение денег
+        state = 'BUYING'
+    elif order.state == P2POrderBuyToken.STATE_TRADING:  # Меняем на бирже
         state = 'TRADING'
-    elif order.state == P2POrderBuyToken.STATE_TRADED: #Поменяли на бирже
+    elif order.state == P2POrderBuyToken.STATE_TRADED:  # Поменяли на бирже
         state = 'TRADING'
-    elif order.state == P2POrderBuyToken.STATE_WITHDRAWING: #Выводим деньги
+    elif order.state == P2POrderBuyToken.STATE_WITHDRAWING:  # Выводим деньги
         state = 'WITHDRAWING'
-    elif order.state == P2POrderBuyToken.STATE_WAITING_VERIFICATION: #Подтверждаем вывод
+    elif order.state == P2POrderBuyToken.STATE_WAITING_VERIFICATION:  # Подтверждаем вывод
         state = 'WITHDRAWING'
-    elif order.state == P2POrderBuyToken.STATE_WITHDRAWN: #Успешно
+    elif order.state == P2POrderBuyToken.STATE_WITHDRAWN:  # Успешно
         state = 'SUCCESS'
         state_data = {
             'address': order.withdraw_address
         }
-    elif order.state == P2POrderBuyToken.STATE_TIMEOUT: #Таймаут получения денег
+    elif order.state == P2POrderBuyToken.STATE_TIMEOUT:  # Таймаут получения денег
         state = 'TIMEOUT'
-    elif order.state == P2POrderBuyToken.STATE_ERROR: #Критическая ошибка, требующая связи через бота
+    elif order.state == P2POrderBuyToken.STATE_ERROR:  # Критическая ошибка, требующая связи через бота
         state = 'ERROR'
 
     data = {
@@ -293,10 +337,11 @@ def get_order_state_view(request):
 
     return JsonResponse(data)
 
+
 @csrf_exempt
 def cancel_order_view(request):
-    order_hash = int(request.POST['order_hash'])
-    order = P2POrderBuyToken.get_order_by_hash(order_hash)
+    order_hash = request.POST['order_hash']
+    order = P2POrderBuyToken.objects.get(hash=order_hash)
 
     if order.state == order.STATE_CREATED:
         order.state = P2POrderBuyToken.STATE_CANCELLED
@@ -305,14 +350,14 @@ def cancel_order_view(request):
     else:
         return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)
 
+
 @csrf_exempt
 def continue_with_new_price(request):
-    order_hash = int(request.POST['order_hash'])
-    order = P2POrderBuyToken.get_order_by_hash(order_hash)
+    order_hash = request.POST['order_hash']
+    order = P2POrderBuyToken.objects.get(hash=order_hash)
 
     if order.state == order.STATE_WRONG_PRICE:
         order.state = P2POrderBuyToken.STATE_INITIATED
-        settings = BybitSettings.objects.get(id=1)
         try:
             # TODO withdraw token/fiat
             chain_commission = BybitCurrency.get_token(order.withdraw_token).get_chain(order.withdraw_chain)[
@@ -339,10 +384,11 @@ def continue_with_new_price(request):
     else:
         return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)
 
+
 @csrf_exempt
 def mark_order_as_paid_view(request):
-    order_hash = int(request.POST['order_hash'])
-    order = P2POrderBuyToken.get_order_by_hash(order_hash)
+    order_hash = request.POST['order_hash']
+    order = P2POrderBuyToken.objects.get(hash=order_hash)
 
     if order.state == P2POrderBuyToken.STATE_CREATED:
         order.state = P2POrderBuyToken.STATE_TRANSFERRED
@@ -351,14 +397,16 @@ def mark_order_as_paid_view(request):
     else:
         return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)
 
+
 def get_chat_messages_view(request):
-    order_hash = int(request.GET['order_hash'])
-    order = P2POrderBuyToken.get_order_by_hash(order_hash)
+    order_hash = request.GET['order_hash']
+    order = P2POrderBuyToken.objects.get(hash=order_hash)
 
     messages = P2POrderMessage.objects.filter(order=order).order_by('-dt')
     data = [m.to_json() for m in messages]
 
     return JsonResponse({'messages': data, 'title': 'Иван Иванов', 'avatar': '/static/CORE/misc/default_avatar.png'})
+
 
 @csrf_exempt
 def send_chat_message_view(request):
@@ -386,6 +434,7 @@ def send_chat_message_view(request):
         return JsonResponse({})
     else:
         return JsonResponse({'message': 'Error sending message', 'code': 1}, status=403)
+
 
 @csrf_exempt
 def send_chat_image_view(request):

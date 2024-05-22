@@ -1,4 +1,5 @@
 import datetime
+import logging
 import random
 from django.db.models import Q
 from CORE.models import BybitAccount, RiskEmail, P2POrderBuyToken, P2PItem, P2POrderMessage, BybitCurrency
@@ -51,7 +52,8 @@ def update_latest_email_codes_task(user_id=None):
         accounts = BybitAccount.objects.filter(is_active=True)
 
     for account in accounts:
-        emails = get_codes(IMAP_USERNAME=account.imap_username, IMAP_PASSWORD=account.imap_password, IMAP_SERVER=account.imap_server)
+        emails = get_codes(IMAP_USERNAME=account.imap_username, IMAP_PASSWORD=account.imap_password,
+                           IMAP_SERVER=account.imap_server)
         for email in emails:
             risk = RiskEmail()
             risk.account = account
@@ -61,7 +63,8 @@ def update_latest_email_codes_task(user_id=None):
             risk.dt = email['dt']
             risk.save()
 
-        addressbook_emails = get_addressbook_codes(IMAP_USERNAME=account.imap_username, IMAP_PASSWORD=account.imap_password, IMAP_SERVER=account.imap_server)
+        addressbook_emails = get_addressbook_codes(IMAP_USERNAME=account.imap_username,
+                                                   IMAP_PASSWORD=account.imap_password, IMAP_SERVER=account.imap_server)
         print(addressbook_emails)
         for email in addressbook_emails:
             risk = RiskEmail()
@@ -69,6 +72,7 @@ def update_latest_email_codes_task(user_id=None):
             risk.code = email['code']
             risk.dt = email['dt']
             risk.save()
+
 
 @shared_task
 def process_orders_messages_task():  # Ошибочные статусы доп проверки
@@ -82,24 +86,16 @@ def process_orders_messages_task():  # Ошибочные статусы доп 
 @shared_task
 def process_receive_order_message_task(order_id):
     order = P2POrderBuyToken.objects.get(id=order_id)
-    accounts = BybitAccount.objects.filter(is_active=True) #todo надо прикреплять аккаунт к заказу
-    account = random.choice(accounts)
-    s = BybitSession(account)
 
-    print(order.id, order.state)
-    if order.state == P2POrderBuyToken.STATE_INITIATED:
-        if not order.order_id: #Бывает такое что заказ не создавался
-            if order.withdraw_token not in P2P_TOKENS:  # Если нужно трейдить токен, покупаем в USDT
-                order.withdraw_token_rate = order.account.get_api().get_trading_rate(order.withdraw_token, 'USDT')
-                order.p2p_token = 'USDT'
-            else: #Если нет - покупаем ту же валюту
-                order.withdraw_token_rate = 1
-                order.p2p_token = order.withdraw_token
+    if order.state in [P2POrderBuyToken.STATE_WITHDRAWN,
+                       P2POrderBuyToken.STATE_TRANSFERRED,
+                       P2POrderBuyToken.STATE_PAID]:
 
         bybit_session = BybitSession(order.account)
         messages = bybit_session.get_order_messages(order.order_id)  # Выгружаем сообщения
         for msg in messages:
             P2POrderMessage.from_json(order.id, msg).save()
+
 
 @shared_task
 def process_receive_order_message_task_direct(order_id):
@@ -112,7 +108,8 @@ def process_receive_order_message_task_direct(order_id):
 
 @shared_task
 def process_orders_task():
-    orders_buy_token = P2POrderBuyToken.objects.filter(~Q(state=P2POrderBuyToken.STATE_WITHDRAWN),  # Ошибочные статусы доп проверки
+    orders_buy_token = P2POrderBuyToken.objects.filter(~Q(state=P2POrderBuyToken.STATE_WITHDRAWN),
+                                                       # Ошибочные статусы доп проверки
                                                        is_executing=False,
                                                        is_stopped=False)
     for order in orders_buy_token:
@@ -138,6 +135,7 @@ def healthcare_orders_task():  # Проверяем время выполнен�
                     break
             else:
                 print('Order task worker die!')  # FIXME нет атомарности / таска в запуске
+
 
 @shared_task
 def process_buy_order_task(order_id):
@@ -209,8 +207,6 @@ def process_buy_order_task(order_id):
         elif order.state == P2POrderBuyToken.STATE_RECEIVED:  # Переводим на биржу
             if order.p2p_token == order.withdraw_token:  # Если не нужно менять валюту на бирже
                 order.state = P2POrderBuyToken.STATE_WITHDRAWING
-                order.risk_token = None
-                print('returned to recevived')
                 order.save()
                 process_buy_order_task(order.id)
                 return
@@ -231,7 +227,8 @@ def process_buy_order_task(order_id):
             # buy_p2p * (1 - platform_commission) / withdraw_token_rate > buy_p2p / trade_rate * 1.03
 
             if trade_rate > ((1 - order.platform_commission) * order.withdraw_token_rate * 1.03):
-                print('diff', trade_rate, order.withdraw_token_rate * 1.03, ((1 - order.platform_commission) * order.withdraw_token_rate * 1.03))
+                print('diff', trade_rate, order.withdraw_token_rate * 1.03,
+                      ((1 - order.platform_commission) * order.withdraw_token_rate * 1.03))
                 order.state = P2POrderBuyToken.STATE_ERROR
                 order.save()
 
@@ -282,20 +279,19 @@ def process_buy_order_task(order_id):
                 order.dt_withdrawn = datetime.datetime.now()
                 order.save()
 
-
         """Заменено на вывод через API 
         elif order.state == P2POrderBuyToken.STATE_WITHDRAWING: #Инициализируем вывод крипты
             if order.dt_received.replace(tzinfo=None) < datetime.datetime.now() - datetime.timedelta(seconds=P2P_WITHDRAW_TIMEOUT): #Если больше 30 минут пытаемся вывести крипту
                 order.state = P2POrderBuyToken.STATE_ERROR
                 order.save()
                 return order
-    
+
             if not order.risk_token: #Получаем риск-токен
                 risk_token = s.get_withdraw_risk_token(order.withdraw_address, order.withdraw_quantity, order.withdraw_token, order.withdraw_chain)
                 print('Got risk token', risk_token)
             else:
                 risk_token = order.risk_token
-    
+
             print(s.session.cookies.keys())
             COOKIES_TO_DELETE = ['low_broswer', 'g_state', 'cookies_uuid_report', 'first_collect', 'tx_token_current', 'tx_token_time', 'trace_id_time', 'by_token_print', 'deviceCodeExpire', 'wcs_bt']
             for c in COOKIES_TO_DELETE:
@@ -305,8 +301,8 @@ def process_buy_order_task(order_id):
                     pass
             print('-'*10)
             print(s.session.cookies.keys())
-    
-    
+
+
             code = ''
             try:
                 code = s.verify_risk_send_email(risk_token)
@@ -318,7 +314,7 @@ def process_buy_order_task(order_id):
                 except:
                     code = s.verify_risk_send_email(risk_token)
                     print(code)
-    
+
             if code: #Возможно зависает из-за cookie deviceCodeExpire или by_token_prin
                 print('Email sent')
                 order.state = P2POrderBuyToken.STATE_WAITING_VERIFICATION
@@ -339,7 +335,7 @@ def process_buy_order_task(order_id):
                     order.save()
                     process_buy_order_task(order.id)
                     return order
-    
+
                 print('Risk token', risk_token)
                 if s.onchain_withdraw(order.withdraw_address, order.withdraw_quantity, risk_token, token=order.withdraw_token, chain=order.withdraw_chain):
                     print('Witdrawn successfully')
@@ -355,5 +351,3 @@ def process_buy_order_task(order_id):
                     process_buy_order_task(order.id)
         """
     return
-
-
