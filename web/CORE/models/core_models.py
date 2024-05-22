@@ -444,7 +444,7 @@ class P2POrderBuyToken(models.Model):
     order_id = models.CharField(max_length=30, blank=True, null=True)
     order_status = models.IntegerField(default=10, blank=True, null=True)
     terms = models.JSONField(default=dict, blank=True, null=True)
-    payment_id = models.CharField(max_length=50, blank=True, null=True)
+    payment_id = models.CharField(max_length=50, blank=True, null=True) # FIXME
 
     # TRANSFERRED
     dt_transferred = models.DateTimeField(default=None, blank=True, null=True)

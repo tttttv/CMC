@@ -1,3 +1,4 @@
+import datetime
 import json
 import time
 import requests
@@ -49,7 +50,8 @@ class BybitSession():
         print('COOKIES SUCCESSFULLY SET')
 
     def get_prices_list(self, token_id='USDT', currency_id='RUB', payment_methods=("379", ),
-                        items: Optional[list] = None, amount="", side="1", filter_online: bool = True):
+                        items: Optional[list] = None, amount="", side="1", filter_online: bool = True,
+                        filter_ineligible: bool = False):
         """Выгружает список цен на п2п"""
         data = {
             "userId": self.user_id,
@@ -64,17 +66,42 @@ class BybitSession():
             "canTrade": True
         }
 
-        # print(data)
         r = self.session.post('https://api2.bybit.com/fiat/otc/item/online', json=data)
         resp = r.json()
+        print('online resp:', resp)
+        user_info = None
+        if filter_ineligible:
+            user_info = self.get_user_info()
+            print('user_info', user_info)
 
-        # print(resp)
         if resp['ret_code'] == 0:
             p2p = []
             for item in resp['result']['items']:
                 print(f"Seller id {item['accountId']} online: {item['isOnline']}")
                 if filter_online and not item['isOnline']:
                     continue
+
+                if filter_ineligible and user_info:
+                    prefs = item['tradingPreferenceSet']
+
+                    # TODO add isKyc / isEmail / isMobile
+                    if (prefs['hasOrderFinishNumberDay30'] and
+                            prefs['orderFinishNumberDay30'] > user_info['recentFinishCount']):
+                        continue
+
+                    if prefs['hasUnPostAd'] and not user_info['hasUnPostAd']:
+                        continue
+
+                    if prefs['hasRegisterTime'] and prefs['registerTimeThreshold'] > user_info['accountCreateDays']:
+                        continue
+
+                    if prefs['hasNationalLimit'] and user_info['kycCountryCode'] in prefs['nationalLimit']:
+                        continue
+
+                    if prefs['hasCompleteRateDay30']:
+                        completeRateDay30 = int(prefs['completeRateDay30'])
+                        if 0 < completeRateDay30 and completeRateDay30 > int(user_info['recentRate']):
+                            continue
 
                 if not items or item['id'] in items:  # Фильтруем только тех кого запросили
                     p2p.append(P2PItem.from_json(item))
@@ -820,6 +847,15 @@ class BybitSession():
             filename = file_path.split('/')[-1]
             return filename, r.content
         return None, None
+
+    def get_user_info(self) -> Optional[dict]:
+        timestamp = int(time.time() * 1000)
+
+        r = self.session.post("https://api2.bybit.com/fiat/otc/user/personal/info", params={'t': timestamp})
+        resp = r.json()
+        print(resp)
+        if resp['ret_code'] == 0:
+            return resp['result']
 
 
 if __name__ == '__main__':
