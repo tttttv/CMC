@@ -85,6 +85,9 @@ class BybitSession():
                     prefs = item['tradingPreferenceSet']
 
                     # TODO add isKyc / isEmail / isMobile
+                    # if prefs['isMobile'] and not user_info:
+                    #     continue
+
                     if (prefs['hasOrderFinishNumberDay30'] and
                             prefs['orderFinishNumberDay30'] > user_info['recentFinishCount']):
                         continue

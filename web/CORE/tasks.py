@@ -19,9 +19,11 @@ def update_p2pitems_task():
     payment_methods = [payment.payment_id for payment in BybitCurrency.all_payment_methods()]
 
     items_sale = bybit_session.get_prices_list(token_id='USDT', currency_id='RUB',
-                                               payment_methods=payment_methods, side="1", filter_online=False)  # лоты на продажу
+                                               payment_methods=payment_methods, side="1", filter_online=True,
+                                               filter_ineligible=True)  # лоты на продажу
     items_buy = bybit_session.get_prices_list(token_id='USDT', currency_id='RUB',  # todo другие валюты
-                                              payment_methods=payment_methods, side="0", filter_online=False)  # лоты на покупку
+                                              payment_methods=payment_methods, side="0", filter_online=True,
+                                              filter_ineligible=True)  # лоты на покупку
 
     P2PItem.objects.filter(is_active=True).update(is_active=False)
 
