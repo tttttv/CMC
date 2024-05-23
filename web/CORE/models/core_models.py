@@ -23,7 +23,7 @@ class BybitSeller(models.Model):
     account_id = models.IntegerField()
     userId = models.IntegerField()
     # whitelist
-    is_available = models.BooleanField()
+    is_available = models.BooleanField(default=True)
 
 class BybitCurrency(models.Model):
     TYPE_FIAT = 'fiat'
@@ -657,6 +657,7 @@ class P2POrderMessage(models.Model):
             'dt': self.dt.strftime('%d.%m.%Y %H:%M:%S') if self.dt else None,
             'uuid': self.uuid,
             'file': self.get_file_base64(),
+            'file_name': self.file.name,
             'side': side,
         }
         print(res)

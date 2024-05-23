@@ -1,5 +1,5 @@
 import math
-from CORE.service.CONFIG import  TOKENS_DIGITS
+from CORE.service.CONFIG import TOKENS_DIGITS
 import os
 import base64
 
@@ -31,6 +31,7 @@ def file_as_base64(file_path):
         '.pdf': 'application/pdf'
     }
     file_extension = os.path.splitext(file_path)[1]
+    print('file_extension', file_extension)
     if file_extension not in mime_types:
         raise ValueError("Unsupported file type. Only PNG, JPG, MP4, and PDF are allowed.")
 
@@ -42,6 +43,3 @@ def file_as_base64(file_path):
     return f'data:{mime_type};base64,{encoded_string}'
 
 
-if __name__ == '__main__':
-    raw = file_as_base64('/home/baka/Downloads/Telegram Desktop/receipt_18.05.2024 (2) (copy).pdf')
-    print(raw[:])

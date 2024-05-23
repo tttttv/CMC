@@ -5,6 +5,7 @@ import requests
 from requests import Session
 import uuid
 from typing import Optional
+from urllib.parse import urlparse
 
 from websocket import create_connection
 
@@ -119,6 +120,7 @@ class BybitSession():
             "item_id": item_id,
         }
         # {'ret_code': 912300001, 'ret_msg': 'Insufficient ad inventory, please try other ads', 'result': None, 'ext_code': '', 'ext_info': None, 'time_now': '1713650165.224304'}
+        print('data:', data)
         r = self.session.post('https://api2.bybit.com/fiat/otc/item/simple', json=data)
         resp = r.json()
         print(resp)
@@ -248,7 +250,8 @@ class BybitSession():
             print(resp)
             raise ValueError
 
-    def send_message(self, order_id, message_uuid, message):
+    def send_message(self, order_id, message, message_uuid: Optional[str] = None, contentType='str',
+                     extra_data: dict = None):
         """Отправляет сообщение в переписку"""
         r = self.session.post('https://api2.bybit.com/user/private/ott')
         resp = r.json()
@@ -264,22 +267,39 @@ class BybitSession():
             ws.send(json.dumps(data))  # Запрос на авторизацию
             result = json.loads(ws.recv())
 
-            if result['success'] == True:  # success auth
-                # myuuid = str(uuid.uuid4())  # генерация uuid для сообщения
+            if result['success']:  # success auth
+                if message_uuid is None:
+                    message_uuid = str(uuid.uuid4())  # генерация uuid для сообщения
+                BODY = {
+                    'topic': 'OTC_USER_CHAT_MSG_V2',
+                    'type': 'SEND',
+                    'data': {
+                        'userId': str(self.user_id),
+                        'orderId': str(order_id),
+                        'message': str(message),
+                        'contentType': str(contentType),  # contentType: str, pdf
+                        'msgUuid': message_uuid,
+                        'roleType': 'user',
+                    },
+                    'msgId': f'OTC_USER_CHAT_MSG_V2-SEND-{int(time.time())}-{str(order_id)}',
+                    'reqId': str(req_id)
+                }
+
+                if extra_data:
+                    BODY['data'].update(extra_data)
+                print('BODY', BODY)
                 data = {
                     "op": "input",
                     "args": [
                         "FIAT_OTC_TOPIC",
-                        "{\"topic\":\"OTC_USER_CHAT_MSG_V2\",\"type\":\"SEND\",\"data\":{\"userId\":" + str(
-                            self.user_id) + ",\"orderId\":\"" + str(
-                            order_id) + "\",\"message\":\"" + message + "\",\"contentType\":\"str\",\"msgUuid\":\"" + message_uuid + "\",\"roleType\":\"user\"},\"msgId\":\"OTC_USER_CHAT_MSG_V2-SEND-" + str(
-                            int(time.time())) + "-" + str(order_id) + "\",\"reqId\":\"" + req_id + "\"}"
+                        json.dumps(BODY)
                     ]
                 }
+                print('data', data)
                 ws.send(json.dumps(data))
                 result = json.loads(ws.recv())
 
-                if result['success'] == True:
+                if result['success']:
                     return True
                 else:
                     ws.close()
@@ -291,13 +311,41 @@ class BybitSession():
             print(resp)
             raise ValueError()
 
-    def upload_file(self, file):
-        files = {'upload_file': file}  # (file.name, file, 'application/pdf')
+    def upload_file(self, order_id, file_name, content, content_type):
+        files = {'upload_file': (file_name, content, content_type)}  # (file_name, content, 'application/pdf')
         r = self.session.post('https://api2.bybit.com/fiat/p2p/oss/upload_file', files=files)
         resp = r.json()
         print(f'upload_file resp: {resp}')
         if resp['ret_code'] == 0:
-            return True
+            file_url = resp['result']['url']
+            parsed_url = urlparse(file_url)
+            dist_file_name = parsed_url.path.split('/')[-1]
+            print('dist_file_name', dist_file_name, type(dist_file_name))
+
+            if isinstance(dist_file_name, bytes):
+                dist_file_name = dist_file_name.decode('utf8')
+
+            file_ext = dist_file_name.split(".")[-1]
+            print('new file_ext', file_ext)
+            mime_types = {
+                'png': 'image/pic',  # TEST
+                'jpg': 'image/pic',  # +
+                'jpeg': 'image/pic',  # TEST
+                'mp4': 'video/video',  # +
+                'pdf': 'application/pdf'  # +
+            }
+            content_type = mime_types[file_ext]
+            print('content_type', content_type)
+            mtype, subtype = content_type.split('/')  # application/pdf
+            extra_data = {
+                'type': mtype,
+                'tmpName': str(file_name),
+                'onlyForCustomer': '0'
+            }
+            print('extra_data', extra_data)
+            result = self.send_message(order_id, file_url, contentType=subtype, extra_data=extra_data)
+            print('result', result)
+            return result
         return False
 
     def get_withdraw_risk_token(self, address, amount: float, token='USDT', chain='MANTLE'):
@@ -847,7 +895,8 @@ class BybitSession():
     def download_p2p_file_attachment(cls, file_path):  # Можно без сессии получать
         r = requests.get(f'https://api2.bybit.com/{file_path}')
         if r.status_code == 200:
-            filename = file_path.split('/')[-1]
+            parsed_url = urlparse(file_path)
+            filename = parsed_url.path.split('/')[-1]
             return filename, r.content
         return None, None
 
@@ -865,6 +914,8 @@ if __name__ == '__main__':
     from CORE.models import BybitAccount
     account = BybitAccount.objects.get(id=1)
     # account = BybitAccount()
-    s = BybitSession(account)
-    payments = s.get_payments_list()
-    print(payments)
+    bybit_session = BybitSession(account)
+    # payments = bybit_session.get_payments_list()
+    # print(payments)
+
+

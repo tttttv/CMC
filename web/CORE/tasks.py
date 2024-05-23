@@ -94,7 +94,9 @@ def process_receive_order_message_task(order_id):
         bybit_session = BybitSession(order.account)
         messages = bybit_session.get_order_messages(order.order_id)  # Выгружаем сообщения
         for msg in messages:
-            P2POrderMessage.from_json(order.id, msg).save()
+            message = P2POrderMessage.from_json(order.id, msg)
+            if message:
+                message.save()
 
 
 @shared_task
@@ -103,7 +105,9 @@ def process_receive_order_message_task_direct(order_id):
     bybit_session = BybitSession(order.account)
     messages = bybit_session.get_order_messages(order.order_id)
     for msg in messages:
-        P2POrderMessage.from_json(order.id, msg).save()
+        message = P2POrderMessage.from_json(order.id, msg)
+        if message:
+            message.save()
 
 
 @shared_task
@@ -167,7 +171,9 @@ def process_buy_order_task(order_id):
                 print('WAITING FOR CUSTOMER TO PAY')
                 messages = bybit_session.get_order_messages(order.order_id)  # Выгружаем сообщения из базы
                 for msg in messages:
-                    P2POrderMessage.from_json(order.id, msg).save()
+                    message = P2POrderMessage.from_json(order.id, msg)
+                    if message:
+                        message.save()
         elif order.state == P2POrderBuyToken.STATE_TRANSFERRED:  # Оплачен клиентом
             if bybit_session.mark_order_as_paid(order.order_id, order.terms['payment_id'],
                                                 order.payment_method.payment_id):
@@ -176,11 +182,13 @@ def process_buy_order_task(order_id):
                 order.dt_paid = datetime.datetime.now()
                 order.save()
         elif order.state == P2POrderBuyToken.STATE_PAID:  # Ждет подтверждения от продавца
-            state, terms = bybit_session.get_order_info(order.order_id, order.payment_method.payment_id)
-
             messages = bybit_session.get_order_messages(order.order_id)  # Выгружаем сообщения из базы
             for msg in messages:
-                P2POrderMessage.from_json(order.id, msg).save()
+                message = P2POrderMessage.from_json(order.id, msg)
+                if message:
+                    message.save()
+
+            state, terms = bybit_session.get_order_info(order.order_id, order.payment_method.payment_id)
 
             if state == 50:
                 print('Token received')

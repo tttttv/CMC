@@ -429,7 +429,7 @@ def send_chat_message_view(request):
         # nick_name=order.account.nick_name
     )
 
-    if bybit_session.send_message(order.order_id, message_uuid, text):
+    if bybit_session.send_message(order.order_id, text, message_uuid=message_uuid):
         message.save()
         return JsonResponse({})
     else:
@@ -451,15 +451,7 @@ def send_chat_image_view(request):
 
     message_id = uuid.uuid4()
     file_name = request.POST.get('file_name', f'{message_id}.{ext}')  # NEW INPUT
-    data = ContentFile(base64.b64decode(imgstr), name=file_name)
-
-    mime_types = {
-        'png': 'image/png',
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'mp4': 'video/mp4',
-        'pdf': 'application/pdf'
-    }
+    content = ContentFile(base64.b64decode(imgstr), name=file_name)
 
     # msg_type = {
     #     'png': P2POrderMessage.TYPE_PIC,
@@ -477,10 +469,17 @@ def send_chat_image_view(request):
     #     user_id=order.account.user_id,
     #     nick_name=order.account.nick_name
     # )
+    mime_types = {
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'mp4': 'video/mp4',
+        'pdf': 'application/pdf'
+    }
+    content_type = mime_types[ext]
 
-    file_data = (file_name, data, mime_types[ext])
     bybit_session = BybitSession(order.account)
-    if bybit_session.upload_file(file_data):  # FIXME TEST
+    if bybit_session.upload_file(order.order_id, file_name, content, content_type):  # FIXME TEST
         # message.save()
         # message.file.save(file_name, data, save=True)
 
