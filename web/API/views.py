@@ -278,7 +278,7 @@ def get_order_state_view(request):
     state = None
     state_data = {}
     order_data = {
-        'from': order.payment_method.id,
+        'from': order.payment_method.to_json(),
         'to': BybitCurrency.get_token(order.withdraw_token).to_json(),
         'rate': (order.amount / order.withdraw_quantity) if order.withdraw_quantity else None,
         'amount': order.amount,
