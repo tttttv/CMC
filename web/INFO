@@ -21,17 +21,14 @@ from CORE.models import *
 BybitCurrency.cache_exchange_from()
 P2POrderMessage.objects.all()
 
-
-http://127.0.0.1:8000/api/exchange/from 
-http://127.0.0.1:8000/api/exchange/to
+"https://api.fleshlight.fun/api"
+"http://127.0.0.1:8000/api"
 
 
 http://127.0.0.1:8000/admin/
 http://127.0.0.1:8000/api/v2/docs
 http://127.0.0.1:8000/api/exchange/to
 
-https://api.fleshlight.fun/api/exchange/price?anchor=currency&amount=500&chain=NEAR&payment_method=377&token=NEAR
-http://127.0.0.1:8000/api/exchange/price?anchor=currency&amount=500&chain=NEAR&payment_method=3&token=NEAR
 
 sidorovivan01998@gmail.com
 123456789
