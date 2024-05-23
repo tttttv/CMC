@@ -69,6 +69,10 @@ class BybitAPI:
             print(r)
             raise ValueError
 
+    def get_coin_balance(self, accountType="FUND"):
+        r = self.session.get_coins_balance(accountType=accountType)
+        print(r)
+
     def transfer_to_trading(self, token, amount):
         truuid = uuid.uuid4()
         r = self.session.create_internal_transfer(

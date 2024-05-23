@@ -47,6 +47,11 @@ def update_p2pitems_task():
         print('SAVED ID', item.id)
 
 
+
+# @shared_task
+# def task_send_message(message_id=None):
+#     P2POrderMessage.objects.get(id=message_id) # FIXME
+
 @shared_task
 def update_latest_email_codes_task(user_id=None):
     if user_id:
