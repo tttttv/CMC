@@ -20,4 +20,4 @@ class WidgetAPI {
   }
 }
 
-export const widgetAPI = new WidgetAPI("https://api.fleshlight.fun/api");
+export const widgetAPI = new WidgetAPI("http://127.0.0.1:8000/api");
