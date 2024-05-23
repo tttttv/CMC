@@ -3,7 +3,8 @@
   box-shadow: 0 0 24px 0 rgba(90, 89, 89, 0.1);
   width: 100%;
   overflow: hidden;
-  max-height: 760px;
+  height: min-content;
+  padding-bottom: 5px;
   background-color: var(--blockColor);
   .header {
     display: flex;

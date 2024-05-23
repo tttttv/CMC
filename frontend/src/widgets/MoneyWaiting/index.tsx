@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import OperationCancel from "../ModalWindows/OperationCancel";
 
-import { currencyAPI } from "$/shared/api/currency";
 import { orderAPI } from "$/shared/api/order";
 import getCookieValue from "$/shared/helpers/getCookie";
 import Button from "$/shared/ui/kit/Button/Button";
@@ -37,17 +36,9 @@ const MoneyWaiting = () => {
     select: (data) => data.data,
   });
 
-  const { data: toValues } = useQuery({
-    queryKey: ["toValues"],
-    queryFn: currencyAPI.getToValues,
-    select: (data) => data.data.methods,
-  });
-
-  const { data: fromValues } = useQuery({
-    queryKey: ["fromValues"],
-    queryFn: currencyAPI.getFromValues,
-    select: (data) => data.data.methods,
-  });
+  const order = data?.order;
+  const from = order?.from;
+  const to = order?.to;
 
   const { mutate: cancelPay } = useMutation({
     mutationKey: ["cancelPay"],
@@ -67,15 +58,6 @@ const MoneyWaiting = () => {
     mutationFn: orderAPI.payOrder,
   });
 
-  const token = toValues?.crypto?.find(
-    (token) => token.id == data?.order.to.id
-  );
-  const bank = fromValues?.fiat
-    ?.find((bank) => bank.id == data?.order.from.currency)
-    ?.payment_methods.find(
-      (bank) => String(bank.id) === String(data?.order.from.id)
-    );
-
   const copyCardNumberToClipboard = () => {
     const cardNumber = data?.state_data.terms?.account_no || "";
     navigator.clipboard.writeText(cardNumber).then(() => {
@@ -85,12 +67,6 @@ const MoneyWaiting = () => {
       }, COPY_MESSAGE_DISAPPEAR_DELAY);
     });
   };
-
-  const bankGet = fromValues?.fiat
-    ?.find((bank) => bank.id == data?.order.from.currency)
-    ?.payment_methods.find(
-      (bank) => String(bank.id) === String(data?.state_data.terms?.payment_type)
-    );
 
   return (
     <div className={styles.container}>
@@ -102,26 +78,26 @@ const MoneyWaiting = () => {
           <div className={styles.firstPlace}>
             <div className={styles.icon}>
               <CurrencyIcon
-                currencyName={bank?.name || ""}
-                imageUrl={bank?.logo || ""}
+                currencyName={from?.name || ""}
+                imageUrl={from?.logo || ""}
                 width={16}
               />
             </div>
             <h4 className={styles.currency}>
-              {data?.order.amount || "---"} {data?.order.from.currency || ""}
+              {data?.order.amount || "---"} {data?.order.from.name || ""}
             </h4>
           </div>
           <Arrow />
           <div className={styles.secondPlace}>
             <div className={styles.icon}>
               <CurrencyIcon
-                currencyName={token?.name || ""}
-                imageUrl={token?.logo || ""}
+                currencyName={to?.name || ""}
+                imageUrl={to?.logo || ""}
                 width={16}
               />
             </div>
             <h2 className={styles.currency}>
-              {data?.order.quantity || "---"} {token?.name || ""}
+              {data?.order.quantity || "---"} {to?.name || ""}
             </h2>
           </div>
         </div>
@@ -137,13 +113,11 @@ const MoneyWaiting = () => {
             <div className={styles.icon}>
               <CurrencyIcon
                 currencyName={""}
-                imageUrl={bankGet?.logo || ""}
+                imageUrl={from?.logo || ""}
                 width={16}
               />
             </div>
-            <div className={styles.infoBlockValue}>
-              {bankGet?.name || "Альфа-банк"}
-            </div>
+            <div className={styles.infoBlockValue}>{from?.name || "---"}</div>
           </div>
         </div>
         <div className={styles.infoBlock}>

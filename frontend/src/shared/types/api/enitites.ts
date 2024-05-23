@@ -50,14 +50,17 @@ export interface OrderState {
     quantity: number;
     time_left: number; // last screen
     from: {
-      bank_name: string;
-      currency: string;
+      type: "fiat" | "crypto";
+      name: string;
       id: number;
+      chains: Chain[];
       logo: string;
     };
     to: {
       id: string;
+      type: "fiat" | "crypto";
       name: string;
+      logo: string;
       chains: Chain[];
       payment_methods: number[];
     };
