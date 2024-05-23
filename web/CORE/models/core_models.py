@@ -647,7 +647,7 @@ class P2POrderMessage(models.Model):
 
         res = {
             'nick_name': nickname,
-            'text': self.text if self.type == self.TYPE_STR else self.get_file_base64(),
+            'text': self.text,
             'dt': self.dt.strftime('%d.%m.%Y %H:%M:%S') if self.dt else None,
             'uuid': self.uuid,
             'file': self.get_file_base64(),
