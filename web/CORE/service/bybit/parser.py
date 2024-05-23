@@ -16,10 +16,10 @@ from CORE.service.tools.formats import format_float
 from CORE.service.CONFIG import P2P_BUY_TIMEOUTS, P2P_EMAIL_SEND_TIMEOUT
 
 
-def get_cookies():
-    with open('www.bybit.com.cookies.json', 'r') as f:
-        cookies = json.load(f)
-    return cookies
+# def get_cookies():
+#     with open('www.bybit.com.cookies.json', 'r') as f:
+#         cookies = json.load(f)
+#     return cookies
 
 
 class TimeoutRequestsSession(requests.Session):
@@ -27,12 +27,18 @@ class TimeoutRequestsSession(requests.Session):
         kwargs.setdefault('timeout', P2P_EMAIL_SEND_TIMEOUT)
         return super(TimeoutRequestsSession, self).request(*args, **kwargs)
 
+class AuthenticationError(Exception):
+    def __init__(self,  message="Authentication failed"):
+        self.message = message
 
-class BybitSession():
+
+class BybitSession:
     def __init__(self, user):
         self.user_id = user.user_id
         self.session = TimeoutRequestsSession()
         self.user = user
+        if user.proxy_settings:
+            self.session.proxies.update(user.proxy_settings)
 
         for c in user.cookies:
             my_cookie = requests.cookies.create_cookie(name=c['name'], domain=c['domain'], value=c['value'])
@@ -110,6 +116,8 @@ class BybitSession():
                 if not items or item['id'] in items:  # Фильтруем только тех кого запросили
                     p2p.append(P2PItem.from_json(item))
             return p2p
+        elif resp['ret_code'] == 10007:
+            raise AuthenticationError()
         else:
             print(resp)
             raise ValueError

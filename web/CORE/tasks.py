@@ -3,36 +3,39 @@ import logging
 import random
 from django.db.models import Q
 from CORE.models import BybitAccount, RiskEmail, P2POrderBuyToken, P2PItem, P2POrderMessage, BybitCurrency
-from CORE.service.bybit.parser import BybitSession
+from CORE.service.bybit.parser import BybitSession, AuthenticationError
 from CORE.service.bybit.code_2fa import get_codes, get_addressbook_codes
 from CORE.service.CONFIG import P2P_BUY_TIMEOUTS, P2P_EMAIL_SEND_TIMEOUT, P2P_WITHDRAW_TIMEOUT, P2P_TOKENS
 from celery import shared_task
 from CORE.utils import order_task_lock, get_active_celery_tasks
-
+from requests.exceptions import *
 
 @shared_task
 def update_p2pitems_task():
     accounts = BybitAccount.objects.filter(is_active=True)
     if not accounts:
-        print('No active accounts')
         return
     account: BybitAccount = random.choice(accounts)
     bybit_session = BybitSession(account)
 
     payment_methods = [payment.payment_id for payment in BybitCurrency.all_payment_methods()]
 
-    items_sale = bybit_session.get_prices_list(token_id='USDT', currency_id='RUB',
-                                               payment_methods=payment_methods, side="1", filter_online=True,
-                                               filter_ineligible=True)  # лоты на продажу
-    items_buy = bybit_session.get_prices_list(token_id='USDT', currency_id='RUB',  # todo другие валюты
-                                              payment_methods=payment_methods, side="0", filter_online=True,
-                                              filter_ineligible=True)  # лоты на покупку
+    try:
+        items_sale = bybit_session.get_prices_list(token_id='USDT', currency_id='RUB',
+                                                   payment_methods=payment_methods, side="1", filter_online=True,
+                                                   filter_ineligible=True)  # лоты на продажу
+        items_buy = bybit_session.get_prices_list(token_id='USDT', currency_id='RUB',  # todo другие валюты
+                                                  payment_methods=payment_methods, side="0", filter_online=True,
+                                                  filter_ineligible=True)  # лоты на покупку
+    except (ProxyError, RequestException) as e:
+        account.set_proxy_dead()
+        print(e)
+        return
+    except AuthenticationError:
+        account.set_banned()
+        return
 
     P2PItem.objects.filter(is_active=True).update(is_active=False)
-
-    if not items_sale and not items_buy:
-        account.set_banned()  # FIXME TEST
-        return
 
     for item in (items_sale + items_buy):
         print(item)

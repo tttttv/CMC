@@ -5,12 +5,20 @@ from pybit.unified_trading import HTTP
 import uuid
 
 
-class BybitAPI():
-    def __init__(self, api_key, api_secret):
-        self.session = HTTP(
+class ProxyHTTP(HTTP):
+    def __init__(self, proxy: dict = None, **kwargs):
+        super().__init__(**kwargs)
+        if proxy:
+            self.client.proxies.update(proxy)
+
+class BybitAPI:
+    def __init__(self, api_key, api_secret, proxy: dict = None):
+        self.proxy: dict = proxy
+        self.session = ProxyHTTP(
             testnet=False,
             api_key=api_key,
             api_secret=api_secret,
+            proxy=proxy
         )
 
     def get_trading_rate(self, token_buy, token_sell):

@@ -166,6 +166,7 @@ class BybitAccount(models.Model):
     imap_username = models.CharField(max_length=50)  # Почта привязанная к аккаунту
     imap_server = models.CharField(max_length=50)  # Сервер почты
     imap_password = models.CharField(max_length=30)  # Пароль от почты
+
     proxy_settings = models.JSONField(default=dict, blank=True, null=True)  # Настройки прокси, привязанные к аккаунту
 
     api_key = models.CharField(max_length=50, blank=True, null=True)
@@ -197,7 +198,7 @@ class BybitAccount(models.Model):
         return str(self.user_id)
 
     def get_api(self):
-        return BybitAPI(api_key=self.api_key, api_secret=self.api_secret)
+        return BybitAPI(api_key=self.api_key, api_secret=self.api_secret, proxy=self.proxy_settings)
 
     @classmethod
     def assign_order(cls, order_id):  # FIXME
@@ -215,17 +216,6 @@ class BybitAccount(models.Model):
                 account.save(update_fields=['order_id'])
                 return account
 
-    # @classmethod
-    # def get_free(cls):
-    #     """ Возвращает аккаунт, на котором нет активных P2P сделок"""
-    #     accounts = BybitAccount.objects.all()
-    #     for account in accounts:
-    #         if not P2POrderBuyToken.objects.filter(dt_received=None).exclude(
-    #                 state__in=[P2POrderBuyToken.STATE_WRONG_PRICE, P2POrderBuyToken.STATE_TIMEOUT]).exists():
-    #             return account
-    #     else:
-    #         return None  # Нет свободных аккаунтов
-
     @classmethod
     def get_random_account(cls):
         return random.choice(BybitAccount.objects.filter(is_active=True).all())
@@ -236,6 +226,10 @@ class BybitAccount(models.Model):
             '%d.%m.%Y %H:%M')
         self.save()
 
+    def set_proxy_dead(self):
+        self.is_active_commentary = 'ProxyDead at ' + datetime.datetime.now().strftime(
+            '%d.%m.%Y %H:%M')
+        self.save()
 
 class RiskEmail(models.Model):
     """Парсинг верификационных писем с email"""
