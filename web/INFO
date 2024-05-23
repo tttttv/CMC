@@ -1,7 +1,9 @@
 
 sudo ssh -o 'IdentityFile=/dev/null' -o IdentitiesOnly=yes -i '/home/baka/ControllGPS/yc-q641' tttttv@158.160.113.89
 
+
 sudo docker compose logs --tail 5000 web 
+sudo docker compose logs --tail 5000 frontend
 sudo docker compose exec -it celery tail -5000 /web/logs/celery.log
 
 sudo docker compose exec -it web bash
@@ -28,6 +30,8 @@ P2POrderMessage.objects.all()
 http://127.0.0.1:8000/admin/
 http://127.0.0.1:8000/api/v2/docs
 http://127.0.0.1:8000/api/exchange/to
+
+https://www.bybit.com/user/assets/money-address
 
 
 sidorovivan01998@gmail.com

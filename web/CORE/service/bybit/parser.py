@@ -90,13 +90,13 @@ class BybitSession():
                     #     continue
 
                     if (prefs['hasOrderFinishNumberDay30'] and
-                            prefs['orderFinishNumberDay30'] > user_info['recentFinishCount']):
+                            prefs['orderFinishNumberDay30'] >= user_info['recentFinishCount']):
                         continue
 
                     if prefs['hasUnPostAd'] and not user_info['hasUnPostAd']:
                         continue
 
-                    if prefs['hasRegisterTime'] and prefs['registerTimeThreshold'] > user_info['accountCreateDays']:
+                    if prefs['hasRegisterTime'] and prefs['registerTimeThreshold'] >= user_info['accountCreateDays']:
                         continue
 
                     if prefs['hasNationalLimit'] and user_info['kycCountryCode'] in prefs['nationalLimit']:
@@ -104,7 +104,7 @@ class BybitSession():
 
                     if prefs['hasCompleteRateDay30']:
                         completeRateDay30 = int(prefs['completeRateDay30'])
-                        if 0 < completeRateDay30 and completeRateDay30 > int(user_info['recentRate']):
+                        if 0 < completeRateDay30 and completeRateDay30 >= int(user_info['recentRate']):
                             continue
 
                 if not items or item['id'] in items:  # Фильтруем только тех кого запросили

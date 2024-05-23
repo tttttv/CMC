@@ -229,7 +229,8 @@ def process_buy_order_task(order_id):
 
             total_price = bybit_api.get_price_for_amount(order.withdraw_token, order.p2p_token, order.trading_quantity)
             trade_rate = total_price / order.trading_quantity
-
+            print('total_price', total_price)
+            print('trade_rate', trade_rate)
             # trade_rate = bybit_api.get_trading_rate(order.withdraw_token, order.p2p_token)
 
             # buy_p2p * (1 - platform_commission) / withdraw_token_rate > buy_p2p / trade_rate * 1.03

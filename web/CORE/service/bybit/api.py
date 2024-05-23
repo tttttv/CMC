@@ -70,7 +70,7 @@ class BybitAPI():
             fromAccountType="FUND",
             toAccountType="UNIFIED",
         )
-
+        print('transfer_to_trading resp:', r)
         if r['retCode'] == 0:
             print(r['result']['transferId'])
 

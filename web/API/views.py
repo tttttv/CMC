@@ -420,7 +420,7 @@ def send_chat_message_view(request):
     message_uuid = str(uuid.uuid4())  # генерация uuid для сообщения
     message = P2POrderMessage(
         order=order,
-        message_id=-1,
+        message_id=message_uuid,
         uuid=message_uuid,
         text=text,
         account_id=order.account_id,
