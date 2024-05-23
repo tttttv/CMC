@@ -102,5 +102,5 @@ class OrderAPI {
   };
 }
 
-const orderAPI = new OrderAPI("http://127.0.0.1:8000/api");
+const orderAPI = new OrderAPI("https://api.fleshlight.fun/api");
 export { orderAPI };

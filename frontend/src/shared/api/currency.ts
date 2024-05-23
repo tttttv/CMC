@@ -22,5 +22,5 @@ class CurrencyAPI {
   };
 }
 
-const currencyAPI = new CurrencyAPI("http://127.0.0.1:8000/api");
+const currencyAPI = new CurrencyAPI("https://api.fleshlight.fun/api");
 export { currencyAPI };
