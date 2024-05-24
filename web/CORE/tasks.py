@@ -82,6 +82,8 @@ def update_latest_email_codes_task(user_id=None):
                                                imap_password__isnull=False, imap_server__isnull=False)
 
     for account in accounts:
+        if not account.imap_username or not account.imap_password or not account.imap_server:
+            continue
         try:
             emails = get_codes(IMAP_USERNAME=account.imap_username, IMAP_PASSWORD=account.imap_password,
                                IMAP_SERVER=account.imap_server)
