@@ -99,7 +99,8 @@ export interface Message {
   text: string;
   dt: string;
   nick_name: string;
-  image: string;
+  file: string;
+  file_name: string;
   side: "USER" | "TRADER" | "SUPPORT";
 }
 export interface Messages {
