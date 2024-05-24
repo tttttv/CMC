@@ -17,7 +17,7 @@ def setup_periodic_tasks(sender, **kwargs):
         },
         'update_latest_email_codes': {
             'task': 'CORE.tasks.update_latest_email_codes_task',
-            'schedule': crontab(hour='*', minute='*/1'),
+            'schedule': crontab(hour='*', minute='*/2'),
         },
         'process_orders': {
             'task': 'CORE.tasks.process_orders_task',

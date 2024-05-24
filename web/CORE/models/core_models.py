@@ -163,9 +163,10 @@ class BybitAccount(models.Model):
     cookies_updated = models.DateTimeField(default=datetime.datetime.now)  # Время установки кук
     cookies_valid = models.BooleanField(default=True)  # Не возникало ошибок с куками
     ga_secret = models.CharField(max_length=30, default='GHO5UKQ3IDTCRIXY')  # Секрет гугл 2фа
-    imap_username = models.CharField(max_length=50)  # Почта привязанная к аккаунту
-    imap_server = models.CharField(max_length=50)  # Сервер почты
-    imap_password = models.CharField(max_length=30)  # Пароль от почты
+
+    imap_username = models.CharField(default=None, max_length=50, blank=True, null=True)  # Почта привязанная к аккаунту
+    imap_server = models.CharField(default=None, max_length=50, blank=True, null=True)  # Сервер почты
+    imap_password = models.CharField(default=None, max_length=30, blank=True, null=True)  # Пароль от почты
 
     proxy_settings = models.JSONField(default=dict, blank=True, null=True)  # Настройки прокси, привязанные к аккаунту
 
