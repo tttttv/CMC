@@ -10,3 +10,5 @@
 *.py[cod]
 docker-compose.local.yml
 __pycache__
+/web/media/
+web/media/**
