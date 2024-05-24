@@ -584,6 +584,16 @@ class P2POrderMessage(models.Model):
     TYPE_VIDEO = 'video'
     TYPE_PIC = 'pic'
 
+    STATUS_DELIVERED = 'delivered'
+    STATUS_ERROR = 'error'
+    STATUS_SENDING = 'sending'
+
+    STATUSES = (
+        (STATUS_SENDING, 'отправляется'),
+        (STATUS_DELIVERED, 'доставлено'),
+        (STATUS_ERROR, 'ошибка')
+    )
+
     message_id = models.CharField(max_length=50)
     account_id = models.CharField(max_length=50, blank=True, null=True)
     text = models.TextField(default='', blank=True, null=True)
@@ -594,7 +604,7 @@ class P2POrderMessage(models.Model):
     type = models.CharField(max_length=50, default=1)  # 1 - переписка, иначе служебное
 
     file = models.FileField(upload_to='sent', blank=True, null=True)  # TODO Папка sent закрыта для доступа из вне
-
+    status = models.CharField(default=STATUS_DELIVERED, choices=STATUSES, max_length=20)
     # content_type = models.CharField(default=TYPE_STR, choices=CONTENT_TYPE, max_length=50)
 
     @classmethod
@@ -607,10 +617,10 @@ class P2POrderMessage(models.Model):
         if data['contentType'] == cls.TYPE_STR:
             if P2POrderMessage.objects.filter(uuid=data['msgUuid']).exists():
                 return
-        # elif data['contentType'] in [cls.TYPE_PIC, cls.TYPE_PDF, cls.TYPE_VIDEO]:
-        #     file_name = f"sent/{data['message'].rsplit('/', 1)[-1]}"
-        #     if P2POrderMessage.objects.filter(file=file_name).exists():
-        #         return
+        elif data['contentType'] in [cls.TYPE_PIC, cls.TYPE_PDF, cls.TYPE_VIDEO]:
+            file_name = f"sent/{data['message'].rsplit('/', 1)[-1]}"
+            if P2POrderMessage.objects.filter(file=file_name).exists():
+                return
 
         message = P2POrderMessage(order_id=order_index)
         message.message_id = data['id']

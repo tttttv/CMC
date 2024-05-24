@@ -20,7 +20,7 @@ from CORE.service.CONFIG import P2P_TOKENS, TOKENS_DIGITS
 from CORE.service.bybit.parser import BybitSession
 from CORE.service.tools.tools import get_price, calculate_withdraw_quantity
 from CORE.tasks import process_buy_order_task, update_latest_email_codes_task, update_p2pitems_task, \
-    process_receive_order_message_task_direct
+    process_receive_order_message_task_direct, task_send_message, task_send_image
 
 
 def get_widget_palette_view(request):  # Для Партнеров
@@ -415,8 +415,6 @@ def send_chat_message_view(request):
 
     text = request.POST['text']
 
-    bybit_session = BybitSession(order.account)
-
     message_uuid = str(uuid.uuid4())  # генерация uuid для сообщения
     message = P2POrderMessage(
         order=order,
@@ -428,12 +426,10 @@ def send_chat_message_view(request):
         nick_name='me'
         # nick_name=order.account.nick_name
     )
+    message.save()
 
-    if bybit_session.send_message(order.order_id, text, message_uuid=message_uuid):
-        message.save()
-        return JsonResponse({})
-    else:
-        return JsonResponse({'message': 'Error sending message', 'code': 1}, status=403)
+    task_send_message.delay(message.id)
+    return JsonResponse({})
 
 
 @csrf_exempt
@@ -449,26 +445,10 @@ def send_chat_image_view(request):
     if ext not in ['png', 'jpg', 'jpeg', 'mp4', 'pdf']:
         return JsonResponse({'error': 'Bad file extension. Allowed only: jpeg, png, mp4, pdf.'}, status=400)
 
-    message_id = uuid.uuid4()
-    file_name = request.POST.get('file_name', f'{message_id}.{ext}')  # NEW INPUT
+    message_uuid = uuid.uuid4()
+    file_name = request.POST.get('file_name', f'{message_uuid}.{ext}')  # NEW INPUT
     content = ContentFile(base64.b64decode(imgstr), name=file_name)
 
-    # msg_type = {
-    #     'png': P2POrderMessage.TYPE_PIC,
-    #     'jpg': P2POrderMessage.TYPE_PIC,
-    #     'jpeg': P2POrderMessage.TYPE_PIC,
-    #     'mp4': P2POrderMessage.TYPE_VIDEO,
-    #     'pdf': P2POrderMessage.TYPE_PDF
-    # }
-    # message = P2POrderMessage(
-    #     order=order,
-    #     message_id=-1,
-    #     file=data,
-    #     type=msg_type[ext],
-    #     account_id=order.account_id,
-    #     user_id=order.account.user_id,
-    #     nick_name=order.account.nick_name
-    # )
     mime_types = {
         'png': 'image/png',
         'jpg': 'image/jpeg',
@@ -478,13 +458,28 @@ def send_chat_image_view(request):
     }
     content_type = mime_types[ext]
 
-    bybit_session = BybitSession(order.account)
-    if bybit_session.upload_file(order.order_id, file_name, content, content_type):  # FIXME TEST
-        # message.save()
-        # message.file.save(file_name, data, save=True)
+    msg_types = {
+        'png': P2POrderMessage.TYPE_PIC,
+        'jpg': P2POrderMessage.TYPE_PIC,
+        'jpeg': P2POrderMessage.TYPE_PIC,
+        'mp4': P2POrderMessage.TYPE_VIDEO,
+        'pdf': P2POrderMessage.TYPE_PDF
+    }
+    msg_type = msg_types[ext]
 
-        process_receive_order_message_task_direct.delay(order.id)
-        # Возвращается другое сообщение, не ясно как создать сразу P2POrderMessage и не получить дубль
-        return JsonResponse({})
-    else:
-        return JsonResponse({'message': 'Error sending message', 'code': 1}, status=400)
+    message = P2POrderMessage(
+        order=order,
+        message_id=message_uuid,
+        uuid=message_uuid,
+        text='',
+        account_id=order.account_id,
+        user_id=order.account.user_id,
+        nick_name='me',
+        type=msg_type,
+    )
+    message.file.save(file_name, content)
+    message.save()
+
+    task_send_image.delay(message.id, content_type)
+
+    return JsonResponse({})
