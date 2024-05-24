@@ -48,7 +48,8 @@ def update_p2pitems_task():
 
 @shared_task
 def task_send_message(message_id: int):
-    message = P2POrderMessage.objects.select_related('order__account', 'order__order_id').get(id=message_id)
+    message = P2POrderMessage.objects.select_related('order').only('text', 'uuid', 'order__account',
+                                                                   'order__order_id').get(id=message_id)
     bybit_session = BybitSession(message.order.account)
     if bybit_session.send_message(message.order.order_id, message.text, message_uuid=message.uuid):
         message.status = message.STATUS_DELIVERED
@@ -58,7 +59,8 @@ def task_send_message(message_id: int):
 
 @shared_task()
 def task_send_image(message_id: int, content_type: str):
-    message = P2POrderMessage.objects.select_related('order__account', 'order__order_id').get(id=message_id)
+    message = P2POrderMessage.objects.select_related('order').only('file', 'uuid', 'order__account',
+                                                                   'order__order_id').get(id=message_id)
     bybit_session = BybitSession(message.order.account)
 
     with message.file.open('r') as f:
