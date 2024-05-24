@@ -63,7 +63,7 @@ def task_send_image(message_id: int, content_type: str):
                                                                    'order__order_id').get(id=message_id)
     bybit_session = BybitSession(message.order.account)
 
-    with message.file.open('r') as f:
+    with message.file.open('rb') as f:
         content = f.read()
 
     if bybit_session.upload_file(message.order.order_id, message.file.name, content, content_type):
