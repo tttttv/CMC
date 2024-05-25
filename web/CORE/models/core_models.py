@@ -155,6 +155,7 @@ class BybitCurrency(models.Model):
                 return True
         return False
 
+
 class BybitAccount(models.Model):
     is_active = models.BooleanField(default=True)
     user_id = models.IntegerField(unique=True)  # Айди пользователя
@@ -163,9 +164,10 @@ class BybitAccount(models.Model):
     cookies_updated = models.DateTimeField(default=datetime.datetime.now)  # Время установки кук
     cookies_valid = models.BooleanField(default=True)  # Не возникало ошибок с куками
     ga_secret = models.CharField(max_length=30, default='GHO5UKQ3IDTCRIXY')  # Секрет гугл 2фа
-    imap_username = models.CharField(max_length=50)  # Почта привязанная к аккаунту
-    imap_server = models.CharField(max_length=50)  # Сервер почты
-    imap_password = models.CharField(max_length=30)  # Пароль от почты
+
+    imap_username = models.CharField(default=None, max_length=50, blank=True, null=True)  # Почта привязанная к аккаунту
+    imap_server = models.CharField(default=None, max_length=50, blank=True, null=True)  # Сервер почты
+    imap_password = models.CharField(default=None, max_length=30, blank=True, null=True)  # Пароль от почты
 
     proxy_settings = models.JSONField(default=dict, blank=True, null=True)  # Настройки прокси, привязанные к аккаунту
 
@@ -213,8 +215,16 @@ class BybitAccount(models.Model):
 
             if account:
                 account.order = P2POrderBuyToken.objects.get(id=order_id)
-                account.save(update_fields=['order_id'])
+                account.save(update_fields=['order'])
                 return account
+
+    @classmethod
+    def release_order(cls, account_id):
+        account = BybitAccount.objects.select_for_update().select_related("order").get(id=account_id)
+        if account.order.state in [P2POrderBuyToken.STATE_TRADED, P2POrderBuyToken.STATE_WITHDRAWING, P2POrderBuyToken.STATE_TRADING,
+                           P2POrderBuyToken.STATE_WAITING_VERIFICATION, P2POrderBuyToken.STATE_WITHDRAWN]:
+            account.order = None
+            account.save(update_fields=['order'])
 
     @classmethod
     def get_random_account(cls):
@@ -579,10 +589,10 @@ class P2POrderBuyToken(models.Model):
 class P2POrderMessage(models.Model):
     order = models.ForeignKey(P2POrderBuyToken, on_delete=models.CASCADE)
 
-    TYPE_STR = 'str'
-    TYPE_PDF = 'pdf'
-    TYPE_VIDEO = 'video'
-    TYPE_PIC = 'pic'
+    CONTENT_TYPE_STR = 'str'
+    CONTENT_TYPE_PDF = 'pdf'
+    CONTENT_TYPE_VIDEO = 'video'
+    CONTENT_TYPE_PIC = 'pic'
 
     STATUS_DELIVERED = 'delivered'
     STATUS_ERROR = 'error'
@@ -601,11 +611,10 @@ class P2POrderMessage(models.Model):
     uuid = models.CharField(max_length=50, blank=True, null=True)
     user_id = models.CharField(max_length=50, blank=True, null=True)
     nick_name = models.CharField(max_length=50, blank=True, null=True)
-    type = models.CharField(max_length=50, default=1)  # 1 - переписка, иначе служебное
-
+    type = models.CharField(max_length=10, default=1)  # 1 - переписка, иначе служебное
+    content_type = models.CharField(default=CONTENT_TYPE_STR, max_length=20)
     file = models.FileField(upload_to='sent', blank=True, null=True)  # TODO Папка sent закрыта для доступа из вне
     status = models.CharField(default=STATUS_DELIVERED, choices=STATUSES, max_length=20)
-    # content_type = models.CharField(default=TYPE_STR, choices=CONTENT_TYPE, max_length=50)
 
     @classmethod
     def from_json(cls, order_index, data):
@@ -614,10 +623,10 @@ class P2POrderMessage(models.Model):
         if P2POrderMessage.objects.filter(message_id=data['id']).exists():
             return
 
-        if data['contentType'] == cls.TYPE_STR:
+        if data['contentType'] == cls.CONTENT_TYPE_STR:
             if P2POrderMessage.objects.filter(uuid=data['msgUuid']).exists():
                 return
-        elif data['contentType'] in [cls.TYPE_PIC, cls.TYPE_PDF, cls.TYPE_VIDEO]:
+        elif data['contentType'] in [cls.CONTENT_TYPE_PIC, cls.CONTENT_TYPE_PDF, cls.CONTENT_TYPE_VIDEO]:
             file_name = f"sent/{data['message'].rsplit('/', 1)[-1]}"
             if P2POrderMessage.objects.filter(file=file_name).exists():
                 return
@@ -630,9 +639,10 @@ class P2POrderMessage(models.Model):
         message.user_id = data['userId']
         message.nick_name = data['nickName']
         message.type = data['msgType']
-        if data['contentType'] == cls.TYPE_STR:
+        message.content_type = data['contentType']
+        if data['contentType'] == cls.CONTENT_TYPE_STR:
             message.text = data['message']
-        elif data['contentType'] in [cls.TYPE_PIC, cls.TYPE_PDF, cls.TYPE_VIDEO]:
+        elif data['contentType'] in [cls.CONTENT_TYPE_PIC, cls.CONTENT_TYPE_PDF, cls.CONTENT_TYPE_VIDEO]:
             filename, content = BybitSession.download_p2p_file_attachment(file_path=data['message'])
             message.file = ContentFile(content, name=filename)
         else:  # NON IMPLEMENTED

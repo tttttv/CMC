@@ -75,31 +75,39 @@ def task_send_image(message_id: int, content_type: str):
 @shared_task
 def update_latest_email_codes_task(user_id=None):
     if user_id:
-        accounts = BybitAccount.objects.filter(user_id=user_id, is_active=True)
+        accounts = BybitAccount.objects.filter(user_id=user_id, is_active=True, imap_username__isnull=False,
+                                               imap_password__isnull=False, imap_server__isnull=False)
     else:
-        accounts = BybitAccount.objects.filter(is_active=True)
+        accounts = BybitAccount.objects.filter(is_active=True, imap_username__isnull=False,
+                                               imap_password__isnull=False, imap_server__isnull=False)
 
     for account in accounts:
-        emails = get_codes(IMAP_USERNAME=account.imap_username, IMAP_PASSWORD=account.imap_password,
-                           IMAP_SERVER=account.imap_server)
-        for email in emails:
-            risk = RiskEmail()
-            risk.account = account
-            risk.code = email['code']
-            risk.amount = float(email['amount'])
-            risk.address = email['address']
-            risk.dt = email['dt']
-            risk.save()
+        if not account.imap_username or not account.imap_password or not account.imap_server:
+            continue
+        try:
+            emails = get_codes(IMAP_USERNAME=account.imap_username, IMAP_PASSWORD=account.imap_password,
+                               IMAP_SERVER=account.imap_server)
+            for email in emails:
+                risk = RiskEmail()
+                risk.account = account
+                risk.code = email['code']
+                risk.amount = float(email['amount'])
+                risk.address = email['address']
+                risk.dt = email['dt']
+                risk.save()
 
-        addressbook_emails = get_addressbook_codes(IMAP_USERNAME=account.imap_username,
-                                                   IMAP_PASSWORD=account.imap_password, IMAP_SERVER=account.imap_server)
-        print(addressbook_emails)
-        for email in addressbook_emails:
-            risk = RiskEmail()
-            risk.account = account
-            risk.code = email['code']
-            risk.dt = email['dt']
-            risk.save()
+            addressbook_emails = get_addressbook_codes(IMAP_USERNAME=account.imap_username,
+                                                       IMAP_PASSWORD=account.imap_password,
+                                                       IMAP_SERVER=account.imap_server)
+            print(addressbook_emails)
+            for email in addressbook_emails:
+                risk = RiskEmail()
+                risk.account = account
+                risk.code = email['code']
+                risk.dt = email['dt']
+                risk.save()
+        except TimeoutError as e:
+            continue
 
 
 @shared_task
@@ -157,6 +165,8 @@ def healthcare_orders_task():  # Проверяем время выполнен�
 
     for order in orders_buy_token:
         if order.dt_created < dt_now:
+            BybitAccount.release_order(order.account_id)
+
             order.is_stopped = True
             order.error_status = 'task timeout'
             order.save()
@@ -241,6 +251,8 @@ def process_buy_order_task(order_id):
                 order.state = P2POrderBuyToken.STATE_ERROR
                 order.save()
         elif order.state == P2POrderBuyToken.STATE_RECEIVED:  # Переводим на биржу
+            BybitAccount.release_order(order.account_id)
+
             if order.p2p_token == order.withdraw_token:  # Если не нужно менять валюту на бирже
                 order.state = P2POrderBuyToken.STATE_WITHDRAWING
                 order.save()
@@ -287,6 +299,8 @@ def process_buy_order_task(order_id):
                 print(status)
                 raise ValueError("Unknown status")
         elif order.state == P2POrderBuyToken.STATE_WITHDRAWING:  # Инициализируем вывод крипты
+            BybitAccount.release_order(order.account_id)
+
             existed = bybit_session.addressbook_check(order.withdraw_address, order.withdraw_token,
                                                       order.withdraw_chain)
             if not existed:  # Если в адресной книге нет адреса
@@ -308,6 +322,8 @@ def process_buy_order_task(order_id):
             order.dt_verification = datetime.datetime.now()
             order.save()
         elif order.state == P2POrderBuyToken.STATE_WAITING_VERIFICATION:  # Ждем код на почту
+            BybitAccount.release_order(order.account_id)
+
             print(order.withdraw_quantity)
             if bybit_api.withdraw(order.withdraw_token, order.withdraw_chain, order.withdraw_address,
                                   order.withdraw_quantity):  # todo выводить минус комиссия вывода 0.01 near
