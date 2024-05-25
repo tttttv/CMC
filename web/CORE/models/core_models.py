@@ -580,10 +580,10 @@ class P2POrderBuyToken(models.Model):
 class P2POrderMessage(models.Model):
     order = models.ForeignKey(P2POrderBuyToken, on_delete=models.CASCADE)
 
-    TYPE_STR = 'str'
-    TYPE_PDF = 'pdf'
-    TYPE_VIDEO = 'video'
-    TYPE_PIC = 'pic'
+    CONTENT_TYPE_STR = 'str'
+    CONTENT_TYPE_PDF = 'pdf'
+    CONTENT_TYPE_VIDEO = 'video'
+    CONTENT_TYPE_PIC = 'pic'
 
     STATUS_DELIVERED = 'delivered'
     STATUS_ERROR = 'error'
@@ -602,11 +602,10 @@ class P2POrderMessage(models.Model):
     uuid = models.CharField(max_length=50, blank=True, null=True)
     user_id = models.CharField(max_length=50, blank=True, null=True)
     nick_name = models.CharField(max_length=50, blank=True, null=True)
-    type = models.CharField(max_length=50, default=1)  # 1 - переписка, иначе служебное
-
+    type = models.CharField(max_length=10, default=1)  # 1 - переписка, иначе служебное
+    content_type = models.CharField(default=CONTENT_TYPE_STR, max_length=20)
     file = models.FileField(upload_to='sent', blank=True, null=True)  # TODO Папка sent закрыта для доступа из вне
     status = models.CharField(default=STATUS_DELIVERED, choices=STATUSES, max_length=20)
-    # content_type = models.CharField(default=TYPE_STR, choices=CONTENT_TYPE, max_length=50)
 
     @classmethod
     def from_json(cls, order_index, data):
@@ -631,6 +630,7 @@ class P2POrderMessage(models.Model):
         message.user_id = data['userId']
         message.nick_name = data['nickName']
         message.type = data['msgType']
+        message.content_type = data['contentType']
         if data['contentType'] == cls.TYPE_STR:
             message.text = data['message']
         elif data['contentType'] in [cls.TYPE_PIC, cls.TYPE_PDF, cls.TYPE_VIDEO]:

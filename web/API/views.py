@@ -423,8 +423,8 @@ def send_chat_message_view(request):
         text=text,
         account_id=order.account_id,
         user_id=order.account.user_id,
-        nick_name='me'
-        # nick_name=order.account.nick_name
+        nick_name=order.name,
+        type='1'
     )
     message.save()
 
@@ -459,11 +459,11 @@ def send_chat_image_view(request):
     content_type = mime_types[ext]
 
     msg_types = {
-        'png': P2POrderMessage.TYPE_PIC,
-        'jpg': P2POrderMessage.TYPE_PIC,
-        'jpeg': P2POrderMessage.TYPE_PIC,
-        'mp4': P2POrderMessage.TYPE_VIDEO,
-        'pdf': P2POrderMessage.TYPE_PDF
+        'png':  P2POrderMessage.CONTENT_TYPE_PIC,
+        'jpg':  P2POrderMessage.CONTENT_TYPE_PIC,
+        'jpeg': P2POrderMessage.CONTENT_TYPE_PIC,
+        'mp4':  P2POrderMessage.CONTENT_TYPE_VIDEO,
+        'pdf':  P2POrderMessage.CONTENT_TYPE_PDF
     }
     msg_type = msg_types[ext]
 
@@ -474,8 +474,9 @@ def send_chat_image_view(request):
         text='',
         account_id=order.account_id,
         user_id=order.account.user_id,
-        nick_name='me',
-        type=msg_type,
+        nick_name=order.name,
+        content_type=msg_type,
+        type='1'
     )
     message.file.save(file_name, content)
     message.save()
