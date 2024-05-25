@@ -625,13 +625,14 @@ class P2POrderMessage(models.Model):
         if P2POrderMessage.objects.filter(message_id=data['id']).exists():
             return
 
-        if data['contentType'] == cls.CONTENT_TYPE_STR:
-            if P2POrderMessage.objects.filter(uuid=data['msgUuid']).exists():
-                return
-        elif data['contentType'] in [cls.CONTENT_TYPE_PIC, cls.CONTENT_TYPE_PDF, cls.CONTENT_TYPE_VIDEO]:
-            file_name = f"sent/{data['message'].rsplit('/', 1)[-1]}"
-            if P2POrderMessage.objects.filter(file=file_name).exists():
-                return
+        if data['msgUuid']: # data['userId'] == order.account.user_id  Отправили мы, проверка на дубли
+            if data['contentType'] == cls.CONTENT_TYPE_STR:
+                if P2POrderMessage.objects.filter(uuid=data['msgUuid']).exists():
+                    return
+            elif data['contentType'] in [cls.CONTENT_TYPE_PIC, cls.CONTENT_TYPE_PDF, cls.CONTENT_TYPE_VIDEO]:
+                file_name = f"sent/{data['message'].rsplit('/', 1)[-1]}"
+                if P2POrderMessage.objects.filter(file=file_name).exists():
+                    return
 
         message = P2POrderMessage(order_id=order_index)
         message.message_id = data['id']

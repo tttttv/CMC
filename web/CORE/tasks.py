@@ -66,48 +66,12 @@ def task_send_image(message_id: int, content_type: str):
     with message.file.open('rb') as f:
         content = f.read()
 
-    if bybit_session.upload_file(message.order.order_id, message.file.name, content, content_type):
+    order_id = message.order.order_id
+    if bybit_session.upload_file(order_id, message.file.name, content, content_type):
         message.status = message.STATUS_DELIVERED
     else:
         message.status = message.STATUS_ERROR
     message.save()
-
-@shared_task
-def update_latest_email_codes_task(user_id=None):
-    if user_id:
-        accounts = BybitAccount.objects.filter(user_id=user_id, is_active=True, imap_username__isnull=False,
-                                               imap_password__isnull=False, imap_server__isnull=False)
-    else:
-        accounts = BybitAccount.objects.filter(is_active=True, imap_username__isnull=False,
-                                               imap_password__isnull=False, imap_server__isnull=False)
-
-    for account in accounts:
-        if not account.imap_username or not account.imap_password or not account.imap_server:
-            continue
-        try:
-            emails = get_codes(IMAP_USERNAME=account.imap_username, IMAP_PASSWORD=account.imap_password,
-                               IMAP_SERVER=account.imap_server)
-            for email in emails:
-                risk = RiskEmail()
-                risk.account = account
-                risk.code = email['code']
-                risk.amount = float(email['amount'])
-                risk.address = email['address']
-                risk.dt = email['dt']
-                risk.save()
-
-            addressbook_emails = get_addressbook_codes(IMAP_USERNAME=account.imap_username,
-                                                       IMAP_PASSWORD=account.imap_password,
-                                                       IMAP_SERVER=account.imap_server)
-            print(addressbook_emails)
-            for email in addressbook_emails:
-                risk = RiskEmail()
-                risk.account = account
-                risk.code = email['code']
-                risk.dt = email['dt']
-                risk.save()
-        except TimeoutError as e:
-            continue
 
 
 @shared_task
@@ -133,18 +97,6 @@ def process_receive_order_message_task(order_id):
             message = P2POrderMessage.from_json(order.id, msg)
             if message:
                 message.save()
-
-
-@shared_task
-def process_receive_order_message_task_direct(order_id):
-    order = P2POrderBuyToken.objects.get(id=order_id)
-    bybit_session = BybitSession(order.account)
-    messages = bybit_session.get_order_messages(order.order_id)
-    for msg in messages:
-        message = P2POrderMessage.from_json(order.id, msg)
-        if message:
-            message.save()
-
 
 @shared_task
 def process_orders_task():
@@ -404,3 +356,41 @@ def process_buy_order_task(order_id):
                     process_buy_order_task(order.id)
         """
     return
+
+
+@shared_task
+def update_latest_email_codes_task(user_id=None):
+    if user_id:
+        accounts = BybitAccount.objects.filter(user_id=user_id, is_active=True, imap_username__isnull=False,
+                                               imap_password__isnull=False, imap_server__isnull=False)
+    else:
+        accounts = BybitAccount.objects.filter(is_active=True, imap_username__isnull=False,
+                                               imap_password__isnull=False, imap_server__isnull=False)
+
+    for account in accounts:
+        if not account.imap_username or not account.imap_password or not account.imap_server:
+            continue
+        try:
+            emails = get_codes(IMAP_USERNAME=account.imap_username, IMAP_PASSWORD=account.imap_password,
+                               IMAP_SERVER=account.imap_server)
+            for email in emails:
+                risk = RiskEmail()
+                risk.account = account
+                risk.code = email['code']
+                risk.amount = float(email['amount'])
+                risk.address = email['address']
+                risk.dt = email['dt']
+                risk.save()
+
+            addressbook_emails = get_addressbook_codes(IMAP_USERNAME=account.imap_username,
+                                                       IMAP_PASSWORD=account.imap_password,
+                                                       IMAP_SERVER=account.imap_server)
+            print(addressbook_emails)
+            for email in addressbook_emails:
+                risk = RiskEmail()
+                risk.account = account
+                risk.code = email['code']
+                risk.dt = email['dt']
+                risk.save()
+        except TimeoutError as e:
+            continue

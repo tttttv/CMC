@@ -19,8 +19,7 @@ from CORE.models import P2POrderBuyToken, BybitAccount, P2PItem, P2POrderMessage
 from CORE.service.CONFIG import P2P_TOKENS, TOKENS_DIGITS
 from CORE.service.bybit.parser import BybitSession
 from CORE.service.tools.tools import get_price, calculate_withdraw_quantity
-from CORE.tasks import process_buy_order_task, update_latest_email_codes_task, update_p2pitems_task, \
-    process_receive_order_message_task_direct, task_send_message, task_send_image
+from CORE.tasks import process_buy_order_task, update_latest_email_codes_task, update_p2pitems_task, task_send_message, task_send_image
 
 
 def get_widget_palette_view(request):  # Для Партнеров
