@@ -203,7 +203,7 @@ class BybitAccount(models.Model):
         return BybitAPI(api_key=self.api_key, api_secret=self.api_secret, proxy=self.proxy_settings)
 
     @classmethod
-    def assign_order(cls, order_id):  # FIXME
+    def assign_order(cls, order_id):  # FIXME сделать свой with
         with transaction.atomic():
             query = BybitAccount.objects.filter(active_order__isnull=True)
             count = query.count()
