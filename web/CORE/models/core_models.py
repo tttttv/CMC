@@ -215,7 +215,7 @@ class BybitAccount(models.Model):
 
             if account:
                 account.active_order = P2POrderBuyToken.objects.get(id=order_id)
-                account.save(update_fields=['order'])
+                account.save(update_fields=['active_order'])
                 return account
 
     @classmethod
@@ -226,7 +226,7 @@ class BybitAccount(models.Model):
                 if account.active_order.state in [P2POrderBuyToken.STATE_TRADED, P2POrderBuyToken.STATE_WITHDRAWING,
                         P2POrderBuyToken.STATE_TRADING, P2POrderBuyToken.STATE_WAITING_VERIFICATION, P2POrderBuyToken.STATE_WITHDRAWN]:
                     account.active_order = None
-                    account.save(update_fields=['order'])
+                    account.save(update_fields=['active_order'])
 
     @classmethod
     def get_random_account(cls):
