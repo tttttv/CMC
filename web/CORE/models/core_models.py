@@ -204,8 +204,8 @@ class BybitAccount(models.Model):
 
     @classmethod
     def assign_order(cls, order_id):  # FIXME
-        with transaction.atomic:
-            query = BybitAccount.objects.filter(order__isnull=True)
+        with transaction.atomic():
+            query = BybitAccount.objects.filter(active_order__isnull=True)
             count = query.count()
             if count == 0:
                 return None
@@ -214,17 +214,18 @@ class BybitAccount(models.Model):
             account = query.all()[random_index:random_index + 1].select_for_update().first()
 
             if account:
-                account.order = P2POrderBuyToken.objects.get(id=order_id)
+                account.active_order = P2POrderBuyToken.objects.get(id=order_id)
                 account.save(update_fields=['order'])
                 return account
 
     @classmethod
     def release_order(cls, account_id):
-        account = BybitAccount.objects.select_for_update().select_related("order").get(id=account_id)
-        if account.order.state in [P2POrderBuyToken.STATE_TRADED, P2POrderBuyToken.STATE_WITHDRAWING, P2POrderBuyToken.STATE_TRADING,
-                           P2POrderBuyToken.STATE_WAITING_VERIFICATION, P2POrderBuyToken.STATE_WITHDRAWN]:
-            account.order = None
-            account.save(update_fields=['order'])
+        with transaction.atomic():
+            account = BybitAccount.objects.select_for_update().select_related("active_order").get(id=account_id)
+            if account.active_order.state in [P2POrderBuyToken.STATE_TRADED, P2POrderBuyToken.STATE_WITHDRAWING,
+                    P2POrderBuyToken.STATE_TRADING, P2POrderBuyToken.STATE_WAITING_VERIFICATION, P2POrderBuyToken.STATE_WITHDRAWN]:
+                account.active_order = None
+                account.save(update_fields=['order'])
 
     @classmethod
     def get_random_account(cls):
@@ -413,7 +414,7 @@ class P2POrderBuyToken(models.Model):
 
     hash = models.CharField(max_length=128, default=default_order_hash, unique=True)  # TODO NEW
 
-    account = models.ForeignKey(BybitAccount, on_delete=models.CASCADE, related_name='order')
+    account = models.ForeignKey(BybitAccount, on_delete=models.CASCADE, related_name='order_set')
     widget = models.ForeignKey(Widget, on_delete=models.CASCADE, blank=True, null=True)
 
     name = models.CharField(max_length=100, default='')
