@@ -69,7 +69,7 @@ export const SendChatMessage = () => {
             <input
               className={styles.imageInput}
               type="file"
-              accept="image/png, image/jpeg, video/mp4, application/pdf"
+              accept="image/png, image/jpeg, image/jpg, video/mp4, application/pdf"
               ref={documentInputRef}
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -79,7 +79,7 @@ export const SendChatMessage = () => {
 
                 const isRightFile = validateInputFile(file);
                 if (!isRightFile) {
-                  setErrorText("Доступны расширения jpeg, png, mp4, pdf");
+                  setErrorText("Доступны расширения jpeg, jpg, png, mp4, pdf");
                   return;
                 }
 
