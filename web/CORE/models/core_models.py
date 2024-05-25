@@ -155,6 +155,7 @@ class BybitCurrency(models.Model):
                 return True
         return False
 
+
 class BybitAccount(models.Model):
     is_active = models.BooleanField(default=True)
     user_id = models.IntegerField(unique=True)  # Айди пользователя
@@ -214,8 +215,16 @@ class BybitAccount(models.Model):
 
             if account:
                 account.order = P2POrderBuyToken.objects.get(id=order_id)
-                account.save(update_fields=['order_id'])
+                account.save(update_fields=['order'])
                 return account
+
+    def release_order(self, order_id):
+        with transaction.atomic:
+            order = P2POrderBuyToken.objects.get(id=order_id)
+            if order.state in [P2POrderBuyToken.STATE_TRADED, P2POrderBuyToken.STATE_WITHDRAWING, P2POrderBuyToken.STATE_TRADING,
+                               P2POrderBuyToken.STATE_WAITING_VERIFICATION, P2POrderBuyToken.STATE_WITHDRAWN]:
+                self.order = None
+                self.save(update_fields=['order'])
 
     @classmethod
     def get_random_account(cls):
