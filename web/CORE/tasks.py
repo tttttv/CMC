@@ -151,6 +151,8 @@ def process_buy_order_task(order_id):
             if order.terms:  # Может не выгрузиться из-за ошибок
                 order.state = P2POrderBuyToken.STATE_CREATED
                 order.save()  # Нужно отдать клиенту реквизиты и ждать оплаты
+
+            process_buy_order_task(order.id)
         elif order.state == P2POrderBuyToken.STATE_CREATED:  # На этом этапе ждем подтверждения со стороны пользователя
             if order.dt_created.replace(tzinfo=None) < (
                     datetime.datetime.now() - datetime.timedelta(minutes=P2P_BUY_TIMEOUTS['CREATED'])):
