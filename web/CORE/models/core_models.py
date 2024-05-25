@@ -623,10 +623,10 @@ class P2POrderMessage(models.Model):
         if P2POrderMessage.objects.filter(message_id=data['id']).exists():
             return
 
-        if data['contentType'] == cls.TYPE_STR:
+        if data['contentType'] == cls.CONTENT_TYPE_STR:
             if P2POrderMessage.objects.filter(uuid=data['msgUuid']).exists():
                 return
-        elif data['contentType'] in [cls.TYPE_PIC, cls.TYPE_PDF, cls.TYPE_VIDEO]:
+        elif data['contentType'] in [cls.CONTENT_TYPE_PIC, cls.CONTENT_TYPE_PDF, cls.CONTENT_TYPE_VIDEO]:
             file_name = f"sent/{data['message'].rsplit('/', 1)[-1]}"
             if P2POrderMessage.objects.filter(file=file_name).exists():
                 return
@@ -640,9 +640,9 @@ class P2POrderMessage(models.Model):
         message.nick_name = data['nickName']
         message.type = data['msgType']
         message.content_type = data['contentType']
-        if data['contentType'] == cls.TYPE_STR:
+        if data['contentType'] == cls.CONTENT_TYPE_STR:
             message.text = data['message']
-        elif data['contentType'] in [cls.TYPE_PIC, cls.TYPE_PDF, cls.TYPE_VIDEO]:
+        elif data['contentType'] in [cls.CONTENT_TYPE_PIC, cls.CONTENT_TYPE_PDF, cls.CONTENT_TYPE_VIDEO]:
             filename, content = BybitSession.download_p2p_file_attachment(file_path=data['message'])
             message.file = ContentFile(content, name=filename)
         else:  # NON IMPLEMENTED
