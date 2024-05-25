@@ -39,7 +39,7 @@ export const ChangeInputs = () => {
     } else {
       return from.data?.crypto.find((c) => `${c.id}` === `${fromCurrencyId}`);
     }
-  }, [fromType, bankType, fromCurrencyId]);
+  }, [fromType, bankType, fromCurrencyId, from.data]);
 
   const toCurrency = useMemo(() => {
     if (toType === "bank") {
@@ -54,9 +54,10 @@ export const ChangeInputs = () => {
           ?.payment_methods.find((p) => `${p.id}` === `${toCurrencyId}`);
       }
     } else {
+      console.log(to.data?.crypto);
       return to.data?.crypto.find((c) => `${c.id}` === `${toCurrencyId}`);
     }
-  }, [fromType, bankType, toCurrencyId]);
+  }, [fromType, bankType, toCurrencyId, to.data]);
 
   const isInputsDisabled = !toCurrency || !fromCurrency;
 

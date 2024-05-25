@@ -15,7 +15,6 @@ export const useWidgetEnv = create<WidgetEnvStore>((set) => ({
     address: null,
     full_name: null,
     email: null,
-    payment_method: null,
   },
   setWidgetEnv: (widgetEnv) => set({ widgetEnv }),
 }));

@@ -1,8 +1,10 @@
 import clsx from "$/shared/helpers/clsx";
 import { useExchangeSettings } from "$/shared/storage/exchangeSettings";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import styles from "./ChooseButtons.module.scss";
 import useCurrencyStore from "$/shared/storage/currency";
+import { useWidgetEnv } from "$/pages/WidgetEnv/model/widgetEnv";
+import { useBlockedUiStore } from "$/shared/storage/blockedUi";
 
 interface Props {
   changingProperty: "sending" | "getting";
@@ -17,6 +19,7 @@ export const ChooseButtons = ({ changingProperty, currencyType }: Props) => {
   const setToCurrency = useCurrencyStore((state) => state.setToCurrency);
 
   const isCrypto = currencyType === "crypto";
+  const { isTokenAlreadyBlocked } = useBlockedUiStore((state) => state);
   const bankClassName = clsx(
     styles.chooseCurrencyBank,
     { [styles.active]: !isCrypto },
@@ -28,6 +31,7 @@ export const ChooseButtons = ({ changingProperty, currencyType }: Props) => {
     []
   );
 
+  const { token } = useWidgetEnv((state) => state.widgetEnv);
   const setCurrency = useCallback((currency: "bank" | "crypto") => {
     if (changingProperty === "sending") {
       setFromType(currency);
@@ -38,12 +42,15 @@ export const ChooseButtons = ({ changingProperty, currencyType }: Props) => {
     }
   }, []);
 
+  const isBankButtonBlocked =
+    !!token && isTokenAlreadyBlocked === changingProperty;
+
   return (
     <>
       <div className={styles.chooseCurrency}>
         <button
           className={bankClassName}
-          disabled={!isCrypto}
+          disabled={!isCrypto || isBankButtonBlocked}
           onClick={() => {
             setCurrency("bank");
             const resetInputValue = new CustomEvent("resetInputValue", {

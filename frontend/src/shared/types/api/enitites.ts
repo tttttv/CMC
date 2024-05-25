@@ -129,5 +129,4 @@ export interface WidgetEnv {
   full_name: string | null;
   email: string | null;
   color_palette: ColorScheme;
-  payment_method: string[] | null;
 }

@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { AxiosError } from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -22,6 +22,9 @@ import Select from "$/shared/ui/kit/Select";
 import styles from "./UserForm.module.scss";
 import { SetupWidgetEnv } from "./SetupWidgetEnv";
 import { setupOrderHash } from "$/shared/helpers/orderHash/setup";
+import { useCurrency } from "$/shared/hooks/useCurrency";
+import { useExchangeSettings } from "$/shared/storage/exchangeSettings";
+import { useWidgetEnv } from "$/pages/WidgetEnv/model/widgetEnv";
 
 export const FormSchema = z.object({
   fullName: z
@@ -46,17 +49,33 @@ export const FormSchema = z.object({
 });
 
 export const UserForm = () => {
-  const { data: toValues } = useQuery({
-    queryKey: ["toValues"],
-    queryFn: currencyAPI.getToValues,
-    select: (data) => data.data.methods,
-  });
+  const { to, from } = useCurrency();
+
   const fromCurrency = useCurrencyStore((state) => state.fromCurrency);
   const toCurrency = useCurrencyStore((state) => state.toCurrency);
+  const { fromType, toType } = useExchangeSettings();
+  const {
+    token,
+    chain: widgetChain,
+    full_name,
+    email,
+    address,
+  } = useWidgetEnv((state) => state.widgetEnv);
 
-  const chains =
-    toValues?.crypto.find((chain) => String(chain.id) === String(toCurrency))
-      ?.chains || [];
+  const isNameBlocked = !!full_name;
+  const isEmailBlocked = !!email;
+  const isAddressBlocked = !!address;
+
+  const isFromCrypto = fromType === "crypto";
+  const isHasCrypto = isFromCrypto || toType === "crypto";
+  const chainCurrency = (isFromCrypto ? from : to).data?.crypto;
+
+  const chains = isHasCrypto
+    ? chainCurrency?.find(
+        (chain) => String(chain.id) === String(toCurrency) || token
+      )?.chains || []
+    : [];
+
   const [error, setErrorCode] = useState<{ code: number; message: string }>({
     code: -1,
     message: "",
@@ -138,10 +157,18 @@ export const UserForm = () => {
   };
   const [chainDefaultValue, setChainDefaultValue] = useState("");
   useEffect(() => {
-    setChainDefaultValue(chains[0]?.name);
+    setChainDefaultValue(chains[0]?.name || "");
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toCurrency]);
+
+  useEffect(() => {
+    if (chainDefaultValue) return;
+    setChainDefaultValue(chains[0]?.name || "");
+    if (widgetChain) {
+      setChainDefaultValue(widgetChain || "");
+    }
+  }, [token, to.data, from.data]);
 
   return (
     <form className={styles.form} onSubmit={handleSubmit(onSubmitHandler)}>
@@ -153,6 +180,7 @@ export const UserForm = () => {
       <h3 className={styles.title}>Ваши реквизиты</h3>
       <div className={styles.inputs}>
         <Input
+          disabled={isNameBlocked}
           register={register("fullName")}
           label="ФИО Отправителя"
           importantMessage="Важно, если вы отправляете с карты"
@@ -220,6 +248,7 @@ export const UserForm = () => {
           label="Адрес кошелька получателя"
           errorText={errors.walletAddress?.message}
           clearError={() => clearErrors("walletAddress")}
+          disabled={isAddressBlocked}
         />
         <Input
           register={register("email")}
@@ -227,6 +256,7 @@ export const UserForm = () => {
           label="Адрес почты"
           errorText={errors.email?.message}
           clearError={() => clearErrors("email")}
+          disabled={isEmailBlocked}
         />
       </div>
       <div className={styles.checkboxes}>

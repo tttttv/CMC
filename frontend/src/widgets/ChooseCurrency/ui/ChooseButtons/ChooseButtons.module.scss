@@ -32,9 +32,12 @@
     transition: 0.2s;
   }
   transition: 0.7s;
-  &:hover {
+  &:hover:not(:disabled) {
     background-color: var(--accentColor);
     color: var(--white-color);
+  }
+  &:disabled {
+    cursor: default !important;
   }
 }
 

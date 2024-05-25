@@ -9,7 +9,8 @@ import useCurrencyStore from "$/shared/storage/currency";
 import LoadingScreen from "$/shared/ui/global/LoadingScreen";
 import ScrollableList from "$/shared/ui/other/ScrollList";
 import { useWidgetEnv } from "$/pages/WidgetEnv/model/widgetEnv";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useBlockedUiStore } from "$/shared/storage/blockedUi";
 
 interface Props {
   changingProperty: "sending" | "getting";
@@ -34,41 +35,55 @@ export const CryptoList = ({ changingProperty }: Props) => {
     refetch();
   }, [changingProperty]);
 
-  const currency =
-    changingProperty === "sending" ? fromMethods?.crypto : toMethods?.crypto;
+  const currency = changingProperty === "sending" ? [] : toMethods?.crypto;
   const isLoading =
     changingProperty === "sending" ? isFromLoading : isToLoading;
 
   const { token } = useWidgetEnv((state) => state.widgetEnv);
+
+  const fromCurrency = useCurrencyStore((state) => state.fromCurrency);
   const toCurrency = useCurrencyStore((state) => state.toCurrency);
+
+  const setFromCurrency = useCurrencyStore((state) => state.setFromCurrency);
   const setToCurrency = useCurrencyStore((state) => state.setToCurrency);
+  const setCurrency =
+    changingProperty === "sending" ? setFromCurrency : setToCurrency;
+  const currCurrency =
+    changingProperty === "sending" ? fromCurrency : toCurrency;
+  const { setTokenAlreadyBlocked, isTokenAlreadyBlocked } = useBlockedUiStore();
+  const isBlocked = isTokenAlreadyBlocked === changingProperty && !!token;
   useEffect(() => {
-    if (!token) return;
-    setToCurrency(token);
+    if (!token || isTokenAlreadyBlocked) return;
+    setCurrency(token);
+    setTokenAlreadyBlocked(changingProperty);
   }, [token]);
+
   return (
-    <ScrollableList>
+    <ScrollableList listClassName={styles.listContainer}>
       {isLoading ? (
         <LoadingScreen inContainer>Грузим криптовалюты</LoadingScreen>
-      ) : (
+      ) : currency?.length !== 0 ? (
         <div className={styles.list}>
           {currency?.map((token) => {
             const className = clsx(
               styles.listItem,
-              { [styles.active]: `${toCurrency}` === `${token.id}` },
+              { [styles.active]: `${currCurrency}` === `${token.id}` },
               []
             );
             return (
               <div key={token.id} className={className}>
                 <button
+                  disabled={isBlocked}
                   className={styles.itemButton}
-                  onClick={() => setToCurrency(String(token.id))}
+                  onClick={() => setCurrency(String(token.id))}
                 ></button>
                 <CurrencyItem name={token.name} image={token.logo} />
               </div>
             );
           })}
         </div>
+      ) : (
+        <span data-lack>Нет доступных криптовалют</span>
       )}
     </ScrollableList>
   );

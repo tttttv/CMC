@@ -9,7 +9,8 @@ import useCurrencyStore from "$/shared/storage/currency";
 import LoadingScreen from "$/shared/ui/global/LoadingScreen";
 import ScrollableList from "$/shared/ui/other/ScrollList";
 import { SettingsProps } from "../../ChooseCurrency";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useWidgetEnv } from "$/pages/WidgetEnv/model/widgetEnv";
 
 export const BankList = ({
   changingProperty,
@@ -34,8 +35,16 @@ export const BankList = ({
   }, [changingProperty]);
 
   const bankCurrencyType = useCurrencyStore((state) => state.bankCurrencyType);
+
   const fromCurrency = useCurrencyStore((state) => state.fromCurrency);
+  const toCurrency = useCurrencyStore((state) => state.toCurrency);
+
   const setFromCurrency = useCurrencyStore((state) => state.setFromCurrency);
+  const setToCurrency = useCurrencyStore((state) => state.setToCurrency);
+  const setCurrency =
+    changingProperty === "sending" ? setFromCurrency : setToCurrency;
+  const currCurrency =
+    changingProperty === "sending" ? fromCurrency : toCurrency;
 
   const currency =
     changingProperty === "sending" ? fromMethods?.fiat : toMethods?.fiat;
@@ -51,12 +60,12 @@ export const BankList = ({
     <ScrollableList>
       {isLoading ? (
         <LoadingScreen inContainer>Грузим банки</LoadingScreen>
-      ) : (
+      ) : banks?.length !== 0 ? (
         <div className={styles.list}>
           {banks?.map((bank) => {
             const className = clsx(
               styles.listItem,
-              { [styles.active]: `${fromCurrency}` === `${bank.id}` },
+              { [styles.active]: `${currCurrency}` === `${bank.id}` },
               []
             );
             return (
@@ -64,12 +73,14 @@ export const BankList = ({
                 <CurrencyItem name={bank.name} image={bank.logo} />
                 <button
                   className={styles.itemButton}
-                  onClick={() => setFromCurrency(String(bank.id))}
+                  onClick={() => setCurrency(String(bank.id))}
                 ></button>
               </div>
             );
           })}
         </div>
+      ) : (
+        <span data-lack>Нет доступных банков</span>
       )}
     </ScrollableList>
   );
