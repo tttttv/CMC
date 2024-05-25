@@ -152,7 +152,12 @@ def process_buy_order_task(order_id):
                 order.state = P2POrderBuyToken.STATE_CREATED
                 order.save()  # Нужно отдать клиенту реквизиты и ждать оплаты
 
-            process_buy_order_task(order.id)
+                messages = bybit_session.get_order_messages(order.order_id)  # Выгружаем сообщения из базы
+                for msg in messages:
+                    message = P2POrderMessage.from_json(order.id, msg)
+                    if message:
+                        message.save()
+
         elif order.state == P2POrderBuyToken.STATE_CREATED:  # На этом этапе ждем подтверждения со стороны пользователя
             if order.dt_created.replace(tzinfo=None) < (
                     datetime.datetime.now() - datetime.timedelta(minutes=P2P_BUY_TIMEOUTS['CREATED'])):
