@@ -218,13 +218,13 @@ class BybitAccount(models.Model):
                 account.save(update_fields=['order'])
                 return account
 
-    def release_order(self, order_id):
-        with transaction.atomic:
-            order = P2POrderBuyToken.objects.get(id=order_id)
-            if order.state in [P2POrderBuyToken.STATE_TRADED, P2POrderBuyToken.STATE_WITHDRAWING, P2POrderBuyToken.STATE_TRADING,
-                               P2POrderBuyToken.STATE_WAITING_VERIFICATION, P2POrderBuyToken.STATE_WITHDRAWN]:
-                self.order = None
-                self.save(update_fields=['order'])
+    @classmethod
+    def release_order(cls, account_id):
+        account = BybitAccount.objects.select_for_update().select_related("order").get(id=account_id)
+        if account.order.state in [P2POrderBuyToken.STATE_TRADED, P2POrderBuyToken.STATE_WITHDRAWING, P2POrderBuyToken.STATE_TRADING,
+                           P2POrderBuyToken.STATE_WAITING_VERIFICATION, P2POrderBuyToken.STATE_WITHDRAWN]:
+            account.order = None
+            account.save(update_fields=['order'])
 
     @classmethod
     def get_random_account(cls):

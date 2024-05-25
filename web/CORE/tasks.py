@@ -165,7 +165,7 @@ def healthcare_orders_task():  # Проверяем время выполнен�
 
     for order in orders_buy_token:
         if order.dt_created < dt_now:
-            order.account.release_order(order.order_id)
+            BybitAccount.release_order(order.account_id)
 
             order.is_stopped = True
             order.error_status = 'task timeout'
@@ -251,7 +251,7 @@ def process_buy_order_task(order_id):
                 order.state = P2POrderBuyToken.STATE_ERROR
                 order.save()
         elif order.state == P2POrderBuyToken.STATE_RECEIVED:  # Переводим на биржу
-            order.account.release_order(order.order_id)
+            BybitAccount.release_order(order.account_id)
 
             if order.p2p_token == order.withdraw_token:  # Если не нужно менять валюту на бирже
                 order.state = P2POrderBuyToken.STATE_WITHDRAWING
@@ -299,7 +299,7 @@ def process_buy_order_task(order_id):
                 print(status)
                 raise ValueError("Unknown status")
         elif order.state == P2POrderBuyToken.STATE_WITHDRAWING:  # Инициализируем вывод крипты
-            order.account.release_order(order.order_id)
+            BybitAccount.release_order(order.account_id)
 
             existed = bybit_session.addressbook_check(order.withdraw_address, order.withdraw_token,
                                                       order.withdraw_chain)
@@ -322,7 +322,7 @@ def process_buy_order_task(order_id):
             order.dt_verification = datetime.datetime.now()
             order.save()
         elif order.state == P2POrderBuyToken.STATE_WAITING_VERIFICATION:  # Ждем код на почту
-            order.account.release_order(order.order_id)
+            BybitAccount.release_order(order.account_id)
 
             print(order.withdraw_quantity)
             if bybit_api.withdraw(order.withdraw_token, order.withdraw_chain, order.withdraw_address,
