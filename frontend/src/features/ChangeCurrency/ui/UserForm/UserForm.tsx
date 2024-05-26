@@ -65,6 +65,7 @@ export const UserForm = () => {
   const isNameBlocked = !!full_name;
   const isEmailBlocked = !!email;
   const isAddressBlocked = !!address;
+  const isChainBlocked = !!widgetChain;
 
   const isFromCrypto = fromType === "crypto";
   const isHasCrypto = isFromCrypto || toType === "crypto";
@@ -184,6 +185,7 @@ export const UserForm = () => {
           register={register("fullName")}
           label="ФИО Отправителя"
           importantMessage="Важно, если вы отправляете с карты"
+          disabledStyle={isNameBlocked}
           errorText={errors.fullName?.message}
           clearError={() => {
             clearErrors("fullName");
@@ -228,6 +230,7 @@ export const UserForm = () => {
           rules={{ required: "Поле должно быть заполнено" }}
           render={({ field: { onChange, value } }) => (
             <Select
+              disabled={isChainBlocked || chains.length === 0}
               defaultValue={chainDefaultValue}
               onChange={(value: string) => {
                 onChange(value);
@@ -239,7 +242,6 @@ export const UserForm = () => {
                 value: chain.name,
               }))}
               label="Chain"
-              disabled={chains.length === 0}
             />
           )}
         />
@@ -248,6 +250,7 @@ export const UserForm = () => {
           label="Адрес кошелька получателя"
           errorText={errors.walletAddress?.message}
           clearError={() => clearErrors("walletAddress")}
+          disabledStyle={isAddressBlocked}
           disabled={isAddressBlocked}
         />
         <Input
@@ -256,6 +259,7 @@ export const UserForm = () => {
           label="Адрес почты"
           errorText={errors.email?.message}
           clearError={() => clearErrors("email")}
+          disabledStyle={isEmailBlocked}
           disabled={isEmailBlocked}
         />
       </div>
