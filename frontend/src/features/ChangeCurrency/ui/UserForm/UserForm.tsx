@@ -1,16 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { AxiosError } from "axios";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-
 import { deleteSpaces } from "../../lib/form";
 import { validateCardInput } from "../../lib/validation";
 import { ErrorCodeModal } from "../modals/ErrorCodeModal";
-
-import { currencyAPI } from "$/shared/api/currency";
 import { orderAPI } from "$/shared/api/order";
 import useCurrencyStore from "$/shared/storage/currency";
 import usePlaceOrder from "$/shared/storage/placeOrder";
@@ -54,18 +51,14 @@ export const UserForm = () => {
   const fromCurrency = useCurrencyStore((state) => state.fromCurrency);
   const toCurrency = useCurrencyStore((state) => state.toCurrency);
   const { fromType, toType } = useExchangeSettings();
-  const {
-    token,
-    chain: widgetChain,
-    full_name,
-    email,
-    address,
-  } = useWidgetEnv((state) => state.widgetEnv);
+  const { full_name, email, withdraw_method } = useWidgetEnv(
+    (state) => state.widgetEnv
+  );
 
   const isNameBlocked = !!full_name;
   const isEmailBlocked = !!email;
-  const isAddressBlocked = !!address;
-  const isChainBlocked = !!widgetChain;
+  const isAddressBlocked = !!withdraw_method?.address;
+  const isChainBlocked = !!withdraw_method?.chain;
 
   const isFromCrypto = fromType === "crypto";
   const isHasCrypto = isFromCrypto || toType === "crypto";
@@ -73,7 +66,8 @@ export const UserForm = () => {
 
   const chains = isHasCrypto
     ? chainCurrency?.find(
-        (chain) => String(chain.id) === String(toCurrency) || token
+        (chain) =>
+          String(chain.id) === String(toCurrency) || withdraw_method?.name
       )?.chains || []
     : [];
 
@@ -166,131 +160,131 @@ export const UserForm = () => {
   useEffect(() => {
     if (chainDefaultValue) return;
     setChainDefaultValue(chains[0]?.name || "");
-    if (widgetChain) {
-      setChainDefaultValue(widgetChain || "");
+    if (withdraw_method?.chain) {
+      setChainDefaultValue(withdraw_method?.chain || "");
     }
-  }, [token, to.data, from.data]);
+  }, [withdraw_method?.name, to.data, from.data]);
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit(onSubmitHandler)}>
-      <SetupWidgetEnv
-        setValue={setValue}
-        setChainDefaultValue={(value) => setChainDefaultValue(value)}
-      />
-      <ErrorCodeModal errorCode={error.code} errorText={error.message} />
-      <h3 className={styles.title}>Ваши реквизиты</h3>
-      <div className={styles.inputs}>
-        <Input
-          disabled={isNameBlocked}
-          register={register("fullName")}
-          label="ФИО Отправителя"
-          importantMessage="Важно, если вы отправляете с карты"
-          disabledStyle={isNameBlocked}
-          errorText={errors.fullName?.message}
-          clearError={() => {
-            clearErrors("fullName");
-          }}
-        />
-        <Controller
-          control={control}
-          name="cardNumber"
-          render={({ field: { onChange, ...field } }) => (
-            <Input
-              label="Номер карты отправителя"
-              {...field}
-              onChange={(e) => {
-                const newValue = validateCardInput(e.target.value);
-                if (
-                  newValue.errorStatus === "ONE_LETTER" ||
-                  newValue.errorStatus === "LETTER"
-                ) {
-                  if (newValue.errorStatus === "ONE_LETTER") {
-                    setValue("cardNumber", "");
+    <>
+      {" "}
+      <form className={styles.form} onSubmit={handleSubmit(onSubmitHandler)}>
+        <ErrorCodeModal errorCode={error.code} errorText={error.message} />
+        <h3 className={styles.title}>Ваши реквизиты</h3>
+        <div className={styles.inputs}>
+          <Input
+            disabled={isNameBlocked}
+            register={register("fullName")}
+            label="ФИО Отправителя"
+            importantMessage="Важно, если вы отправляете с карты"
+            disabledStyle={isNameBlocked}
+            errorText={errors.fullName?.message}
+            clearError={() => {
+              clearErrors("fullName");
+            }}
+          />
+          <Controller
+            control={control}
+            name="cardNumber"
+            render={({ field: { onChange, ...field } }) => (
+              <Input
+                label="Номер карты отправителя"
+                {...field}
+                onChange={(e) => {
+                  const newValue = validateCardInput(e.target.value);
+                  if (
+                    newValue.errorStatus === "ONE_LETTER" ||
+                    newValue.errorStatus === "LETTER"
+                  ) {
+                    if (newValue.errorStatus === "ONE_LETTER") {
+                      setValue("cardNumber", "");
+                    }
+                    setError("cardNumber", {
+                      type: "custom",
+                      message: "Можно вводить только цифры!",
+                    });
+                    return;
                   }
-                  setError("cardNumber", {
-                    type: "custom",
-                    message: "Можно вводить только цифры!",
-                  });
-                  return;
-                }
-                if (newValue.errorStatus === "LENGTH") return;
+                  if (newValue.errorStatus === "LENGTH") return;
 
-                onChange(newValue.value);
-              }}
-              errorText={errors.cardNumber?.message}
-              clearError={() => clearErrors("cardNumber")}
-            />
-          )}
-        />
+                  onChange(newValue.value);
+                }}
+                errorText={errors.cardNumber?.message}
+                clearError={() => clearErrors("cardNumber")}
+              />
+            )}
+          />
 
-        <Controller
-          control={control}
-          name="chain"
-          defaultValue={chainDefaultValue}
-          rules={{ required: "Поле должно быть заполнено" }}
-          render={({ field: { onChange, value } }) => (
-            <Select
-              disabled={isChainBlocked || chains.length === 0}
-              defaultValue={chainDefaultValue}
-              onChange={(value: string) => {
-                onChange(value);
-                setChain(value);
-              }}
-              value={value}
-              options={chains.map((chain) => ({
-                name: chain.name,
-                value: chain.name,
-              }))}
-              label="Chain"
-            />
-          )}
-        />
-        <Input
-          register={register("walletAddress")}
-          label="Адрес кошелька получателя"
-          errorText={errors.walletAddress?.message}
-          clearError={() => clearErrors("walletAddress")}
-          disabledStyle={isAddressBlocked}
-          disabled={isAddressBlocked}
-        />
-        <Input
-          register={register("email")}
-          name="email"
-          label="Адрес почты"
-          errorText={errors.email?.message}
-          clearError={() => clearErrors("email")}
-          disabledStyle={isEmailBlocked}
-          disabled={isEmailBlocked}
-        />
-      </div>
-      <div className={styles.checkboxes}>
-        <Controller
-          control={control}
-          name="personalData"
-          defaultValue={false}
-          render={({ field: { onChange, value } }) => (
-            <Checkbox
-              setChecked={onChange}
-              label="	Даю согласие на обработку персональных данных"
-              checked={value}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="agreement"
-          render={({ field: { onChange, value } }) => (
-            <Checkbox
-              setChecked={onChange}
-              label="Соглашаюсь с офертой"
-              checked={value}
-            />
-          )}
-        />
-      </div>
-      <Button disabled={buttonDisabled || isOrderCreating}>
-        {isOrderCreating ? "Создаем обмен..." : "Перейти к оплате"}
-      </Button>
-    </form>
+          <Controller
+            control={control}
+            name="chain"
+            defaultValue={chainDefaultValue}
+            rules={{ required: "Поле должно быть заполнено" }}
+            render={({ field: { onChange, value } }) => (
+              <Select
+                disabled={isChainBlocked || chains.length === 0}
+                defaultValue={chainDefaultValue}
+                onChange={(value: string) => {
+                  onChange(value);
+                  setChain(value);
+                }}
+                value={value}
+                options={chains.map((chain) => ({
+                  name: chain.name,
+                  value: chain.name,
+                }))}
+                label="Chain"
+              />
+            )}
+          />
+          <Input
+            register={register("walletAddress")}
+            label="Адрес кошелька получателя"
+            errorText={errors.walletAddress?.message}
+            clearError={() => clearErrors("walletAddress")}
+            disabledStyle={isAddressBlocked}
+            disabled={isAddressBlocked}
+          />
+          <Input
+            register={register("email")}
+            name="email"
+            label="Адрес почты"
+            errorText={errors.email?.message}
+            clearError={() => clearErrors("email")}
+            disabledStyle={isEmailBlocked}
+            disabled={isEmailBlocked}
+          />
+        </div>
+        <div className={styles.checkboxes}>
+          <Controller
+            control={control}
+            name="personalData"
+            defaultValue={false}
+            render={({ field: { onChange, value } }) => (
+              <Checkbox
+                setChecked={onChange}
+                label="	Даю согласие на обработку персональных данных"
+                checked={value}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="agreement"
+            render={({ field: { onChange, value } }) => (
+              <Checkbox
+                setChecked={onChange}
+                label="Соглашаюсь с офертой"
+                checked={value}
+              />
+            )}
+          />
+        </div>
+        <Button disabled={buttonDisabled || isOrderCreating}>
+          {isOrderCreating ? "Создаем обмен..." : "Перейти к оплате"}
+        </Button>
+      </form>
+      <SetupWidgetEnv setValue={setValue} />
+    </>
   );
 };

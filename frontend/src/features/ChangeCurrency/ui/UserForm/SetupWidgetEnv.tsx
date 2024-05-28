@@ -6,34 +6,18 @@ import { useEffect } from "react";
 
 interface Props {
   setValue: UseFormSetValue<z.infer<typeof FormSchema>>;
-  setChainDefaultValue: (value: string) => void;
 }
 
-const NAMING = {
-  full_name: "fullName",
-  address: "walletAddress",
-  email: "email",
-};
-
-export const SetupWidgetEnv = ({ setValue, setChainDefaultValue }: Props) => {
+export const SetupWidgetEnv = ({ setValue }: Props) => {
   const widgetEnv = useWidgetEnv((state) => state.widgetEnv);
 
   useEffect(() => {
-    for (const [key, value] of Object.entries(widgetEnv)) {
-      if (!value) continue;
-
-      switch (key) {
-        case "chain":
-          setChainDefaultValue(value as string);
-          break;
-        case "address":
-        case "full_name":
-        case "email":
-          setValue(
-            NAMING[key] as keyof z.infer<typeof FormSchema>,
-            value as string
-          );
-      }
+    const { email, full_name, withdraw_method } = widgetEnv;
+    if (email) setValue("email", email);
+    if (full_name) setValue("fullName", full_name);
+    if (withdraw_method) {
+      const { address } = withdraw_method;
+      if (address) setValue("walletAddress", address);
     }
   }, [widgetEnv]);
   return <></>;
