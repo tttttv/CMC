@@ -54,7 +54,6 @@ export const ChangeInputs = () => {
           ?.payment_methods.find((p) => `${p.id}` === `${toCurrencyId}`);
       }
     } else {
-      console.log(to.data?.crypto);
       return to.data?.crypto.find((c) => `${c.id}` === `${toCurrencyId}`);
     }
   }, [fromType, bankType, toCurrencyId, to.data]);

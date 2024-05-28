@@ -17,7 +17,6 @@ export const useFindCurrencyByName = ({
   const { to, from } = useCurrency();
 
   const currency = (changingProperty === "sending" ? from : to).data;
-  console.log(type);
   const banks = useBanks(currency?.fiat, "all");
 
   useEffect(() => {
