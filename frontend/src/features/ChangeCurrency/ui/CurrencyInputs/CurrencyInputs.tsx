@@ -12,6 +12,7 @@ import { validateCurrencyInput } from "../../lib/validation";
 
 import { ErrorModal } from "$/shared/ui/modals/ErrorModal";
 import { AxiosError } from "axios";
+import { PriceAnchor } from "$/shared/types/api/params";
 
 const DELAY = 1000;
 export const ChangeInputs = () => {
@@ -92,27 +93,18 @@ export const ChangeInputs = () => {
   } = useQuery({
     queryKey: ["getPrice"],
     queryFn: () => {
-      const amountParam: { quantity?: number; amount?: number } = {};
       const amount = isFromGetting ? +toValue : +fromValue;
-      const anchor = (
-        isFromGetting
-          ? toType === "bank"
-            ? "currency"
-            : "token"
-          : fromType === "bank"
-            ? "currency"
-            : "token"
-      ) as "token" | "currency";
-      if (anchor === "token") {
-        amountParam.quantity = amount;
-      } else amountParam.amount = amount;
+      const anchor = (isFromGetting ? "BUY" : "SELL") as PriceAnchor;
 
       return currencyAPI.getPrice({
         anchor,
-        payment_method: fromCurrencyId,
-        token: toCurrencyId,
-        ...amountParam,
-        chain,
+        amount,
+        payment_method: +(fromCurrency?.id ?? -1),
+        payment_amount: +fromValue,
+        payment_chain: chain,
+        withdraw_method: +(toCurrency?.id ?? -1),
+        withdraw_chain: chain,
+        withdraw_amount: +toValue,
       });
     },
     enabled: false,
