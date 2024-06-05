@@ -322,6 +322,8 @@ def process_payment_crypto(order: OrderBuyToken):
                 return
 
         order.state = OrderBuyToken.STATE_CREATED
+        order.dt_created_sell = datetime.datetime.now()
+
         order.save()
 
     elif order.state == OrderBuyToken.STATE_CREATED:  # Ждем перевода
@@ -336,7 +338,7 @@ def process_payment_crypto(order: OrderBuyToken):
                 print('dt', incoming_payment.created_time > order.dt_initiated)
                 print(incoming_payment.address, order.payment_currency.address, order.internal_address.address)
                 print(incoming_payment.chain, order.payment_currency.chain)
-                if (  # incoming_payment.created_time > order.dt_initiated and
+                if ( incoming_payment.created_time > order.dt_created_sell and
                         # order.payment_currency.address # TODO Проверять транзакцию/отправителя в RPC API NEAR / В bybit поискать
                         incoming_payment.address == order.internal_address.address and
                         incoming_payment.chain == order.payment_currency.chain):
