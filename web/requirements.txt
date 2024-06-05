@@ -13,3 +13,7 @@ psycopg2-binary
 Redis==5.0.3
 django-cors-headers
 Pillow
+# new
+djangorestframework
+drf-yasg
+django-cors-headers

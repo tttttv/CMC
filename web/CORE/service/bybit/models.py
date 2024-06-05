@@ -1,7 +1,7 @@
 class BybitP2P:
     def __init__(self, item):
         self.id = item['id']
-        self.userId = item['userId']
+        self.user_id = item['userId']
         self.price = float(item['price'])
         self.quantity = float(item['quantity'])
         self.minAmount = float(item['minAmount'])
@@ -10,7 +10,8 @@ class BybitP2P:
     def __repr__(self):
         return '{P2P: ' + self.id + ' ' + str(self.price) + '}'
 
-class PaymentTerm:
+
+class BybitPaymentTerm:
     def __init__(self, item):
         self.paymentId = item['id']
         self.paymentType = item['paymentType']
@@ -28,5 +29,3 @@ class PaymentTerm:
             'account_no': self.accountNo
         }
 
-    def print(self):
-        print(' '.join([self.paymentId, str(self.paymentType), self.realName, self.accountNo]))

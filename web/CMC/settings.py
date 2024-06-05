@@ -25,18 +25,19 @@ SECRET_KEY = 'django-insecure-aopxkfkgx_t8=p@55@io!v*&rxbq%jt*)3f@8%hqrelzhp9mc2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-# from dotenv import load_dotenv  # FIXME TEST
-# load_dotenv()
+from dotenv import load_dotenv  # FIXME TEST
+load_dotenv()
 
 SERVER = os.getenv('SERVER', 'PROD')
 if SERVER == 'LOCAL':
     CORS_ORIGIN_ALLOW_ALL = True
+    CORS_ALLOW_CREDENTIALS = True
     ALLOWED_HOSTS = ['*']
 else:
     ALLOWED_HOSTS = ['158.160.113.89', '127.0.0.1', 'fleshlight.fun', 'api.fleshlight.fun', 'https://*.fleshlight.fun']
 
 CSRF_TRUSTED_ORIGINS = ['https://*.fleshlight.fun']
-# Application definition
+
 
 INSTALLED_APPS = [
     'corsheaders',
@@ -47,9 +48,17 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_celery_results',
-    'CORE',
-    'API',
-    'CRM_ADMIN.apps.CrmAdminConfig'
+
+    'rest_framework',
+    'drf_yasg',
+
+    # 'CORE',
+    # 'API',
+    # 'ADMIN',
+    'API.apps.ApiConfig',
+    'ADMIN.apps.AdminConfig',
+    'CORE.apps.CoreConfig',
+
 ]
 
 MIDDLEWARE = [
@@ -57,7 +66,9 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+
     'django.middleware.csrf.CsrfViewMiddleware', # FIXME TEST
+
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -104,6 +115,16 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'CMC.wsgi.application'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'API.renderers.UTF8CharsetJSONRenderer',
+    ],
+}
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATIC_URL = 'static/'

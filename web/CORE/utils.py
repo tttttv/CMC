@@ -5,20 +5,20 @@ from django.core.cache import cache
 from django.db import transaction
 from celery import current_app
 
-from CORE.models import P2POrderBuyToken
+from CORE.models import OrderBuyToken
 
 LOCK_EXPIRE = 60 * 10  # Lock expires in 10 minutes
 
 @contextmanager
 def order_task_lock(order_id):
     with transaction.atomic():
-        order = P2POrderBuyToken.objects.select_for_update(nowait=True).get(id=order_id, is_executing=False)
+        order = OrderBuyToken.objects.select_for_update(nowait=True).get(id=order_id, is_executing=False)
         order.is_executing = True
         order.save(update_fields=['is_executing'])  # raise Exc when locked
     try:
         yield True
     finally:
-        order = P2POrderBuyToken.objects.get(id=order_id)
+        order = OrderBuyToken.objects.get(id=order_id)
         order.is_executing = False
         order.save(update_fields=['is_executing'])
 

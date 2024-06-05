@@ -3,6 +3,7 @@
 TOKENS_DIGITS = {
     'USDT': 4,
     'NEAR': 2,
+    'RUB': 2,
 }
 
 P2P_BUY_TIMEOUTS = {
@@ -24,3 +25,4 @@ TRANSACTION_FEES = {
         'TRX': 1.3,
     }
 }
+

@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 
 import datetime
 
-class User(AbstractBaseUser, PermissionsMixin):
+class User(AbstractBaseUser):
     email = models.EmailField(blank=True, null=True, unique=True)
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)

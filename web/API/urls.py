@@ -3,22 +3,62 @@ from django.conf.urls.static import static
 from . import views
 from django.conf import settings
 
-urlpatterns = [
-    path('get_widget_palette', views.get_widget_palette_view, name='get_widget_palette'),
-    path('get_payment_methods', views.get_payment_methods_view, name='get_payment_methods'),
-    path('widget', views.create_widget_view, name='create_widget'),
-    path('widget_settings', views.get_widget_settings_view, name='widget_setting'),
 
-    path('exchange/from', views.get_available_from_view, name="get_from"),
-    path('exchange/to', views.get_available_to_view, name="get_to"),
-    path('exchange/price', views.get_price_view, name="get_price"),
-    path('order', views.create_order_view, name="order_create"),
-    path('order/state', views.get_order_state_view, name="order_state"),
-    path('order/cancel', views.cancel_order_view, name="order_cancel"),
-    path('order/continue', views.continue_with_new_price, name="order_continue"),
-    path('order/paid', views.mark_order_as_paid_view, name="order_paid"),
-    path('order/message', views.get_chat_messages_view, name="order_messages"),
 
-    path('order/message/send', views.send_chat_message_view, name="order_message_send"),
-    path('order/message/send_image', views.send_chat_image_view, name="order_image_send"),
+from django.urls import path, re_path
+from django.conf.urls.static import static
+from django.views.generic import TemplateView
+from rest_framework import permissions, routers
+from . import views
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from drf_yasg import openapi
+from drf_yasg.views import get_schema_view
+from drf_yasg.generators import OpenAPISchemaGenerator
+import os
+
+from django.urls import re_path
+from rest_framework import permissions
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+
+
+class SchemaGenerator(OpenAPISchemaGenerator):
+    def get_schema(self, request=None, public=False):
+        schema = super(SchemaGenerator, self).get_schema(request, public)
+        schema.basePath = os.path.join(schema.basePath, 'api/')
+        return schema
+
+
+schema_view = get_schema_view(
+   openapi.Info(
+      title="Snippets API",
+      default_version='v1',
+   ),
+   public=True,
+   # permission_classes=[permissions.IsAuthenticated,], FIXME
+   permission_classes=[permissions.AllowAny,],
+   urlconf='API.urls',
+   generator_class=SchemaGenerator
+)
+
+swagger_urls = [
+    path('swagger<format>/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+
+    path('docs', TemplateView.as_view(
+        template_name='API/docs.html',
+        extra_context={'schema_url': 'openapi-schema'}
+    ), name='swagger')
 ]
+
+router = routers.DefaultRouter()
+router.register(r'exchange', views.ExchangeVIewSet, basename='exchange')
+router.register(r'order', views.OrderViewSet, basename='order')
+router.register(r'widget', views.WidgetViewSet, basename='widget')
+
+
+urlpatterns = [
+
+] + router.urls + swagger_urls
