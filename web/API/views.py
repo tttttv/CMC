@@ -439,7 +439,7 @@ class OrderViewSet(GenericViewSet):
 
         if order.dt_created_sell:
             order_data['time_left'] = max(
-                (order.dt_created - datetime.datetime.now() + datetime.timedelta(minutes=60)).seconds, 0)
+                (order.dt_created_sell - datetime.datetime.now() + datetime.timedelta(minutes=60)).seconds, 0)
         else:
             order_data['time_left'] = 0
 

@@ -322,7 +322,8 @@ def process_payment_crypto(order: OrderBuyToken):
                 return
 
         order.state = OrderBuyToken.STATE_CREATED
-        order.dt_created = datetime.datetime.now()
+        order.dt_created_sell = datetime.datetime.now()
+
         order.save()
 
     elif order.state == OrderBuyToken.STATE_CREATED:  # Ждем перевода
