@@ -108,7 +108,7 @@ class AbstractCurrency(models.Model):
 
     type = models.CharField(max_length=10, choices=TYPES)
     name = models.CharField(max_length=20)  # АльфаБанк Сбербанк USDT NEAR
-    # chains = models.JSONField(default=list, blank=True, null=True)
+    chains = models.JSONField(default=list, blank=True, null=True)
 
     payment_id = models.IntegerField(default=None, blank=True, null=True, verbose_name="ID Банка")  # 337 339
     token = models.CharField(max_length=10, choices=CURRENCY, verbose_name='Токен валюты')  # RUB / USDT / NEAR
@@ -215,9 +215,6 @@ class AbstractCurrency(models.Model):
 
 
 class BybitCurrency(AbstractCurrency):
-    # Список валют за которые можно покупать
-    # exchange_from = models.ManyToManyField("self", blank=True, symmetrical=False, related_name='exchange_to')
-    chains = models.JSONField(default=list, blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -499,12 +496,6 @@ def default_order_hash():
 
 
 class OrderBuyToken(models.Model):
-    # SIDE_BUY = 'BUY'
-    # SIDE_SELL = 'SELL'
-    # ITEM_SIDE = (
-    #     (SIDE_BUY, 'Покупка'),  # Покупаем крипту за фиат
-    #     (SIDE_SELL, 'Продажа'),  # Покупаем фиат за крипту
-    # )
 
     # STAGE 1
     STATE_INITIATED = 'INITIATED'  # *
@@ -638,8 +629,8 @@ class OrderBuyToken(models.Model):
     dt_initiated = models.DateTimeField(default=datetime.datetime.now)
 
     # CREATED
-    dt_created_p2p_sell = models.DateTimeField(default=None, blank=True, null=True)
-    dt_created_p2p_buy = models.DateTimeField(default=None, blank=True, null=True)
+    dt_created_sell = models.DateTimeField(default=None, blank=True, null=True)
+    dt_created_buy = models.DateTimeField(default=None, blank=True, null=True)
 
     terms = models.JSONField(default=dict, blank=True, null=True)
 
@@ -755,13 +746,13 @@ class OrderBuyToken(models.Model):
         delta = datetime.datetime.now() - datetime.timedelta(minutes=minutes)
 
         if side == P2PItem.SIDE_SELL:
-            if self.dt_created_p2p_sell.replace(tzinfo=None) < delta:
+            if self.dt_created.replace(tzinfo=None) < delta:
                 self.state = OrderBuyToken.STATE_TIMEOUT
                 self.error_message = 'P2P Sell Timeout'
                 self.save()
                 return True
         elif side == P2PItem.SIDE_BUY:
-            if self.dt_created_p2p_buy.replace(tzinfo=None) < delta:
+            if self.dt_created_buy.replace(tzinfo=None) < delta:
                 self.state = OrderBuyToken.STATE_TIMEOUT
                 self.error_message = 'P2P Buy Timeout'
                 self.save()
@@ -869,7 +860,7 @@ class OrderBuyToken(models.Model):
                 self.save()
                 return False  # Меняем аккаунт
             self.order_sell_id = order_sell_id
-            self.dt_created_p2p_sell = datetime.datetime.now()
+            self.dt_created_sell = datetime.datetime.now()
 
         elif side == P2PItem.SIDE_BUY:  # Только Вывод
             withdraw_amount = Trade.p2p_quantity(self.usdt_amount, self.price_buy, p2p_side=P2PItem.SIDE_BUY)
@@ -918,7 +909,7 @@ class OrderBuyToken(models.Model):
                 self.save()
                 return False  # Возврат средств
             self.order_buy_id = order_buy_id
-            self.dt_created_p2p_buy = datetime.datetime.now()
+            self.dt_created_buy = datetime.datetime.now()
 
         self.save()
 

@@ -436,7 +436,8 @@ class OrderViewSet(GenericViewSet):
             'order_hash': order_hash,
             'stage': order.stage,
         }
-        if order.dt_created:
+
+        if order.dt_created_sell:
             order_data['time_left'] = max(
                 (order.dt_created - datetime.datetime.now() + datetime.timedelta(minutes=60)).seconds, 0)
         else:
@@ -454,13 +455,14 @@ class OrderViewSet(GenericViewSet):
             if order.payment_currency.is_fiat:
                 state_data = {
                     'terms': order.terms,
-                    'time_left': (order.dt_created - datetime.datetime.now() + datetime.timedelta(minutes=20)).seconds,
+                    'time_left': (order.dt_created_sell - datetime.datetime.now() + datetime.timedelta(minutes=20)).seconds,
                     'commentary': "Просим вас не указывать комментарии к платежу. ФИО плательщика должно соответствовать тому,"
                                   " которое вы указывали при создании заявки, платежи от третьих лиц не принимаются."
                 }
             else:
                 state_data = {
-                    'time_left': (order.dt_created - datetime.datetime.now() + datetime.timedelta(minutes=20)).seconds,
+                    'terms': order.internal_address.to_json() if order.internal_address else None,
+                    'time_left': (order.dt_created_sell - datetime.datetime.now() + datetime.timedelta(minutes=30)).seconds,
                     'commentary': "SEND ME CRYPTO BRO",
                 }
         elif order.state == OrderBuyToken.STATE_TRANSFERRED:  # Пользователь пометил как отправленный - ждем подтверждение
@@ -486,6 +488,15 @@ class OrderViewSet(GenericViewSet):
             state = 'TIMEOUT'
         elif order.state == OrderBuyToken.STATE_ERROR:  # Критическая ошибка, требующая связи через бота
             state = 'ERROR'
+        elif order.state == OrderBuyToken.STATE_WAITING_CONFIRMATION:
+            state = 'PENDING'
+            if order.withdraw_currency.is_fiat:
+                state_data = {
+                    'terms': order.terms,
+                    'time_left': (order.dt_created_buy - datetime.datetime.now() + datetime.timedelta(minutes=20)).seconds,
+                    'commentary': "Просим вас не указывать комментарии к платежу. ФИО плательщика должно соответствовать тому,"
+                                  " которое вы указывали при создании заявки, платежи от третьих лиц не принимаются."
+                }
 
         data = {
             'order': order_data,
