@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useWidgetEnv } from "../model/widgetEnv";
 import { TinyColor } from "@ctrl/tinycolor";
+import { useExchangeSettings } from "$/shared/storage/exchangeSettings";
 
 interface Props {
   children: React.ReactNode;
@@ -11,6 +12,9 @@ interface Props {
 
 export const WidgetEnv = ({ children, widgetId }: Props) => {
   const setWidgetEnv = useWidgetEnv((state) => state.setWidgetEnv);
+  const { addAvaibleMethod, setToType, setWithdrawMethod } =
+    useExchangeSettings();
+
   const { data, isSuccess, refetch } = useQuery({
     queryKey: ["widgetEnv"],
     queryFn: () => widgetAPI.getWidgetEnv(widgetId),
@@ -23,18 +27,23 @@ export const WidgetEnv = ({ children, widgetId }: Props) => {
 
   useEffect(() => {
     if (!isSuccess) return;
-
     const { color_palette: colorScheme, ...widgetEnvWithoutColors } = data;
 
     setWidgetEnv(widgetEnvWithoutColors);
-    // const colorScheme = {
-    //   bodyColor: "green",
-    //   blockColor: "pink",
-    //   textColor: "#DE87",
-    //   secondaryTextColor: "beige",
-    //   accentColor: "red",
-    //   secondaryAccentColor: "orange",
-    // };
+
+    const { payment_methods, withdraw_method } = widgetEnvWithoutColors;
+
+    if (payment_methods) {
+      for (const method of payment_methods) {
+        addAvaibleMethod(method);
+      }
+    }
+
+    if (withdraw_method) {
+      setToType(withdraw_method.type === "fiat" ? "bank" : "crypto");
+      setWithdrawMethod(withdraw_method);
+    }
+
     if (!colorScheme) return;
 
     const bodyCSS = getComputedStyle(document.body);

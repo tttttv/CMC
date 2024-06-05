@@ -42,8 +42,11 @@
     .label {
       margin-bottom: 12px;
     }
-    .input {
+    .select {
       background-color: var(--whitesmoke-color);
+      [class="p-dropdown-trigger"] {
+        display: none;
+      }
     }
   }
 }

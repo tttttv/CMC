@@ -17,20 +17,14 @@ export const OrderPage = () => {
   const setCrypto = useStagesStore((state) => state.setCrypto);
   const setTime = useStagesStore((state) => state.setTime);
   const setNewAmount = useStagesStore((state) => state.setNewAmount);
-  const { data, refetch, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["order"],
     queryFn: orderAPI.getOrderState,
     select: (data) => data.data,
+    retry: 0,
+    refetchInterval: REFETCH_DELAY,
+    refetchOnWindowFocus: false,
   });
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refetch();
-    }, REFETCH_DELAY);
-
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const state = data?.state;
   useEffect(() => {

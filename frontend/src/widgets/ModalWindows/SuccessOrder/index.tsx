@@ -45,7 +45,7 @@ const SuccessOrder = () => {
             <div className={styles.infoBlock}>
               <h4 className={styles.infoBlockTile}>Курс</h4>
               <span className={styles.infoBlockValue}>
-                {data?.order.rate.toFixed(2)} {data?.order.from.currency} = 1{" "}
+                {data?.order.rate.toFixed(2)} {data?.order.from.name} = 1{" "}
                 {data?.order.to.name}
               </span>
             </div>

@@ -54,7 +54,7 @@ const MoneyWaiting = () => {
     },
   });
 
-  const { mutate: payOrder } = useMutation({
+  const { mutate: payOrder, isPending } = useMutation({
     mutationFn: orderAPI.payOrder,
   });
 
@@ -163,6 +163,7 @@ const MoneyWaiting = () => {
       </div>
       <Modal opened={isConfirmModal}>
         <OperationCancel
+          isPending={isPending}
           confirmFn={payOrder}
           closeFn={() => setConfirmModal(false)}
         />

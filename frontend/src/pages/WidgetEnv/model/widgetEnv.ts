@@ -4,18 +4,23 @@ import { create } from "zustand";
 interface WidgeEnvWithoutColors extends Omit<WidgetEnv, "color_palette"> {}
 
 export interface WidgetEnvStore {
-  widgetEnv: Omit<WidgeEnvWithoutColors, "color_palette">;
+  widgetEnv: WidgeEnvWithoutColors;
   setWidgetEnv: (widgetEnv: WidgeEnvWithoutColors) => void;
 }
 
 export const useWidgetEnv = create<WidgetEnvStore>((set) => ({
   widgetEnv: {
-    token: null,
-    chain: null,
-    address: null,
+    withdraw_method: {
+      id: -1,
+      type: "crypto",
+      logo: "",
+      name: "",
+      chain: "",
+      address: "",
+    },
     full_name: null,
     email: null,
-    payment_method: null,
+    payment_methods: null,
   },
   setWidgetEnv: (widgetEnv) => set({ widgetEnv }),
 }));

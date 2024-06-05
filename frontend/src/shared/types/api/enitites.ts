@@ -122,12 +122,27 @@ export interface ColorScheme {
   uiKitBackgroundColor: string | null;
   uiKitBorderColor: string | null;
 }
+
+export interface WidgetPaymentMethod {
+  id: number;
+  name: string;
+  type: "crypto" | "fiat";
+  chains: string[];
+  logo: string;
+}
+
+export interface WithdrawMethod {
+  id: number;
+  type: "crypto" | "fiat";
+  name: string;
+  chain: string;
+  logo: string;
+  address: string;
+}
 export interface WidgetEnv {
-  token: string | null;
-  chain: string | null;
-  address: string | null;
+  withdraw_method: WithdrawMethod;
   full_name: string | null;
   email: string | null;
   color_palette: ColorScheme;
-  payment_method: string[] | null;
+  payment_methods: WidgetPaymentMethod[] | null;
 }

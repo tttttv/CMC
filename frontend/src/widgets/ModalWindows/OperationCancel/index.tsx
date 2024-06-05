@@ -1,21 +1,26 @@
-import Button from '$/shared/ui/kit/Button/Button'
-import ButtonCancel from '$/shared/ui/kit/ButtonCancel/CancelButton'
-import ModalWindow from '$/shared/ui/modals/ModalWindow'
-import icon from './icon.svg'
-import styles from './index.module.scss'
+import Button from "$/shared/ui/kit/Button/Button";
+import ButtonCancel from "$/shared/ui/kit/ButtonCancel/CancelButton";
+import ModalWindow from "$/shared/ui/modals/ModalWindow";
+import icon from "./icon.svg";
+import styles from "./index.module.scss";
 
 interface Props {
-	confirmFn: () => void
-	closeFn: () => void
+  confirmFn: () => void;
+  closeFn: () => void;
+  isPending: boolean;
 }
-const OperationCancel = ({ closeFn, confirmFn }: Props) => {
-	return (
-		<ModalWindow icon={<img src={icon} alt="accept" />}>
-			<h1 className={styles.modalTitle}>Эту операцию нельзя отменить</h1>
-			<Button onClick={confirmFn}>Подтверждаю</Button>
-			<ButtonCancel onClick={closeFn}>Отмена</ButtonCancel>
-		</ModalWindow>
-	)
-}
+const OperationCancel = ({ closeFn, confirmFn, isPending }: Props) => {
+  return (
+    <ModalWindow icon={<img src={icon} alt="accept" />}>
+      <h1 className={styles.modalTitle}>Эту операцию нельзя отменить</h1>
+      <Button onClick={confirmFn} disabled={isPending}>
+        {isPending ? "Подождите..." : "Подтверждаю"}
+      </Button>
+      <ButtonCancel disabled={isPending} onClick={closeFn}>
+        Отмена
+      </ButtonCancel>
+    </ModalWindow>
+  );
+};
 
-export default OperationCancel
+export default OperationCancel;
