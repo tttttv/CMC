@@ -950,7 +950,7 @@ class BybitSession:
             print(resp)
             raise ValueError
 
-    def get_deposit_status(self, token_name: str | None = None):
+    def get_deposit_status(self, token_name: Optional[str] = None):
         params = {
             'status': 0,
             'pageSize': 20,
@@ -968,7 +968,7 @@ class BybitSession:
             print(resp)
             raise ValueError
 
-    def get_withdraw_status(self, token_name: str | None = None):
+    def get_withdraw_status(self, token_name: Optional[str] = None):
         params = {
             'page': 1,
             'withdraw_type': 2,
