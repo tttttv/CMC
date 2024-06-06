@@ -12,7 +12,9 @@ export const StateOrderPage = () => {
     "(max-width: 1024px)"
   );
   const state = useStagesStore((state) => state.state);
-  const showConfirmPayment = state === "WITHDRAWING";
+  const withdrawType = useStagesStore((state) => state.withdrawType);
+  const showConfirmPayment =
+    withdrawType !== "crypto" && state === "WITHDRAWING";
   const anchorRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
