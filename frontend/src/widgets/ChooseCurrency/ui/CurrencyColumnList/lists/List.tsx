@@ -31,7 +31,9 @@ const List = ({ changingProperty, items, isLoading }: Props) => {
               <div key={item?.id} className={className}>
                 <button
                   className={styles.itemButton}
-                  onClick={() => setCurrency(String(item?.id))}
+                  onClick={() => {
+                    setCurrency(String(item?.id));
+                  }}
                 ></button>
                 <CurrencyItem name={item?.name} image={item?.logo} />
               </div>

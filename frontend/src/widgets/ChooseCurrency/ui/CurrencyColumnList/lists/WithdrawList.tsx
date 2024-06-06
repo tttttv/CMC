@@ -1,16 +1,16 @@
 import { useFindCurrencyByName } from "$/shared/hooks/useFindCurrencyByName";
 import useCurrencyStore from "$/shared/storage/currency";
-import { useExchangeSettings } from "$/shared/storage/exchangeSettings";
 import { useEffect } from "react";
 import List from "./List";
+import { useWidgetEnv } from "$/pages/WidgetEnv/model/widgetEnv";
 
 export const WithdrawList = () => {
-  const withdrawMethod = useExchangeSettings((state) => state.withdrawMethod);
+  const { withdrawing_token } = useWidgetEnv((state) => state.widgetEnv);
 
   const setTo = useCurrencyStore((state) => state.setToCurrency);
   const findedMethod = useFindCurrencyByName({
-    name: withdrawMethod?.name || "",
-    type: withdrawMethod?.type || "crypto",
+    name: withdrawing_token,
+    type: "crypto",
     changingProperty: "getting",
   });
 
@@ -18,6 +18,5 @@ export const WithdrawList = () => {
     setTo(`${findedMethod?.id}`);
   }, [findedMethod]);
 
-  if (!findedMethod) return <>Не смогли найти нужную валюту!</>;
   return <List items={[findedMethod]} changingProperty={"getting"} />;
 };

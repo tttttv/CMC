@@ -5,6 +5,9 @@ import { orderAPI } from "$/shared/api/order";
 import { CurrencyIcon } from "$/shared/ui/other/CurrencyIcon";
 import styles from "./Chat.module.scss";
 import { Messages } from "./Messages/Messages";
+import { ConfirmPayment } from "./ConfirmPayment";
+import useMediaQuery from "$/shared/hooks/useMediaQuery";
+import { useStagesStore } from "$/widgets/Stages";
 
 export const Chat = () => {
   const { data } = useQuery({
@@ -13,6 +16,12 @@ export const Chat = () => {
     retry: 0,
     select: (data) => data.data,
   });
+
+  const state = useStagesStore((state) => state.state);
+  const showConfirmPayment = state === "WITHDRAWING";
+  const { matching: isConfirmPaymentNotInChat } = useMediaQuery(
+    "(max-width: 1024px)"
+  );
 
   return (
     <section className={styles.container}>
@@ -28,6 +37,7 @@ export const Chat = () => {
       </div>
       <div className={styles.body}>
         <Messages />
+        {showConfirmPayment && !isConfirmPaymentNotInChat && <ConfirmPayment />}
         <SendChatMessage />
       </div>
     </section>

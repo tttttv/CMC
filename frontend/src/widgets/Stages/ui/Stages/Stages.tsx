@@ -9,11 +9,14 @@ import styles from "./Stages.module.scss";
 import { Timer } from "./Timer";
 
 export const Stages = () => {
-  const state = useStagesStore((state) => state.stage);
-  const crypto = useStagesStore((state) => state.crypto);
+  const withdrawType = useStagesStore((state) => state.withdrawType);
+  const state = useStagesStore((state) => state.state);
+  const currency = useStagesStore((state) => state.currency);
 
   const stage = useRef(0);
   const statusBarRef = useRef<HTMLDivElement>(null);
+
+  const currencyType = withdrawType === "crypto" ? "криптовалюты" : "RUB";
 
   const [successStatus, setSuccessStatus] = useState(false);
   const [errorStatus, setErrorStatus] = useState(false);
@@ -79,9 +82,9 @@ export const Stages = () => {
         </Modal>
         <div className={styles.statusBar} ref={statusBarRef}></div>
         <li className={styles.stage}>Ожидается отправка средств</li>
-        <li className={styles.stage}>Покупка {crypto}</li>
-        <li className={styles.stage}>Обмен криптовалюты</li>
-        <li className={styles.stage}>Вывод криптовалюты</li>
+        <li className={styles.stage}>Покупка {currency}</li>
+        <li className={styles.stage}>Обмен {currencyType}</li>
+        <li className={styles.stage}>Вывод {currencyType}</li>
       </ul>
     </>
   );

@@ -3,6 +3,7 @@ import { useExchangeSettings } from "$/shared/storage/exchangeSettings";
 import { memo, useCallback } from "react";
 import styles from "./ChooseButtons.module.scss";
 import useCurrencyStore from "$/shared/storage/currency";
+import { useWidgetEnv } from "$/pages/WidgetEnv/model/widgetEnv";
 
 interface Props {
   changingProperty: "sending" | "getting";
@@ -11,7 +12,7 @@ interface Props {
 
 export const ChooseButtons = memo(
   ({ changingProperty, currencyType }: Props) => {
-    const withdrawMethod = useExchangeSettings((state) => state.withdrawMethod);
+    const { withdrawing_token } = useWidgetEnv((state) => state.widgetEnv);
     const detail = changingProperty === "sending" ? "to" : "from";
     const setFromType = useExchangeSettings((state) => state.setFromType);
     const setToType = useExchangeSettings((state) => state.setToType);
@@ -41,7 +42,7 @@ export const ChooseButtons = memo(
     }, []);
 
     const isBankButtonBlocked =
-      changingProperty === "getting" && !!withdrawMethod?.name;
+      changingProperty === "getting" && !!withdrawing_token;
 
     return (
       <>

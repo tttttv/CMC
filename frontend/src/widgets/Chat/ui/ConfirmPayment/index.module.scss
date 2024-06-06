@@ -1,0 +1,40 @@
+.container {
+  padding-inline: 24px;
+}
+.content {
+  padding-block: 20px;
+  padding-inline: 5px;
+  border-radius: 8px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  align-items: center;
+  border: 1px solid var(--buttonDisabledColor);
+}
+.title {
+  font-weight: 700;
+  font-size: 16px;
+}
+.buttons {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 349px;
+
+  .challengeButton {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--textColor);
+    text-transform: uppercase;
+    padding-block: 16px;
+  }
+}
+
+.timer {
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--accentColor);
+}

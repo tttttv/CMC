@@ -11,7 +11,7 @@ import styles from "./index.module.scss";
 const ChangedCourse = () => {
   const queryClient = useQueryClient();
   const newAmount = useStagesStore((state) => state.newAmount);
-  const crypto = useStagesStore((state) => state.crypto);
+  const currency = useStagesStore((state) => state.currency);
   const { mutate: cancelOrder } = useMutation({
     mutationKey: ["cancelOrder"],
     mutationFn: orderAPI.cancelOrder,
@@ -31,7 +31,7 @@ const ChangedCourse = () => {
       <p className={styles.newAmount}>
         По новой цене вы получите{" "}
         <span className={styles.amount}>
-          {newAmount} {crypto}
+          {newAmount} {currency}
         </span>
       </p>
       <Button
