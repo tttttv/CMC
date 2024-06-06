@@ -6,16 +6,21 @@ import { useState } from "react";
 import Modal from "$/shared/ui/modals/Modal";
 import { orderAPI } from "$/shared/api/order";
 import { useMutation } from "@tanstack/react-query";
+import { queryClient } from "$/pages/Root/ui/Wrapper";
 
 export const ConfirmPayment = () => {
   const [isModalVisible, setModalVisible] = useState(false);
+  const refetchState = () =>
+    queryClient.refetchQueries({ queryKey: ["order"] });
   const { mutate: confirmWithdraw, isPending } = useMutation({
     mutationFn: orderAPI.confirmWithdraw,
     mutationKey: ["confirmWithdraw"],
+    onSuccess: refetchState,
   });
   const { mutate: openDispute, isPending: disputePending } = useMutation({
     mutationFn: orderAPI.openDispute,
     mutationKey: ["openDispute"],
+    onSuccess: refetchState,
   });
 
   return (
