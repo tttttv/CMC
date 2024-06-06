@@ -79,7 +79,7 @@ export const UserForm = () => {
     resolver: zodResolver(FormSchema),
   });
 
-  const { isPending: isOrderCreating } = useMutation({
+  const { isPending: isOrderCreating, mutate: createOrder } = useMutation({
     mutationKey: ["order"],
     mutationFn: orderAPI.createOrder,
     onSuccess: (data) => {
@@ -128,8 +128,7 @@ export const UserForm = () => {
       ...orderData!,
     };
 
-    // createOrder(newOrder);
-    console.log(newOrder);
+    createOrder(newOrder);
   };
 
   const errorHandler = () => {
