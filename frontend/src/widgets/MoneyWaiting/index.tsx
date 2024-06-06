@@ -44,6 +44,7 @@ const MoneyWaiting = () => {
   const to = order?.withdraw;
   const fromAmount = order?.payment_amount;
   const toAmount = order?.withdraw_amount;
+  const stage = order?.stage;
 
   const isTransferToCrypto = from?.type === "crypto";
   const { mutate: cancelPay } = useMutation({
@@ -60,9 +61,16 @@ const MoneyWaiting = () => {
     },
   });
 
-  const { mutate: confirmPayment, isPending } = useMutation({
+  const { mutate: confirmPayment, isPending: paymentPending } = useMutation({
     mutationFn: orderAPI.confirmPayment,
   });
+
+  const { mutate: confirmWithdraw, isPending: withdrawPending } = useMutation({
+    mutationFn: orderAPI.confirmWithdraw,
+  });
+
+  const confirmPay = stage === 1 ? confirmPayment : confirmWithdraw;
+  const pending = stage === 1 ? paymentPending : withdrawPending;
 
   const copyAddresToClipboard = () => {
     const cardNumber = data?.state_data.terms?.address || "";
@@ -188,8 +196,8 @@ const MoneyWaiting = () => {
       </div>
       <Modal opened={isConfirmModal}>
         <OperationCancel
-          isPending={isPending}
-          confirmFn={confirmPayment}
+          isPending={pending}
+          confirmFn={confirmPay}
           closeFn={() => setConfirmModal(false)}
         />
       </Modal>
