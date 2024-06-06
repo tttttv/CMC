@@ -15,8 +15,10 @@ export const ExchangeDetails = () => {
   });
 
   const order = data?.order;
-  const from = order?.from;
-  const to = order?.to;
+  const from = order?.payment;
+  const to = order?.withdraw;
+  const fromAmount = order?.payment_amount;
+  const toAmount = order?.withdraw_amount;
 
   return (
     <div className={styles.container}>
@@ -33,7 +35,7 @@ export const ExchangeDetails = () => {
                 />
               </div>
               <span className={styles.currencyName}>
-                {data?.order.amount} {data?.order.from.name}
+                {fromAmount} {from?.name}
               </span>
             </div>
           </div>
@@ -49,7 +51,7 @@ export const ExchangeDetails = () => {
                 />
               </div>
               <span className={styles.currencyName}>
-                {data?.order.quantity} {to?.name}
+                {toAmount} {to?.name}
               </span>
             </div>
           </div>
@@ -59,10 +61,13 @@ export const ExchangeDetails = () => {
         <div className={styles.exchangeRate}>
           <h3 className={styles.exchangeRateTitle}>
             <span className={styles.exchangeRateText}>Курс обмена</span>
-            <span className={styles.exchangeRateValue} data-color="green">
-              {data?.order.rate.toFixed(3)} {data?.order.from.name} = 1{" "}
-              {data?.order.to.name}
-            </span>
+            {data?.order.rate && from?.name && to?.name ? (
+              <span className={styles.exchangeRateValue} data-color="green">
+                {data?.order.rate.toFixed(3)} {from?.name} = 1 {to?.name}
+              </span>
+            ) : (
+              <>---</>
+            )}
           </h3>
           <h3 className={styles.exchangeRateTitle}>
             <span className={styles.exchangeRateText}>Номер обмена</span>

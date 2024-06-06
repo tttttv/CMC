@@ -8,13 +8,23 @@ interface Props {
   confirmFn: () => void;
   closeFn: () => void;
   isPending: boolean;
+  title?: string;
+  buttonText?: string;
 }
-const OperationCancel = ({ closeFn, confirmFn, isPending }: Props) => {
+const OperationCancel = ({
+  closeFn,
+  confirmFn,
+  isPending,
+  title,
+  buttonText,
+}: Props) => {
   return (
     <ModalWindow icon={<img src={icon} alt="accept" />}>
-      <h1 className={styles.modalTitle}>Эту операцию нельзя отменить</h1>
+      <h1 className={styles.modalTitle}>
+        {title ?? "Эту операцию нельзя отменить"}
+      </h1>
       <Button onClick={confirmFn} disabled={isPending}>
-        {isPending ? "Подождите..." : "Подтверждаю"}
+        {isPending ? "Подождите..." : buttonText ?? "Подтверждаю"}
       </Button>
       <ButtonCancel disabled={isPending} onClick={closeFn}>
         Отмена

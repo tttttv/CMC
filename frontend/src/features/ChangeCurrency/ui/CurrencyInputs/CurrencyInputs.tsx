@@ -13,12 +13,12 @@ import { validateCurrencyInput } from "../../lib/validation";
 import { ErrorModal } from "$/shared/ui/modals/ErrorModal";
 import { AxiosError } from "axios";
 import { PriceAnchor } from "$/shared/types/api/params";
+import { ExchangeRate } from "./RateInfo";
 
 const DELAY = 1000;
 export const ChangeInputs = () => {
   const { to, from } = useCurrency();
-  const { setAmount, setBestP2P, setBestP2PPrice, setPrice, chain, price } =
-    usePlaceOrder();
+  const { setPrice, fromChain, toChain, setOrderData } = usePlaceOrder();
   const { fromType, toType } = useExchangeSettings();
   const bankType = useCurrencyStore((state) => state.bankCurrencyType);
   const fromCurrencyId = useCurrencyStore((state) => state.fromCurrency);
@@ -64,6 +64,7 @@ export const ChangeInputs = () => {
   const [fromValue, setFromValue] = useState("");
   const [toValue, setToValue] = useState("");
   const [betterAmount, setBetterAmount] = useState("");
+
   // Обнуляем инпуты при смене крипты на банк и т.д.
   const resetInputValue = useCallback((e: Event) => {
     const type = (e as CustomEvent).detail;
@@ -71,6 +72,7 @@ export const ChangeInputs = () => {
       setFromValue("");
     } else setToValue("");
   }, []);
+
   useEffect(() => {
     const fn = (e: Event) => resetInputValue(e);
     window.addEventListener("resetInputValue", fn);
@@ -101,9 +103,9 @@ export const ChangeInputs = () => {
         amount,
         payment_method: +(fromCurrency?.id ?? -1),
         payment_amount: +fromValue,
-        payment_chain: chain,
+        payment_chain: fromChain,
         withdraw_method: +(toCurrency?.id ?? -1),
-        withdraw_chain: chain,
+        withdraw_chain: toChain,
         withdraw_amount: +toValue,
       });
     },
@@ -114,31 +116,31 @@ export const ChangeInputs = () => {
   useEffect(() => {
     if (!data) return;
 
-    const amountName = isFromGetting
-      ? toType === "bank"
-        ? "quantity"
-        : "amount"
-      : fromType === "bank"
-        ? "quantity"
-        : "amount";
-    const newAmount = data?.data[amountName].toString() || "0";
+    const amountName = isFromGetting ? "payment_amount" : "withdraw_amount";
+    const newAmount = `${data?.data[amountName] || "0"}`;
 
     if (isFromGetting) {
       setFromValue(newAmount);
     } else setToValue(newAmount);
 
-    const otherInfo = data.data;
+    const { item_buy, item_sell, price_buy, price_sell, price, better_amount } =
+      data.data;
 
-    setAmount(otherInfo.amount);
-    setPrice(otherInfo.price);
-    setBestP2P(otherInfo.best_p2p);
-    setBestP2PPrice(otherInfo.best_p2p_price);
+    setOrderData({
+      item_buy,
+      item_sell,
+      price_buy,
+      price_sell,
+      payment_amount: +fromValue,
+      withdraw_amount: +toValue,
+      anchor: isFromGetting ? "BUY" : "SELL",
+    });
 
-    setBetterAmount(`${otherInfo.better_amount}`);
+    setPrice(price);
+    setBetterAmount((better_amount ?? "").toString());
     setGetPricing(null);
   }, [data]);
 
-  // Введены неправильные данные
   useEffect(() => {
     if (!error || (error as any)?.response?.status === 500) return;
     const { code: newErrorCode } = (error as AxiosError<{ code: number }>)
@@ -150,16 +152,18 @@ export const ChangeInputs = () => {
     if (newErrorCode == 3 && amount === "0") {
       if (isFromGetting) setFromValue("0");
       else setToValue("0");
-      setAmount(0);
       setGetPricing(null);
+      setOrderData(null);
       return;
     }
     errorCode.current = +(error || -1);
     setFromValue("0");
     setToValue("0");
     setHasError(true);
-    setAmount(0);
+    setPrice("");
+    setBetterAmount("");
     setGetPricing(null);
+    setOrderData(null);
   }, [error]);
 
   // to/from currency update
@@ -177,6 +181,7 @@ export const ChangeInputs = () => {
       getPrice();
     }, DELAY);
   }, [fromCurrency]);
+
   const gettingTimer = useRef<NodeJS.Timeout>();
 
   return (
@@ -238,48 +243,12 @@ export const ChangeInputs = () => {
           iconAlt={toCurrencyId}
         />
 
-        <div className={styles.exchangeRate}>
-          <h3 className={styles.exchangeRateTitle}>
-            <span className={styles.exchangeRateText}>Курс обмена</span>
-            <span className={styles.exchangeRateValue}>
-              {price && fromCurrency && toCurrency ? (
-                <>
-                  {getPricing !== null ? "..." : price}{" "}
-                  {fromType === "bank"
-                    ? bankType === "all"
-                      ? "RUB"
-                      : bankType
-                    : fromCurrency.name}{" "}
-                  = 1{" "}
-                  {toType === "bank"
-                    ? bankType === "all"
-                      ? "RUB"
-                      : bankType
-                    : toCurrency.name}
-                </>
-              ) : (
-                "---"
-              )}
-            </span>
-          </h3>
-          <h3 className={styles.exchangeRateTitle}>
-            <span className={styles.exchangeRateText}>Курс выгоднее с</span>
-            <span className={styles.exchangeRateValue}>
-              {fromCurrency && betterAmount && toCurrency ? (
-                <>
-                  {getPricing !== null ? "..." : betterAmount}{" "}
-                  {fromType === "bank"
-                    ? bankType === "all"
-                      ? "RUB"
-                      : bankType
-                    : fromCurrency?.name}
-                </>
-              ) : (
-                "---"
-              )}
-            </span>
-          </h3>
-        </div>
+        <ExchangeRate
+          fromCurrency={fromCurrency}
+          toCurrency={toCurrency}
+          getPricing={getPricing}
+          betterAmount={betterAmount}
+        />
 
         {!isInputsDisabled && fromValue && getPricing === null && (
           <button

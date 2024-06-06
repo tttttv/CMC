@@ -19,6 +19,9 @@ import { CardIcon } from "./icons/CardIcon";
 import { BankIcon } from "./icons/BankIcon";
 import { Arrow } from "./icons/Arrow";
 import { clearOrderHash } from "$/shared/helpers/orderHash/clear";
+import { CryptoIcon } from "./icons/CryptoIcon";
+import { CryptoWalletIcon } from "./icons/CryptoWalletIcon";
+import { ChainIcon } from "./icons/ChainIcon";
 
 const COPY_MESSAGE_DISAPPEAR_DELAY = 1500;
 
@@ -37,9 +40,12 @@ const MoneyWaiting = () => {
   });
 
   const order = data?.order;
-  const from = order?.from;
-  const to = order?.to;
+  const from = order?.payment;
+  const to = order?.withdraw;
+  const fromAmount = order?.payment_amount;
+  const toAmount = order?.withdraw_amount;
 
+  const isTransferToCrypto = from?.type === "crypto";
   const { mutate: cancelPay } = useMutation({
     mutationKey: ["cancelPay"],
     mutationFn: orderAPI.cancelOrder,
@@ -54,12 +60,12 @@ const MoneyWaiting = () => {
     },
   });
 
-  const { mutate: payOrder, isPending } = useMutation({
-    mutationFn: orderAPI.payOrder,
+  const { mutate: confirmPayment, isPending } = useMutation({
+    mutationFn: orderAPI.confirmPayment,
   });
 
-  const copyCardNumberToClipboard = () => {
-    const cardNumber = data?.state_data.terms?.account_no || "";
+  const copyAddresToClipboard = () => {
+    const cardNumber = data?.state_data.terms?.address || "";
     navigator.clipboard.writeText(cardNumber).then(() => {
       setCopied(true);
       setTimeout(() => {
@@ -84,7 +90,7 @@ const MoneyWaiting = () => {
               />
             </div>
             <h4 className={styles.currency}>
-              {data?.order.amount || "---"} {data?.order.from.name || ""}
+              {fromAmount || "---"} {from?.name || ""}
             </h4>
           </div>
           <Arrow />
@@ -97,7 +103,7 @@ const MoneyWaiting = () => {
               />
             </div>
             <h2 className={styles.currency}>
-              {data?.order.quantity || "---"} {to?.name || ""}
+              {toAmount || "---"} {to?.name || ""}
             </h2>
           </div>
         </div>
@@ -106,10 +112,12 @@ const MoneyWaiting = () => {
       <div className={styles.orderInfo}>
         <div className={styles.infoBlock}>
           <div className={styles.infoBlockTitle}>
-            <BankIcon />
-            <h3 className={styles.infoBlockText}>Банк</h3>
+            {isTransferToCrypto ? <CryptoIcon /> : <BankIcon />}
+            <h3 className={styles.infoBlockText}>
+              {isTransferToCrypto ? "Криптовалюта" : "Банк"}
+            </h3>
           </div>
-          <div className={styles.infoBlockValueContainer} data-special="bank">
+          <div className={styles.infoBlockValueContainer} data-special="icon">
             <div className={styles.icon}>
               <CurrencyIcon
                 currencyName={""}
@@ -120,18 +128,33 @@ const MoneyWaiting = () => {
             <div className={styles.infoBlockValue}>{from?.name || "---"}</div>
           </div>
         </div>
+        {isTransferToCrypto && (
+          <div className={styles.infoBlock}>
+            <div className={styles.infoBlockTitle}>
+              <ChainIcon />
+              <h3 className={styles.infoBlockText}>Chain</h3>
+            </div>
+            <div className={styles.infoBlockValueContainer}>
+              <div className={styles.infoBlockValue}>
+                {data?.state_data.terms.chain || "---"}
+              </div>
+            </div>
+          </div>
+        )}
         <div className={styles.infoBlock}>
           <div className={styles.infoBlockTitle}>
-            <CardIcon />
-            <h3 className={styles.infoBlockText}>Номер карты</h3>
+            {isTransferToCrypto ? <CryptoWalletIcon /> : <CardIcon />}
+            <h3 className={styles.infoBlockText}>
+              {isTransferToCrypto ? "Адрес кошелька" : "Номер карты"}
+            </h3>
           </div>
           <div className={styles.infoBlockValueContainer}>
             <div className={styles.infoBlockValue}>
-              {data?.state_data.terms?.account_no || "0000 0000 0000 0000"}
+              {data?.state_data.terms?.account_no || "---"}
             </div>
             <button
               className={styles.copyButton}
-              onClick={copyCardNumberToClipboard}
+              onClick={copyAddresToClipboard}
             >
               <CopyIcon />
               {isCopied && (
@@ -140,17 +163,19 @@ const MoneyWaiting = () => {
             </button>
           </div>
         </div>
-        <div className={styles.infoBlock}>
-          <div className={styles.infoBlockTitle}>
-            <UserIcon />
-            <h3 className={styles.infoBlockText}>ФИО</h3>
-          </div>
-          <div className={styles.infoBlockValueContainer}>
-            <div className={styles.infoBlockValue}>
-              {data?.state_data.terms?.real_name || "Неизвестное имя"}
+        {!isTransferToCrypto && (
+          <div className={styles.infoBlock}>
+            <div className={styles.infoBlockTitle}>
+              <UserIcon />
+              <h3 className={styles.infoBlockText}>ФИО</h3>
+            </div>
+            <div className={styles.infoBlockValueContainer}>
+              <div className={styles.infoBlockValue}>
+                {data?.state_data.terms?.real_name ?? "Неизвестное имя"}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
       <div className={styles.description}>{data?.state_data.commentary}</div>
       <Timer />
@@ -164,7 +189,7 @@ const MoneyWaiting = () => {
       <Modal opened={isConfirmModal}>
         <OperationCancel
           isPending={isPending}
-          confirmFn={payOrder}
+          confirmFn={confirmPayment}
           closeFn={() => setConfirmModal(false)}
         />
       </Modal>

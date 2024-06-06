@@ -16,9 +16,15 @@ class CurrencyAPI {
   };
 
   getPrice = async (params: PriceParams) => {
-    return await axios.post<PriceExchange>(`${this.apiUrl}/exchange/price/`, {
-      params,
-    });
+    return await axios.post<PriceExchange>(
+      `${this.apiUrl}/exchange/price/`,
+      JSON.stringify(params),
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
   };
 }
 

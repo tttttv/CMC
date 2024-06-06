@@ -27,7 +27,7 @@ class OrderAPI {
     for (const [key, value] of Object.entries(order)) {
       data.append(key, value);
     }
-    const config = this.createConfig(`${this.apiUrl}/order`, data);
+    const config = this.createConfig(`${this.apiUrl}/order/`, data);
     return await axios.request<OrderHash>(config);
   };
 
@@ -46,15 +46,6 @@ class OrderAPI {
     const config = this.createConfig(`${this.apiUrl}/order/cancel`, data);
 
     return await axios.request<{ code: number; message: string }>(config);
-  };
-
-  payOrder = async () => {
-    const data = new FormData();
-    data.append("order_hash", this.getHash());
-
-    const config = this.createConfig(`${this.apiUrl}/order/paid`, data);
-
-    return await axios.request(config);
   };
 
   getOrderMessages = async () => {
@@ -92,13 +83,40 @@ class OrderAPI {
     const data = new FormData();
     data.append("order_hash", this.getHash());
 
-    const config = this.createConfig(`${this.apiUrl}/order/continue`, data);
+    const config = this.createConfig(
+      `${this.apiUrl}/order/continue_with_new_price/`,
+      data
+    );
 
     return await axios.request(config);
   };
 
   getAPILink = () => {
     return `${this.apiUrl}/order`;
+  };
+
+  confirmWithdraw = async () => {
+    const data = new FormData();
+    data.append("order_hash", this.getHash());
+
+    const config = this.createConfig(
+      `${this.apiUrl}/order/confirm_withdraw/`,
+      data
+    );
+
+    return await axios.request(config);
+  };
+
+  confirmPayment = async () => {
+    const data = new FormData();
+    data.append("order_hash", this.getHash());
+
+    const config = this.createConfig(
+      `${this.apiUrl}/order/confirm_payment/`,
+      data
+    );
+
+    return await axios.request(config);
   };
 }
 

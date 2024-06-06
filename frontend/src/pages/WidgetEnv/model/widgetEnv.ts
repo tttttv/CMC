@@ -10,17 +10,14 @@ export interface WidgetEnvStore {
 
 export const useWidgetEnv = create<WidgetEnvStore>((set) => ({
   widgetEnv: {
-    withdraw_method: {
-      id: -1,
-      type: "crypto",
-      logo: "",
-      name: "",
-      chain: "",
-      address: "",
-    },
-    full_name: null,
-    email: null,
-    payment_methods: null,
+    partner_code: "",
+    partner_commission: 0,
+    withdrawing_address: "",
+    withdrawing_token: "",
+    withdrawing_chain: "",
+    redirect_url: "",
+    email: "",
+    name: "",
   },
   setWidgetEnv: (widgetEnv) => set({ widgetEnv }),
 }));

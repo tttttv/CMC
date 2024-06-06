@@ -13,10 +13,8 @@ import { clearOrderHash } from "$/shared/helpers/orderHash/clear";
 const REFETCH_DELAY = 10000;
 export const OrderPage = () => {
   const navigate = useNavigate();
-  const setStage = useStagesStore((state) => state.setStage);
-  const setCrypto = useStagesStore((state) => state.setCrypto);
-  const setTime = useStagesStore((state) => state.setTime);
-  const setNewAmount = useStagesStore((state) => state.setNewAmount);
+  const { setState, setTime, setCurrency, setNewAmount } = useStagesStore();
+
   const { data, isLoading } = useQuery({
     queryKey: ["order"],
     queryFn: orderAPI.getOrderState,
@@ -28,14 +26,13 @@ export const OrderPage = () => {
 
   const state = data?.state;
   useEffect(() => {
-    setStage(state || "");
-    setCrypto(data?.order.to.name || "");
+    setState(state || "");
+    setCurrency(data?.order.withdraw.name ?? "");
+    setNewAmount(data?.state_data.withdraw_amount ?? 0);
 
     if (state === "PENDING" || state === "WRONG" || state === "INITIATED") {
       setTime(data?.state_data.time_left || 0);
     } else setTime(data?.order.time_left || 0);
-
-    setNewAmount(data?.state_data?.withdraw_quantity || 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
