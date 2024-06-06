@@ -91,6 +91,7 @@ export const ChangeInputs = () => {
   const {
     refetch: getPrice,
     error,
+    isError,
     data,
   } = useQuery({
     queryKey: ["getPrice"],
@@ -142,7 +143,7 @@ export const ChangeInputs = () => {
   }, [data]);
 
   useEffect(() => {
-    if (!error || (error as any)?.response?.status === 500) return;
+    if (!error) return;
     const { code: newErrorCode } = (error as AxiosError<{ code: number }>)
       ?.response?.data || {
       code: -1,
@@ -164,7 +165,7 @@ export const ChangeInputs = () => {
     setBetterAmount("");
     setGetPricing(null);
     setOrderData(null);
-  }, [error]);
+  }, [error, isError]);
 
   // to/from currency update
   useEffect(() => {
