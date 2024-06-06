@@ -56,13 +56,34 @@ data = {         # Тинек -> NEAR
     'payment_method': 5,  # 2
     'withdraw_method': 2,  # 3
     'payment_chain': None,
-    'payment_amount': 500,
+    # 'payment_amount': 500,
     'withdraw_chain': 'NEAR',
-    'withdraw_amount': 0.0,
-    'anchor': 'SELL',
+    # 'withdraw_amount': 0.0,
+
     'payment_address': '2200700844943083',
-    'withdraw_address': '2202206779337471'
+    'withdraw_address': '2202206779337471',
+    # 'anchor': 'SELL',
+    # 'amount': 1000,
+
+    'anchor': 'BUY',
+    'amount': 1.43
 }
+# data = {         # NEAR -> Тинек
+#     'name': 'Сидоров Иван А.',
+#     'email': 'ya@gmail.com',
+#
+#     'payment_method': 2,  # 2
+#     'withdraw_method': 5,  # 3
+#     'payment_chain': "NEAR",
+#     # 'payment_amount': 500,
+#     'withdraw_chain': None,
+#     # 'withdraw_amount': 0.0,
+#     'anchor': 'BUY',
+#     'payment_address': '2200700844943083',
+#     'withdraw_address': '2202206779337471',
+#     # 'amount': 1.0, # 0.72
+#     'amount': 1000,
+# }
 
 
 # data = {         # USDT -> NEAR
@@ -89,6 +110,8 @@ if True:
     print(r.status_code)
     print(r.text)
     resp_data = r.json()
+    print('resp_data', resp_data)
+
     data['payment_amount'] = float(resp_data['payment_amount'])
     data['withdraw_amount'] = float(resp_data['withdraw_amount'])
     data['item_sell'] = resp_data['item_sell']
@@ -101,6 +124,10 @@ if True:
 
 
 print('data', data)
+from pprint import pprint
+pprint(data)
+exit()
+
 if True:
     r = requests.post(f'{host}/api/order/', data=data)
     print(r.status_code)

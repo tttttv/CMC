@@ -33,6 +33,11 @@ class AuthenticationError(Exception):
         self.message = message
 
 
+class InsufficientError(Exception):
+    def __init__(self,  message="Insufficient ad inventory"):
+        self.message = message
+
+
 class BybitSession:
     def __init__(self, user):
         self.user_id = user.user_id
@@ -145,6 +150,10 @@ class BybitSession:
                 'maxAmount': float(result['maxAmount']),  # максимум валюты
                 'payments': result['payments']
             }
+        elif resp['ret_code'] == 912300001:
+            raise InsufficientError
+        elif resp['ret_code'] == 10007:  # FIXME TEST
+            raise AuthenticationError()
         else:
             print(resp)
             raise ValueError
