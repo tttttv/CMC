@@ -42,24 +42,9 @@ class Trade:
         digits = TOKENS_DIGITS[self.payment_method.token]
         self.payment_amount = float((('{:.' + str(digits) + 'f}').format(self.payment_amount)))
 
-        # digits = TOKENS_DIGITS[self.withdraw_method.token]
-        # self.withdraw_amount = float((('{:.' + str(digits) + 'f}').format(self.withdraw_amount)))
-
         if self.is_direct:
             return self.direct()
         return self.inverse()
-
-    # def calculate_payment_amount(self, token, amount, chain_commission):
-    #     """Расчет необходимого числа монет для ввода"""
-    #     digits = TOKENS_DIGITS[token]
-    #     amount = amount / (1 - self.partner_commission - self.platform_commission) + chain_commission
-    #     return format_float_up(amount, digits)
-
-    # def calculate_withdraw_amount(self, token, amount, chain_commission):
-    #     """Расчет числа монет для вывода"""
-    #     digits = TOKENS_DIGITS[token]
-    #     amount = amount / (1 - self.partner_commission - self.platform_commission) - chain_commission
-    #     return format_float_up(amount, digits)
 
     def crypto_transaction(self, amount, side=P2PItem.SIDE_SELL):
         digits = TOKENS_DIGITS[self.withdraw_method.token]
@@ -107,7 +92,7 @@ class Trade:
 
     def direct(self):
         from CORE.models import P2PItem  # FIXME
-        better_amount = None
+        price_sell = price_buy = better_amount = None
 
         # STEP 1
         print('direct', self.payment_amount)
@@ -135,10 +120,12 @@ class Trade:
 
             print('trade usdt_amount', usdt_amount)
             usdt_amount = usdt_amount * (1 - self.partner_commission - self.platform_commission)
+            print('usdt_amount comm', usdt_amount)
         else:
-            usdt_amount = self.usdt_amount
+            usdt_amount = self.usdt_amount  # Первый stage пропущен
 
         usdt_amount = Trade.format_amount('USDT', usdt_amount)
+        print('usdt_amount', usdt_amount)
 
         # STEP 2
         if self.withdraw_method.is_fiat:  # Продаем USDT
@@ -156,8 +143,8 @@ class Trade:
         else:  # withdraw_method.is_crypto
             withdraw_amount, price_buy = self.get_trade_price(self.withdraw_method, usdt_amount, 0.0, trade_side=SIDE_BUY_CRYPTO)
             print('trade withdraw_amount', withdraw_amount)
-            withdraw_amount = self.crypto_transaction(amount=withdraw_amount, side=P2PItem.SIDE_BUY) # FIXME больше округлений
-
+            withdraw_amount = self.crypto_transaction(amount=withdraw_amount, side=P2PItem.SIDE_BUY)  # FIXME больше округлений
+            print('after trade withdraw_amount', withdraw_amount)
         return self.payment_amount, withdraw_amount, usdt_amount, self.p2p_item_sell, self.p2p_item_buy, price_sell, price_buy, better_amount
 
     def inverse(self):
@@ -190,6 +177,7 @@ class Trade:
 
         usdt_amount = usdt_amount * (1 - self.partner_commission - self.platform_commission)
         usdt_amount = Trade.format_amount('USDT', usdt_amount)
+        print('usdt_amount comm', usdt_amount)
 
         # STEP 2
         if self.payment_method.is_fiat:

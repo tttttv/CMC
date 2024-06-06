@@ -16,7 +16,7 @@ from CORE.service.bybit.code_2fa import get_ga_token
 # from CORE.service.bybit.models import OrderMessage
 from CORE.service.CONFIG import TOKENS_DIGITS, P2P_BUY_TIMEOUTS
 from CORE.service.bybit.models import BybitPaymentTerm
-from CORE.service.bybit.parser import BybitSession
+from CORE.service.bybit.parser import BybitSession, InsufficientError, AuthenticationError
 
 from CORE.service.tools.formats import file_as_base64, format_float_up
 from CORE.service.CONFIG import P2P_TOKENS
@@ -357,13 +357,16 @@ class BybitAccount(models.Model):
 
     def set_banned(self):
         self.is_active = False
-        self.is_active_commentary = 'Banned for frod at ' + datetime.datetime.now().strftime(
-            '%d.%m.%Y %H:%M')
+        self.is_active_commentary = 'Banned for frod at ' + datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
+        self.save()
+
+    def set_cookie_die(self):
+        self.is_active = False
+        self.is_active_commentary = 'Cookie die at' + datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
         self.save()
 
     def set_proxy_dead(self):
-        self.is_active_commentary = 'ProxyDead at ' + datetime.datetime.now().strftime(
-            '%d.%m.%Y %H:%M')
+        self.is_active_commentary = 'ProxyDead at ' + datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
         self.save()
 
 
@@ -715,18 +718,11 @@ class OrderBuyToken(models.Model):
 
     def get_items_price(self, find_new_items: bool = True):
         from CORE.service.tools.tools import Trade
-        from CORE.service.bybit.parser import BybitSession
 
         bybit_session = BybitSession(self.account)
-        try:
-            if not find_new_items:
-                self.update_items_price(bybit_session)
 
-        except ValueError as e:
-            print('verify_order p2p item exc:', e)
-            self.state = OrderBuyToken.STATE_ERROR
-            self.save()
-            raise ValueError
+        if not find_new_items:
+            self.update_items_price(bybit_session)
 
         start_time = time.time()
         trade = Trade(self.payment_currency, self.withdraw_currency, self.payment_amount, self.withdraw_amount,
@@ -746,7 +742,7 @@ class OrderBuyToken(models.Model):
         delta = datetime.datetime.now() - datetime.timedelta(minutes=minutes)
 
         if side == P2PItem.SIDE_SELL:
-            if self.dt_created.replace(tzinfo=None) < delta:
+            if self.dt_created_sell.replace(tzinfo=None) < delta:
                 self.state = OrderBuyToken.STATE_TIMEOUT
                 self.error_message = 'P2P Sell Timeout'
                 self.save()
@@ -761,12 +757,29 @@ class OrderBuyToken(models.Model):
         return False
 
     def verify_order(self) -> bool:
-        from CORE.service.bybit.parser import BybitSession
-        bybit_session = BybitSession(self.account)
-
         print('verify_order')
-        (payment_amount, withdraw_amount, usdt_amount, p2p_item_sell, p2p_item_buy,
-         price_sell, price_buy, better_amount) = self.get_items_price(find_new_items=False)
+        try:
+            (payment_amount, withdraw_amount, usdt_amount, p2p_item_sell, p2p_item_buy,
+             price_sell, price_buy, better_amount) = self.get_items_price(find_new_items=False)
+
+        # TODO banned
+        except AuthenticationError:
+            self.account.set_cookie_die()
+            self.state = OrderBuyToken.STATE_ERROR  # FIXME Менять акк если stage 1
+            return False
+        except InsufficientError:
+            print('InsufficientError')
+            (self.payment_amount, self.withdraw_amount, self.usdt_amount, self.p2p_item_sell, self.p2p_item_buy,
+             self.price_sell, self.price_buy, better_amount) = self.get_items_price(find_new_items=True)
+            self.state = OrderBuyToken.STATE_WRONG_PRICE
+            self.save()
+            return False
+        except ValueError as e:
+            print('got exc', e)
+            raise e # FIXME DEL
+            self.state = OrderBuyToken.STATE_ERROR
+            self.save()
+            return False
 
         print('verify order:', payment_amount, withdraw_amount, usdt_amount)
         print('order payment', self.payment_amount, self.withdraw_amount)
@@ -774,7 +787,7 @@ class OrderBuyToken(models.Model):
         if self.stage == self.STAGE_PROCESS_PAYMENT:
             self.usdt_amount = usdt_amount
 
-        self.update_items_price(bybit_session)
+        # self.update_items_price(bybit_session)
 
         print('price_sell', price_sell)
         print('price_buy', price_buy)
@@ -800,7 +813,6 @@ class OrderBuyToken(models.Model):
         return True
 
     def create_trade_deposit(self) -> bool:
-        from CORE.service.bybit.parser import BybitSession  # FIXME
         if self.account is None:
             if not self.add_account():
                 return False
@@ -822,8 +834,7 @@ class OrderBuyToken(models.Model):
         print('saved')
         return True
 
-    def create_p2p_order(self, side=P2PItem.SIDE_SELL) -> bool:  # FIXME None
-        from CORE.service.bybit.parser import BybitSession
+    def create_p2p_order(self, side=P2PItem.SIDE_SELL) -> bool:
         from CORE.service.tools.tools import Trade  # FIXME
 
         if self.account is None:
@@ -916,7 +927,6 @@ class OrderBuyToken(models.Model):
         return True
 
     def update_p2p_order_status(self, side=P2PItem.SIDE_SELL):
-        from CORE.service.bybit.parser import BybitSession
         bybit_session = BybitSession(self.account)
 
         if side == P2PItem.SIDE_SELL:  # Вносит фиат
@@ -935,7 +945,6 @@ class OrderBuyToken(models.Model):
             self.update_p2p_order_messages(side=side)
 
     def update_p2p_order_messages(self, side=P2PItem.SIDE_SELL):  # Выгружаем сообщения в базу
-        from CORE.service.bybit.parser import BybitSession
         bybit_session = BybitSession(self.account)
         messages = bybit_session.get_order_messages(self.order_sell_id if side == P2PItem.SIDE_SELL
                                                     else self.order_buy_id)
@@ -962,7 +971,6 @@ class OrderBuyToken(models.Model):
             return True
 
     def finish_buy_order(self):
-        from CORE.service.bybit.parser import BybitSession
         bybit_session = BybitSession(self.account)
 
         risk_token = bybit_session.finish_p2p_sell(order_id=self.order_buy_id, payment_type=self.withdraw_currency.payment_id)
@@ -1006,7 +1014,6 @@ class P2POrderMessage(models.Model):
 
     @classmethod
     def from_json(cls, order_index, data):
-        from CORE.service.bybit.parser import BybitSession  # FIXME
 
         if P2POrderMessage.objects.filter(message_id=data['id']).exists():
             return

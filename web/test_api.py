@@ -56,29 +56,50 @@ data = {         # Тинек -> NEAR
     'payment_method': 5,  # 2
     'withdraw_method': 2,  # 3
     'payment_chain': None,
-    'payment_amount': 500,
+    # 'payment_amount': 500,
     'withdraw_chain': 'NEAR',
-    'withdraw_amount': 0.0,
-    'anchor': 'SELL',
+    # 'withdraw_amount': 0.0,
+
     'payment_address': '2200700844943083',
-    'withdraw_address': '2202206779337471'
+    'withdraw_address': '2202206779337471',
+    # 'anchor': 'SELL',
+    # 'amount': 1000,
+
+    'anchor': 'BUY',
+    'amount': 1.43
 }
+# data = {         # NEAR -> Тинек
+#     'name': 'Сидоров Иван А.',
+#     'email': 'ya@gmail.com',
+#
+#     'payment_method': 2,  # 2
+#     'withdraw_method': 5,  # 3
+#     'payment_chain': "NEAR",
+#     # 'payment_amount': 500,
+#     'withdraw_chain': None,
+#     # 'withdraw_amount': 0.0,
+#     'anchor': 'BUY',
+#     'payment_address': '2200700844943083',
+#     'withdraw_address': '2202206779337471',
+#     # 'amount': 1.0, # 0.72
+#     'amount': 1000,
+# }
 
 
-data = {         # USDT -> NEAR
-    'name': 'Сидоров Иван А.',
-    'email': 'ya@gmail.com',
-
-    'payment_method': 1,
-    'withdraw_method': 2,  # 3
-    'payment_chain': 'MANTLE',
-    'payment_amount': 10,
-    'withdraw_chain': 'NEAR',
-    'withdraw_amount': 0.0,
-    'anchor': 'SELL',
-    'payment_address': '3377c2555af5d56c33e0cf4e30b05034881342a2ac20b8ee68393192fdb25eef',
-    'withdraw_address': '3377c2555af5d56c33e0cf4e30b05034881342a2ac20b8ee68393192fdb25eef'
-}
+# data = {         # USDT -> NEAR
+#     'name': 'Сидоров Иван А.',
+#     'email': 'ya@gmail.com',
+#
+#     'payment_method': 1,
+#     'withdraw_method': 2,  # 3
+#     'payment_chain': 'MANTLE',
+#     'payment_amount': 10,
+#     'withdraw_chain': 'NEAR',
+#     'withdraw_amount': 0.0,
+#     'anchor': 'SELL',
+#     'payment_address': '3377c2555af5d56c33e0cf4e30b05034881342a2ac20b8ee68393192fdb25eef',
+#     'withdraw_address': '3377c2555af5d56c33e0cf4e30b05034881342a2ac20b8ee68393192fdb25eef'
+# }
 
 host = 'http://127.0.0.1:8000'
 host = 'http://api.fleshlight.fun'
@@ -89,6 +110,8 @@ if True:
     print(r.status_code)
     print(r.text)
     resp_data = r.json()
+    print('resp_data', resp_data)
+
     data['payment_amount'] = float(resp_data['payment_amount'])
     data['withdraw_amount'] = float(resp_data['withdraw_amount'])
     data['item_sell'] = resp_data['item_sell']
@@ -101,6 +124,10 @@ if True:
 
 
 print('data', data)
+from pprint import pprint
+pprint(data)
+exit()
+
 if True:
     r = requests.post(f'{host}/api/order/', data=data)
     print(r.status_code)
