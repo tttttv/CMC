@@ -128,8 +128,8 @@ class ExchangeVIewSet(GenericViewSet):
         widget_hash = request.GET.get('widget', None)
         if widget_hash:
             widget = Widget.objects.get(hash=widget_hash)
-            return JsonResponse({'methods': BybitCurrency.cache_exchange_from(widget.payment_methods.all())})
-        return JsonResponse({'methods': BybitCurrency.cache_exchange_from()})
+            return JsonResponse({'methods': BybitCurrency.cache_exchange(widget.payment_methods.all())})
+        return JsonResponse({'methods': BybitCurrency.cache_exchange()})
 
     @action(methods=['get'], detail=False)
     @action(methods=['get'], detail=False)
@@ -177,8 +177,8 @@ class ExchangeVIewSet(GenericViewSet):
         widget_hash = request.GET.get('widget_hash', None)
         if widget_hash:
             widget = Widget.objects.get(hash=widget_hash)
-            return JsonResponse(BybitCurrency.cache_exchange_to(widget.withdrawing_currency.currency_id))
-        return JsonResponse({'methods': BybitCurrency.cache_exchange_to()})
+            return JsonResponse(BybitCurrency.cache_exchange((widget.withdrawing_currency.currency_id, ), side='BUY'))
+        return JsonResponse({'methods': BybitCurrency.cache_exchange(side='BUY')})
 
     @swagger_auto_schema(
         request_body=GetPriceSerializer,
@@ -201,11 +201,9 @@ class ExchangeVIewSet(GenericViewSet):
     def price(self, request):
         payment_method_id = int(request.data.get('payment_method'))
         payment_chain = request.data.get('payment_chain', None)
-        # payment_amount = float(request.data.get('payment_amount', 0.0))
 
         withdraw_method_id = int(request.data['withdraw_method'])
         withdraw_chain = request.data.get('withdraw_chain', None)
-        # withdraw_amount = float(request.data.get('withdraw_amount', 0.0))
 
         anchor = request.data.get('anchor', OrderBuyToken.ANCHOR_SELL)
         amount = float(request.data['amount'])
@@ -235,7 +233,7 @@ class ExchangeVIewSet(GenericViewSet):
 
         widget_hash = request.GET.get('widget', None)
         partner_commission = 0.0
-        platform_commission = 0.02 # TODO CONFIG
+        platform_commission = 0.02  # TODO CONFIG
         trading_commission = 0.001
 
         if widget_hash:  # Если вдруг по виджету передана не та крипта
@@ -483,7 +481,7 @@ class OrderViewSet(GenericViewSet):
             state = 'WITHDRAWING'
         elif order.state == OrderBuyToken.STATE_WAITING_VERIFICATION:  # Подтверждаем вывод
             state = 'WITHDRAWING'
-        elif order.state == OrderBuyToken.STATE_WITHDRAWN:  # Успешно
+        elif order.state == OrderBuyToken.STATE_WITHDRAWN or order.state == OrderBuyToken.STATE_BUY_CONFIRMED:  # Успешно
             state = 'SUCCESS'
             state_data = {
                 'address': order.withdraw_currency.address
@@ -492,6 +490,9 @@ class OrderViewSet(GenericViewSet):
             state = 'TIMEOUT'
         elif order.state == OrderBuyToken.STATE_ERROR:  # Критическая ошибка, требующая связи через бота
             state = 'ERROR'
+        elif order.state == OrderBuyToken.STATE_P2P_APPEAL:
+            state = 'DISPUTE'
+
         elif order.state == OrderBuyToken.STATE_WAITING_CONFIRMATION:
             state = 'PENDING'
             if order.withdraw_currency.is_fiat:
@@ -575,11 +576,22 @@ class OrderViewSet(GenericViewSet):
     )
     @order_hash_required
     def confirm_withdraw(self, request, pk, order):
-        order_hash = request.data['order_hash']
-        order = OrderBuyToken.objects.get(hash=order_hash)
-
         if order.state == OrderBuyToken.STATE_WAITING_CONFIRMATION:
             order.state = OrderBuyToken.STATE_BUY_CONFIRMED
+            order.save()
+            return JsonResponse({})
+        else:
+            return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)
+
+    @action(methods=['post'], detail=False)
+    @swagger_auto_schema(
+        request_body=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'order_hash': openapi.Schema(type=openapi.TYPE_STRING)}),
+        responses={200: OrderStateSerializer(many=False)}
+    )
+    @order_hash_required
+    def open_dispute(self, request, pk, order):
+        if order.state == OrderBuyToken.STATE_WAITING_CONFIRMATION:
+            order.state = OrderBuyToken.STATE_P2P_APPEAL
             order.save()
             return JsonResponse({})
         else:

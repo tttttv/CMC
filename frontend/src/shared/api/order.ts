@@ -61,7 +61,7 @@ class OrderAPI {
     data.append("order_hash", this.getHash());
     data.append("text", text);
 
-    const config = this.createConfig(`${this.apiUrl}/order/send_message`, data);
+    const config = this.createConfig(`${this.apiUrl}/order/send_message/`, data);
     return await axios.request(config);
   };
 

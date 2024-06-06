@@ -38,6 +38,11 @@ class InsufficientError(Exception):
         self.message = message
 
 
+class AdStatusChanged(Exception):
+    def __init__(self,  message="The ad status of your P2P order has been changed"):
+        self.message = message
+
+
 class BybitSession:
     def __init__(self, user):
         self.user_id = user.user_id
@@ -151,7 +156,7 @@ class BybitSession:
                 'payments': result['payments']
             }
         elif resp['ret_code'] == 912300001:
-            raise InsufficientError
+            raise InsufficientError()
         elif resp['ret_code'] == 10007:  # FIXME TEST
             raise AuthenticationError()
         else:
@@ -185,6 +190,8 @@ class BybitSession:
                 return None
             elif resp['ret_code'] == 912100052:
                 return None
+            elif resp['ret_code'] == 912100027:
+                raise AdStatusChanged()
             else:
                 raise ValueError
 
@@ -215,11 +222,17 @@ class BybitSession:
         if resp['ret_code'] == 0:
             result = resp['result']
             return result['orderId'], result['securityRiskToken']  # order, risk_token
-        elif resp['ret_code'] == 912120030:
-            raise TypeError('The price has been changed')
         else:
             print(resp)
-            raise ValueError
+            if resp['ret_code'] == 912120030:
+                # raise TypeError('The price has been changed')
+                raise AdStatusChanged('The price has been changed')
+
+            elif resp['ret_code'] == 912100027:
+                raise AdStatusChanged()
+            else:
+                print(resp)
+                raise ValueError
 
     def get_order_info(self, order_id, payment_type: Optional[int] = None):
         data = {
