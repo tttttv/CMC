@@ -12,6 +12,7 @@ export interface PriceParams {
 }
 
 export interface Order {
+  name: string;
   email: string;
   payment_method: number;
   payment_chain: string;

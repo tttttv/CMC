@@ -49,7 +49,7 @@ class OrderAPI {
   };
 
   getOrderMessages = async () => {
-    return await axios.get<Messages>(`${this.apiUrl}/order/message`, {
+    return await axios.get<Messages>(`${this.apiUrl}/order/messages`, {
       params: {
         order_hash: this.getHash(),
       },
@@ -61,7 +61,7 @@ class OrderAPI {
     data.append("order_hash", this.getHash());
     data.append("text", text);
 
-    const config = this.createConfig(`${this.apiUrl}/order/message/send`, data);
+    const config = this.createConfig(`${this.apiUrl}/order/send_message`, data);
     return await axios.request(config);
   };
 
@@ -69,10 +69,10 @@ class OrderAPI {
     const data = new FormData();
     data.append("order_hash", this.getHash());
 
-    data.append("image", base64Img);
+    data.append("file", base64Img);
 
     const config = this.createConfig(
-      `${this.apiUrl}/order/message/send_image`,
+      `${this.apiUrl}/order/send_file/`,
       data
     );
 
@@ -120,5 +120,5 @@ class OrderAPI {
   };
 }
 
-const orderAPI = new OrderAPI("https://api.fleshlight.fun/api");
+const orderAPI = new OrderAPI("http://127.0.0.1:8000/api");
 export { orderAPI };

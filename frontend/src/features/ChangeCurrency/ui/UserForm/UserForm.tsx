@@ -113,6 +113,7 @@ export const UserForm = () => {
   const navigate = useNavigate();
   const onSubmitHandler = (data: z.infer<typeof FormSchema>) => {
     const newOrder: Order = {
+      name: data.fullName,
       email: data.email,
       payment_method: +fromCurrency,
       payment_chain: fromChain,

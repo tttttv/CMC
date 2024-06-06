@@ -42,11 +42,11 @@ export const MediaLoadingModal = ({ closeFunction, file }: Props) => {
       setStatus("loading");
       const formData = new FormData();
       const base64Url = await convertToBase64(file);
-      formData.append("image", base64Url);
+      formData.append("file", base64Url);
       formData.append("order_hash", getCookieValue("order_hash") || "");
 
       await axios.post(
-        `${orderAPI.getAPILink()}/message/send_image`,
+        `${orderAPI.getAPILink()}/send_file/`,
         formData,
         {
           signal: controller.signal,
