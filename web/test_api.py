@@ -148,7 +148,7 @@ exit()
 
 
 from CORE.models import *
-from CORE.tasks import process_buy_order_task, update_p2pitems_task
+from CORE.tasks import process_buy_order_task, update_p2pitems_task, task_send_message
 from CORE.service.bybit.parser import BybitSession
 update_p2pitems_task()
 
@@ -164,3 +164,5 @@ order = OrderBuyToken.objects.last()
 process_buy_order_task(order.id)
 
 
+
+task_send_message(31)
