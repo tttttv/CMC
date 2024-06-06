@@ -51,22 +51,27 @@ class InternalCryptoAddress(serializers.ModelSerializer):
         fields = ('id', 'address', 'chain', 'chain_name', 'qrcode')
 
 
-class OrderStateDataSerializer(serializers.ModelSerializer):
-    payment = PaymentCurrencySerializer(read_only=True, source='payment_currency'),
-    withdraw = PaymentCurrencySerializer(read_only=True, source='withdraw_currency'),
-    transfer = InternalCryptoAddress(required=False, source='internal_address'),
+class OrderStateDataSerializer(serializers.ModelSerializer):  # TODO validate
+    order_hash = serializers.CharField(read_only=True)
 
-    rate = serializers.FloatField(read_only=True),
-    payment_amount = serializers.FloatField(read_only=True),
-    withdraw_amount = serializers.FloatField(read_only=True),
-    order_hash = serializers.CharField(read_only=True),
+    payment = PaymentCurrencySerializer(read_only=True, source='payment_currency')
+    withdraw = PaymentCurrencySerializer(read_only=True, source='withdraw_currency')
+
+    rate = serializers.FloatField(read_only=True)
+    payment_amount = serializers.FloatField(read_only=True)
+    withdraw_amount = serializers.FloatField(read_only=True)
 
     stage = serializers.ChoiceField(read_only=True, choices=OrderBuyToken.STAGES),
-    state = serializers.CharField(read_only=True)
+    time_left = serializers.SerializerMethodField(read_only=True)
 
-    class Meta:  # FIXME DEL ***
+    def get_time_left(self, order):
+        if order.dt_created_sell:
+            return max((order.dt_created_sell - datetime.datetime.now() + datetime.timedelta(minutes=60)).seconds, 0)
+        return 0
+
+    class Meta:
         model = OrderBuyToken
-        fields = '__all__'
+        fields = ('order_hash', 'payment', 'withdraw', 'rate', 'payment_amount', 'withdraw_amount', 'stage', 'time_left')
 
 
 class StateDataSerializer(serializers.Serializer):

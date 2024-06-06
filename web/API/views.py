@@ -486,7 +486,7 @@ class OrderViewSet(GenericViewSet):
         elif order.state == OrderBuyToken.STATE_WITHDRAWN:  # Успешно
             state = 'SUCCESS'
             state_data = {
-                'address': order.withdraw_address
+                'address': order.withdraw_currency.address
             }
         elif order.state == OrderBuyToken.STATE_TIMEOUT:  # Таймаут получения денег
             state = 'TIMEOUT'

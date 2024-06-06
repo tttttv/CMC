@@ -22,7 +22,10 @@ def widget_hash_required(view_func):
 def order_hash_required(view_func):
     @wraps(view_func)
     def wrapper(self, request, pk=None, *args, **kwargs):
-        order_hash = request.data.get('order_hash', None)
+        if request.method == "GET":
+            order_hash = request.query_params.get('order_hash', None)
+        else:
+            order_hash = request.data.get('order_hash', None)
 
         if not order_hash:
             return Response({'message': 'order_hash required'}, 403)

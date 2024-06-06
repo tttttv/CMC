@@ -61,12 +61,12 @@ data = {         # Тинек -> NEAR
     # 'withdraw_amount': 0.0,
 
     'payment_address': '2200700844943083',
-    'withdraw_address': '2202206779337471',
+    'withdraw_address': '3377c2555af5d56c33e0cf4e30b05034881342a2ac20b8ee68393192fdb25eef',
     # 'anchor': 'SELL',
     # 'amount': 1000,
 
-    'anchor': 'BUY',
-    'amount': 1.43
+    'anchor': 'SELL',
+    'amount': 500
 }
 # data = {         # NEAR -> Тинек
 #     'name': 'Сидоров Иван А.',
@@ -102,7 +102,7 @@ data = {         # Тинек -> NEAR
 # }
 
 host = 'http://127.0.0.1:8000'
-host = 'http://api.fleshlight.fun'
+# host = 'http://api.fleshlight.fun'
 
 
 if True:
@@ -126,7 +126,7 @@ if True:
 print('data', data)
 from pprint import pprint
 pprint(data)
-exit()
+# exit()
 
 if True:
     r = requests.post(f'{host}/api/order/', data=data)

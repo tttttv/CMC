@@ -221,7 +221,9 @@ class BybitCurrency(AbstractCurrency):
 
     def to_json(self) -> dict:  # TODO Serialize
         return {'id': self.id, 'type': self.type,
-                'name': self.get_token_display(), 'chains': self.chains,
+                'name': self.name if self.is_fiat else self.get_token_display(),
+                'token': self.token,  # FIXME DEL
+                'chains': self.chains,
                 'logo': self.logo()}
 
     @staticmethod
@@ -253,7 +255,9 @@ class Currency(AbstractCurrency):
         return {'id': self.id,
                 'currency_id': self.currency_id,
                 'type': self.type,
-                'name': self.get_token_display(), 'chain': self.chain, 'address': self.address,
+                'name': self.name if self.is_fiat else self.get_token_display(),
+                'token': self.token,  # FIXME DEL
+                'chain': self.chain, 'address': self.address,
                 'logo': self.logo()}
 
     @staticmethod
@@ -264,6 +268,9 @@ class Currency(AbstractCurrency):
     @staticmethod
     def get_by_token(token: str):
         return BybitCurrency.objects.get(token=token)
+
+    def __hash__(self):
+        return super().__hash__()
 
     def __eq__(self, other):
         if isinstance(other, Currency):
@@ -704,12 +711,14 @@ class OrderBuyToken(models.Model):
     def update_items_price(self, bybit_session: BybitSession):
         print('VERIF STAGE 1')
         if self.p2p_item_sell:
+            print('update p2p_item_sell')
             sell_price_data = bybit_session.get_item_price(self.p2p_item_sell.item_id)
             print('sell_price_data', sell_price_data)
             self.p2p_item_sell.price = sell_price_data['price']
             self.p2p_item_sell.cur_price_hash = sell_price_data['curPrice']
             self.p2p_item_sell.save()
         if self.p2p_item_buy:
+            print('update p2p_item_buy')
             buy_price_data = bybit_session.get_item_price(self.p2p_item_buy.item_id)
             print('buy_price_data', buy_price_data)
             self.p2p_item_buy.price = buy_price_data['price']
@@ -764,8 +773,10 @@ class OrderBuyToken(models.Model):
 
         # TODO banned
         except AuthenticationError:
+            print('AuthenticationError')
             self.account.set_cookie_die()
             self.state = OrderBuyToken.STATE_ERROR  # FIXME Менять акк если stage 1
+            self.save()
             return False
         except InsufficientError:
             print('InsufficientError')
@@ -787,10 +798,12 @@ class OrderBuyToken(models.Model):
         if self.stage == self.STAGE_PROCESS_PAYMENT:
             self.usdt_amount = usdt_amount
 
-        # self.update_items_price(bybit_session)
+        bybit_session = BybitSession(self.account)
+        self.update_items_price(bybit_session)
 
-        print('price_sell', price_sell)
-        print('price_buy', price_buy)
+        print('price_sell', self.price_sell, 'new', price_sell)
+        print('price_buy', self.price_buy, 'new', price_buy)
+
         print(self.price_buy > price_buy, self.price_sell < price_sell, self.payment_amount * 1.001 < payment_amount, self.withdraw_amount > withdraw_amount * 1.001)
         if ((self.stage == self.STAGE_PROCESS_PAYMENT and (self.price_buy > price_buy or self.price_sell < price_sell or self.payment_amount * 1.001 < payment_amount
                                                            or self.withdraw_amount > withdraw_amount * 1.001)) or
@@ -852,6 +865,8 @@ class OrderBuyToken(models.Model):
             # FIXME *** Нужно пересчитывать или убрать?
             self.usdt_amount = Trade.p2p_quantity(self.payment_amount, self.price_sell, p2p_side=P2PItem.SIDE_SELL)
             print('SIDE_SELL usdt_amount', self.usdt_amount)
+            print('order usdt_amount', self.usdt_amount)
+            print('order comm', self.usdt_amount / (1 - self.platform_commission - self.partner_commission))  # Проверить
             if self.p2p_item_sell.cur_price_hash is None:
                 raise ValueError
 

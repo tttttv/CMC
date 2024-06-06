@@ -204,7 +204,7 @@ class Trade:
     @classmethod
     def get_trading_rate(cls, token, payment_amount: float, withdraw_amount: float, trade_side=SIDE_BUY_CRYPTO):
         from CORE.models import BybitAccount
-        bybit_api = BybitAccount.get_random_account().get_api()
+        bybit_api = BybitAccount.get_random_account().get_api()  # FIXME Брать аккаунт из order ???
 
         trade_rate = bybit_api.get_trading_rate(token, 'USDT')
 
