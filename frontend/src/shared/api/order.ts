@@ -61,7 +61,10 @@ class OrderAPI {
     data.append("order_hash", this.getHash());
     data.append("text", text);
 
-    const config = this.createConfig(`${this.apiUrl}/order/send_message/`, data);
+    const config = this.createConfig(
+      `${this.apiUrl}/order/send_message/`,
+      data
+    );
     return await axios.request(config);
   };
 
@@ -71,10 +74,7 @@ class OrderAPI {
 
     data.append("file", base64Img);
 
-    const config = this.createConfig(
-      `${this.apiUrl}/order/send_file/`,
-      data
-    );
+    const config = this.createConfig(`${this.apiUrl}/order/send_file/`, data);
 
     return await axios.request(config);
   };
@@ -113,6 +113,20 @@ class OrderAPI {
 
     const config = this.createConfig(
       `${this.apiUrl}/order/confirm_payment/`,
+      data
+    );
+
+    return await axios.request(config);
+    {
+    }
+  };
+
+  openDispute = async () => {
+    const data = new FormData();
+    data.append("order_hash", this.getHash());
+
+    const config = this.createConfig(
+      `${this.apiUrl}/order/open_dispute/`,
       data
     );
 

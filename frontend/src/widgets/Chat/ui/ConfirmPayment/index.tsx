@@ -13,12 +13,16 @@ export const ConfirmPayment = () => {
     mutationFn: orderAPI.confirmWithdraw,
     mutationKey: ["confirmWithdraw"],
   });
+  const { mutate: openDispute, isPending: disputePending } = useMutation({
+    mutationFn: orderAPI.openDispute,
+    mutationKey: ["openDispute"],
+  });
 
   return (
     <>
       <div className={styles.container}>
         <div className={styles.content}>
-          <h2 className={styles.title}>Lorem Ipsum is simply dummy text</h2>
+          <h2 className={styles.title}>Вам перечислены деньги!</h2>
           <Timer />
           <div className={styles.buttons}>
             <Button
@@ -40,8 +44,8 @@ export const ConfirmPayment = () => {
       <Modal opened={isModalVisible}>
         <OperationCancel
           closeFn={() => setModalVisible(false)}
-          confirmFn={() => console.log("отмена")}
-          isPending={false}
+          confirmFn={() => openDispute()}
+          isPending={disputePending}
           title="Вы уверены, что хотите оспорить?"
           buttonText="Да"
         />
