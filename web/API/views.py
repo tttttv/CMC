@@ -201,20 +201,24 @@ class ExchangeVIewSet(GenericViewSet):
     def price(self, request):
         payment_method_id = int(request.data.get('payment_method'))
         payment_chain = request.data.get('payment_chain', None)
-        payment_amount = float(request.data.get('payment_amount', 0.0))
+        # payment_amount = float(request.data.get('payment_amount', 0.0))
 
         withdraw_method_id = int(request.data['withdraw_method'])
         withdraw_chain = request.data.get('withdraw_chain', None)
-        withdraw_amount = float(request.data.get('withdraw_amount', 0.0))
+        # withdraw_amount = float(request.data.get('withdraw_amount', 0.0))
 
         anchor = request.data.get('anchor', OrderBuyToken.ANCHOR_SELL)
+        amount = float(request.data['amount'])
+
+        if amount == 0.0:
+            return JsonResponse({'message': 'amount is zero with anchor=currency', 'code': 3}, status=403)
 
         if anchor == OrderBuyToken.ANCHOR_SELL:
-            if payment_amount == 0.0:
-                return JsonResponse({'message': 'amount is zero with anchor=currency', 'code': 3}, status=403)
+            payment_amount = amount
+            withdraw_amount = 0.0
         elif anchor == OrderBuyToken.ANCHOR_BUY:
-            if withdraw_amount == 0.0:
-                return JsonResponse({'message': 'quantity is zero with anchor=token', 'code': 3}, status=403)
+            payment_amount = 0.0
+            withdraw_amount = amount
         else:
             return JsonResponse({'message': 'Bad anchor SELL | BUY', 'code': 3}, status=403)
 
@@ -231,7 +235,7 @@ class ExchangeVIewSet(GenericViewSet):
 
         widget_hash = request.GET.get('widget', None)
         partner_commission = 0.0
-        platform_commission = 0.02
+        platform_commission = 0.02 # TODO CONFIG
         trading_commission = 0.001
 
         if widget_hash:  # Если вдруг по виджету передана не та крипта
@@ -286,7 +290,7 @@ class OrderViewSet(GenericViewSet):
         responses={200: openapi.Schema(type=openapi.TYPE_OBJECT, properties={
             'order_hash': openapi.Schema(type=openapi.TYPE_STRING)})}
     )
-    def create(self, request):
+    def create(self, request):  # TODO вынести все в сериализатор
         name = request.data['name']
 
         payment_method_id = int(request.data.get('payment_method'))
@@ -429,7 +433,7 @@ class OrderViewSet(GenericViewSet):
         order_data = {
             'payment': order.payment_currency.to_json(),
             'withdraw': order.withdraw_currency.to_json(),
-            'transfer': order.internal_address.to_json() if order.internal_address else None,  # ***
+            # 'transfer': order.internal_address.to_json() if order.internal_address else None,  # ***
             'rate': (order.payment_amount / order.withdraw_amount) if order.withdraw_amount else None,
             'payment_amount': order.payment_amount,
             'withdraw_amount': order.withdraw_amount,

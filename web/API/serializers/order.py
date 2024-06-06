@@ -3,19 +3,18 @@ from CORE.models import *
 
 
 class OrderCreateSerializer(serializers.Serializer):
-    name = serializers.CharField(read_only=True)
+    name = serializers.CharField(required=True)
     email = serializers.EmailField(required=True)
 
     payment_method = serializers.IntegerField(required=True)
     payment_chain = serializers.CharField(required=False, default=None)
     payment_address = serializers.CharField(required=True)
-    payment_amount = serializers.FloatField(required=True)
 
     withdraw_method = serializers.IntegerField(required=True)
     withdraw_chain = serializers.CharField(required=False, default=None)
     withdraw_address = serializers.CharField(required=True)
-    withdraw_amount = serializers.FloatField(required=True)
 
+    amount = serializers.FloatField(required=True)
     anchor = serializers.ChoiceField(required=True, choices=OrderBuyToken.ANCHORS)
 
     item_sell = serializers.CharField(required=True)

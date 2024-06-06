@@ -65,20 +65,20 @@ data = {         # Тинек -> NEAR
 }
 
 
-data = {         # USDT -> NEAR
-    'name': 'Сидоров Иван А.',
-    'email': 'ya@gmail.com',
-
-    'payment_method': 1,
-    'withdraw_method': 2,  # 3
-    'payment_chain': 'MANTLE',
-    'payment_amount': 10,
-    'withdraw_chain': 'NEAR',
-    'withdraw_amount': 0.0,
-    'anchor': 'SELL',
-    'payment_address': '3377c2555af5d56c33e0cf4e30b05034881342a2ac20b8ee68393192fdb25eef',
-    'withdraw_address': '3377c2555af5d56c33e0cf4e30b05034881342a2ac20b8ee68393192fdb25eef'
-}
+# data = {         # USDT -> NEAR
+#     'name': 'Сидоров Иван А.',
+#     'email': 'ya@gmail.com',
+#
+#     'payment_method': 1,
+#     'withdraw_method': 2,  # 3
+#     'payment_chain': 'MANTLE',
+#     'payment_amount': 10,
+#     'withdraw_chain': 'NEAR',
+#     'withdraw_amount': 0.0,
+#     'anchor': 'SELL',
+#     'payment_address': '3377c2555af5d56c33e0cf4e30b05034881342a2ac20b8ee68393192fdb25eef',
+#     'withdraw_address': '3377c2555af5d56c33e0cf4e30b05034881342a2ac20b8ee68393192fdb25eef'
+# }
 
 host = 'http://127.0.0.1:8000'
 host = 'http://api.fleshlight.fun'
