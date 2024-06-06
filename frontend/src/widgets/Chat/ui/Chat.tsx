@@ -18,7 +18,8 @@ export const Chat = () => {
   });
 
   const state = useStagesStore((state) => state.state);
-  const showConfirmPayment = state === "WITHDRAWING";
+  const withdrawType = useStagesStore((state) => state.withdrawType);
+  const showConfirmPayment = withdrawType !== "crypto" && state === "WITHDRAWING";
   const { matching: isConfirmPaymentNotInChat } = useMediaQuery(
     "(max-width: 1024px)"
   );
