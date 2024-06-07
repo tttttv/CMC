@@ -70,7 +70,7 @@ const MoneyWaiting = () => {
   });
 
   const confirmPay = stage === 1 ? confirmPayment : confirmWithdraw;
-  const pending = stage === 1 ? paymentPending : withdrawPending;
+  const pending = paymentPending || withdrawPending;
 
   const copyAddresToClipboard = () => {
     const cardNumber = data?.state_data.terms?.address || "";
