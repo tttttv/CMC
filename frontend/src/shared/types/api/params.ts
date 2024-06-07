@@ -12,12 +12,13 @@ export interface PriceParams {
 }
 
 export interface Order {
-  name: string;
   email: string;
+  name_payment: string;
   payment_method: number;
   payment_chain: string;
   payment_address: string;
   payment_amount: number;
+  name_withdraw: string;
   withdraw_method: number;
   withdraw_chain: string;
   withdraw_address: string;

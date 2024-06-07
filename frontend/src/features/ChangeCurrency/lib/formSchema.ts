@@ -1,9 +1,6 @@
 import { z } from "zod";
 
 export const FormSchema = z.object({
-  fullName: z
-    .string({ required_error: "Это поле обязательное" })
-    .min(1, { message: "Это поле обязательное" }),
   withdrawName: z
     .string({ required_error: "Это поле обязательное" })
     .min(1, { message: "Это поле обязательное" }),

@@ -113,7 +113,6 @@ export const UserForm = () => {
   const navigate = useNavigate();
   const onSubmitHandler = (data: z.infer<typeof FormSchema>) => {
     const newOrder: Order = {
-      name: data.fullName ?? "",
       email: data.email,
       payment_method: +fromCurrency,
       payment_chain: fromChain,
@@ -126,6 +125,8 @@ export const UserForm = () => {
       withdraw_address: deleteSpaces(
         (toType === "bank" ? data.toCardNumber : data.toWalletAddress) || ""
       ),
+      name_withdraw: data.withdrawName,
+      name_payment: data.paymentName,
       ...orderData!,
     };
 
@@ -161,7 +162,6 @@ export const UserForm = () => {
 
     onSubmitHandler({
       email,
-      fullName: paymentName,
       withdrawName: withdrawName,
       paymentName: paymentName,
       fromCardNumber,
