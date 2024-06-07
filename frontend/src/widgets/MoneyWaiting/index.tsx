@@ -144,7 +144,7 @@ const MoneyWaiting = () => {
             </div>
             <div className={styles.infoBlockValueContainer}>
               <div className={styles.infoBlockValue}>
-                {data?.order.payment.chain || "---"}
+                {data?.order?.payment?.chain || "---"}
               </div>
             </div>
           </div>
