@@ -1,7 +1,15 @@
 import { z } from "zod";
 
 export const FormSchema = z.object({
-  fullName: z.string().optional(),
+  fullName: z
+    .string({ required_error: "Это поле обязательное" })
+    .min(1, { message: "Это поле обязательное" }),
+  withdrawName: z
+    .string({ required_error: "Это поле обязательное" })
+    .min(1, { message: "Это поле обязательное" }),
+  paymentName: z
+    .string({ required_error: "Это поле обязательное" })
+    .min(1, { message: "Это поле обязательное" }),
   fromWalletAddress: z
     .string({ required_error: "Это поле обязательное" })
     .min(1, { message: "Это поле обязательное" }),

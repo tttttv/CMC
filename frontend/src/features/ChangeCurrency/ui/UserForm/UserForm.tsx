@@ -139,22 +139,31 @@ export const UserForm = () => {
       toCardNumber,
       toWalletAddress,
       email,
-      fullName,
+      paymentName,
+      withdrawName,
     } = getValues();
 
     if (
       fromType === "bank" &&
-      (fullName === "" || fromCardNumber.length !== 19)
+      (paymentName === "" || fromCardNumber.length !== 19)
     )
       return;
 
-    if (toType === "bank" && toCardNumber.length !== 19) return;
+    if (
+      toType === "bank" &&
+      (toCardNumber.length !== 19 || withdrawName === "")
+    )
+      return;
     if (fromType === "crypto" && fromWalletAddress === "") return;
     if (toType === "crypto" && toWalletAddress === "") return;
 
+    if (errors?.email?.message) return;
+
     onSubmitHandler({
       email,
-      fullName,
+      fullName: paymentName,
+      withdrawName: withdrawName,
+      paymentName: paymentName,
       fromCardNumber,
       fromWalletAddress,
       toCardNumber,
@@ -186,13 +195,24 @@ export const UserForm = () => {
           {fromType === "bank" && (
             <Input
               disabled={isNameBlocked}
-              register={register("fullName")}
+              register={register("paymentName")}
               label="ФИО Отправителя"
               importantMessage="Важно, если вы отправляете с карты"
               disabledStyle={isNameBlocked}
-              errorText={errors.fullName?.message}
+              errorText={errors.paymentName?.message}
               clearError={() => {
-                clearErrors("fullName");
+                clearErrors("paymentName");
+              }}
+            />
+          )}
+          {toType === "bank" && (
+            <Input
+              register={register("withdrawName")}
+              label="ФИО Получателя"
+              importantMessage="Важно, если вы отправляете с карты"
+              errorText={errors.withdrawName?.message}
+              clearError={() => {
+                clearErrors("withdrawName");
               }}
             />
           )}
