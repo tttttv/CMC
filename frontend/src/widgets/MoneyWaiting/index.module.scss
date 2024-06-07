@@ -120,6 +120,7 @@
           color: var(--textColor);
           font-size: clamp(0.75rem, 0.494vw + 0.617rem, 1rem);
           text-align: right;
+          word-break: break-all;
         }
         .copyButton {
           margin-left: 8px;
