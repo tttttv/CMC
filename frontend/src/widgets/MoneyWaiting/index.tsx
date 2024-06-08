@@ -44,9 +44,11 @@ const MoneyWaiting = () => {
   const to = order?.withdraw;
   const fromAmount = order?.payment_amount;
   const toAmount = order?.withdraw_amount;
-  const stage = order?.stage;
+  const isFirstStage = order?.stage === 1;
 
-  const isTransferToCrypto = from?.type === "crypto";
+  const transferObj = isFirstStage ? from : to;
+  const isTransferToCrypto = transferObj?.type === "crypto";
+
   const { mutate: cancelPay } = useMutation({
     mutationKey: ["cancelPay"],
     mutationFn: orderAPI.cancelOrder,
@@ -68,8 +70,6 @@ const MoneyWaiting = () => {
   const { mutate: confirmWithdraw, isPending: withdrawPending } = useMutation({
     mutationFn: orderAPI.confirmWithdraw,
   });
-
-  const isFirstStage = stage === 1;
 
   const confirmPay = isFirstStage ? confirmPayment : confirmWithdraw;
   const pending = paymentPending || withdrawPending;
@@ -131,11 +131,13 @@ const MoneyWaiting = () => {
             <div className={styles.icon}>
               <CurrencyIcon
                 currencyName={""}
-                imageUrl={from?.logo || ""}
+                imageUrl={transferObj?.logo || ""}
                 width={16}
               />
             </div>
-            <div className={styles.infoBlockValue}>{from?.name || "---"}</div>
+            <div className={styles.infoBlockValue}>
+              {transferObj?.name || "---"}
+            </div>
           </div>
         </div>
         {isTransferToCrypto && (
@@ -146,7 +148,7 @@ const MoneyWaiting = () => {
             </div>
             <div className={styles.infoBlockValueContainer}>
               <div className={styles.infoBlockValue}>
-                {data?.order?.payment?.chain || "---"}
+                {transferObj?.chain || "---"}
               </div>
             </div>
           </div>
