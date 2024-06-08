@@ -13,7 +13,8 @@ import { clearOrderHash } from "$/shared/helpers/orderHash/clear";
 const REFETCH_DELAY = 10000;
 export const OrderPage = () => {
   const navigate = useNavigate();
-  const { setState, setTime, setCurrency, setNewAmount } = useStagesStore();
+  const { setState, setTime, setCurrency, setNewAmount, setWithdrawType } =
+    useStagesStore();
 
   const { data, isLoading } = useQuery({
     queryKey: ["order"],
@@ -29,6 +30,7 @@ export const OrderPage = () => {
     setState(state || "");
     setCurrency(data?.order.withdraw.name ?? "");
     setNewAmount(data?.state_data.withdraw_amount ?? 0);
+    setWithdrawType(data?.order.withdraw.type);
 
     if (state === "PENDING" || state === "WRONG" || state === "INITIATED") {
       setTime(data?.state_data.time_left || 0);
@@ -44,7 +46,7 @@ export const OrderPage = () => {
     return <LoadingScreen>Создаем заказ</LoadingScreen>;
   }
 
-  if (state === "PENDING" || state === "WRONG") {
+  if (state === "PENDING" || state === "WRONG" || 1 + 1 === 2) {
     return <WaitingPage state={state} isLoading={isLoading} />;
   }
 

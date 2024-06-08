@@ -69,7 +69,9 @@ const MoneyWaiting = () => {
     mutationFn: orderAPI.confirmWithdraw,
   });
 
-  const confirmPay = stage === 1 ? confirmPayment : confirmWithdraw;
+  const isFirstStage = stage === 1;
+
+  const confirmPay = isFirstStage ? confirmPayment : confirmWithdraw;
   const pending = paymentPending || withdrawPending;
 
   const copyAddresToClipboard = () => {
@@ -84,7 +86,7 @@ const MoneyWaiting = () => {
 
   return (
     <div className={styles.container}>
-      <h2 className={styles.title}>Ожидается отправка средств</h2>
+      <h2 className={styles.title}>Ожидается получение средств</h2>
 
       <div className={styles.changeMoney}>
         <h3 className={styles.titleSubsection}>Вы меняете:</h3>

@@ -16,8 +16,6 @@ export const Stages = () => {
   const stage = useRef(0);
   const statusBarRef = useRef<HTMLDivElement>(null);
 
-  const currencyType = withdrawType === "crypto" ? "криптовалюты" : "RUB";
-
   const [successStatus, setSuccessStatus] = useState(false);
   const [errorStatus, setErrorStatus] = useState(false);
 
@@ -83,8 +81,8 @@ export const Stages = () => {
         <div className={styles.statusBar} ref={statusBarRef}></div>
         <li className={styles.stage}>Ожидается отправка средств</li>
         <li className={styles.stage}>Покупка {currency}</li>
-        <li className={styles.stage}>Обмен {currencyType}</li>
-        <li className={styles.stage}>Вывод {currencyType}</li>
+        <li className={styles.stage}>Обмен {currency}</li>
+        <li className={styles.stage}>Вывод {currency}</li>
       </ul>
     </>
   );
