@@ -192,12 +192,14 @@ const MoneyWaiting = () => {
       <div className={styles.description}>{data?.state_data.commentary}</div>
       <Timer />
 
-      <div className={styles.buttons}>
-        <Button onClick={() => setConfirmModal(true)}>
-          Подтвердить перевод
-        </Button>
-        <ButtonCancel onClick={cancelPay}>Отмена</ButtonCancel>
-      </div>
+      {!isFirstStage && (
+        <div className={styles.buttons}>
+          <Button onClick={() => setConfirmModal(true)}>
+            Подтвердить перевод
+          </Button>
+          <ButtonCancel onClick={cancelPay}>Отмена</ButtonCancel>
+        </div>
+      )}
       <Modal opened={isConfirmModal}>
         <OperationCancel
           isPending={pending}
