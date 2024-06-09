@@ -46,6 +46,8 @@ const MoneyWaiting = () => {
   const toAmount = order?.withdraw_amount;
   const isFirstStage = order?.stage === 1;
 
+  const showConfirmButton = data?.state === "PENDING" && isFirstStage;
+
   const transferObj = isFirstStage ? from : to;
   const isTransferToCrypto = transferObj?.type === "crypto";
 
@@ -192,7 +194,7 @@ const MoneyWaiting = () => {
       <div className={styles.description}>{data?.state_data.commentary}</div>
       <Timer />
 
-      {!isFirstStage && (
+      {showConfirmButton && (
         <div className={styles.buttons}>
           <Button onClick={() => setConfirmModal(true)}>
             Подтвердить перевод

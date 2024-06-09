@@ -11,10 +11,12 @@ export const StateOrderPage = () => {
   const { matching: isConfirmPaymentNotInChat } = useMediaQuery(
     "(max-width: 1024px)"
   );
+
   const state = useStagesStore((state) => state.state);
+  const stage = useStagesStore((state) => state.stage);
   const withdrawType = useStagesStore((state) => state.withdrawType);
   const showConfirmPayment =
-    withdrawType !== "crypto" && state === "WITHDRAWING";
+    withdrawType === "fiat" && state === "WITHDRAWING" && stage === 2;
   const anchorRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
