@@ -3,17 +3,28 @@ import { useEffect, useState } from "react";
 import { useStagesStore } from "../../model/stagesStore";
 
 import styles from "./Timer.module.scss";
+import { clearOrderHash } from "$/shared/helpers/orderHash/clear";
+import { useNavigate } from "@tanstack/react-router";
 
 const UPDATE_TIMER_TIME = 1000;
 export const Timer = () => {
   const timeFromStorage = useStagesStore((state) => state.time);
+  const navigate = useNavigate();
   const [time, setTime] = useState<number>(0);
   useEffect(() => {
     setTime(timeFromStorage);
 
     const interval = setInterval(() => {
       setTime((prev) => {
-        if (prev === 0) return 0;
+        if (prev <= 0) {
+          clearOrderHash();
+          navigate({
+            to: "/$widgetId",
+            params: {
+              widgetId: JSON.stringify(localStorage.getItem("widgetId")),
+            },
+          });
+        }
         return prev - 1;
       });
     }, UPDATE_TIMER_TIME);

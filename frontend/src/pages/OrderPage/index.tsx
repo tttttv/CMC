@@ -20,7 +20,6 @@ export const OrderPage = () => {
     setNewAmount,
     setWithdrawType,
     setStage,
-    time,
   } = useStagesStore();
 
   const { data, isLoading } = useQuery({
@@ -44,15 +43,6 @@ export const OrderPage = () => {
       setTime(data?.state_data.time_left || 0);
     } else setTime(data?.order.time_left || 0);
 
-    if (time <= 0) {
-      clearOrderHash();
-      navigate({
-        to: "/$widgetId",
-        params: {
-          widgetId: JSON.stringify(localStorage.getItem("widgetId")),
-        },
-      });
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
