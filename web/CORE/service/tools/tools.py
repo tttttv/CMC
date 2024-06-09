@@ -37,8 +37,6 @@ class Trade:
     usdt_amount: Optional[float] = None
 
     def get_amount(self):  # TODO rename ***
-        """ """
-
         digits = TOKENS_DIGITS[self.payment_method.token]
         self.payment_amount = float((('{:.' + str(digits) + 'f}').format(self.payment_amount)))
 
@@ -73,12 +71,12 @@ class Trade:
         digits = TOKENS_DIGITS[token]
         return float((('{:.' + str(digits) + 'f}').format(amount)))
 
-    def calculate_trade_quantity(self, amount, token_rate):
-        if self.is_direct:
+    def calculate_trade_quantity(self, amount, token_rate, trade_side=SIDE_BUY_CRYPTO):
+        if trade_side == SIDE_BUY_CRYPTO:
             return amount * (1 - self.trading_commission) / token_rate, 1 / token_rate
         return amount * (1 - self.trading_commission) * token_rate, token_rate
 
-    def get_trade_price(self, method, payment_amount: float, withdraw_amount: float, trade_side):
+    def get_trade_price(self, method, payment_amount: float, withdraw_amount: float, trade_side=SIDE_BUY_CRYPTO):
         if method.is_usdt:
             if payment_amount:
                 return payment_amount, 1
@@ -86,9 +84,9 @@ class Trade:
                 return withdraw_amount, 1
             raise ValueError()
 
-        trade_rate = self.get_trading_rate(method.token, payment_amount, withdraw_amount, trade_side=trade_side)
+        trade_rate = self.get_trading_rate(method.token, payment_amount, withdraw_amount)  # , trade_side=trade_side)
         print('trade_rate', trade_rate)
-        return self.calculate_trade_quantity(payment_amount or withdraw_amount, trade_rate)
+        return self.calculate_trade_quantity(payment_amount or withdraw_amount, trade_rate, trade_side=trade_side)
 
     def direct(self):
         from CORE.models import P2PItem  # FIXME
@@ -98,6 +96,7 @@ class Trade:
         print('direct', self.payment_amount)
         print('payment', self.payment_method.name)
         print('withdraw', self.withdraw_method.name)
+        print('stage', self.stage)
 
         if self.stage == STAGE_PROCESS_PAYMENT:
             if self.payment_method.is_fiat:
@@ -106,7 +105,8 @@ class Trade:
                     self.p2p_item_sell, better_p2p = self.get_p2p_price(self.payment_method.payment_id, self.payment_amount, 0.0,
                                                                         self.payment_method.token, 'USDT',
                                                                         p2p_side=P2PItem.SIDE_SELL)
-                    better_amount = better_p2p.min_amount
+                    if better_p2p is not None:
+                        better_amount = better_p2p.min_amount
 
                 price_sell = self.p2p_item_sell.price
                 usdt_amount = Trade.p2p_quantity(self.payment_amount, price_sell, p2p_side=P2PItem.SIDE_SELL)
@@ -116,6 +116,7 @@ class Trade:
                 # self.crypto_transaction(self.payment_amount, side=P2PItem.SIDE_SELL)
 
                 usdt_amount, price_sell = self.get_trade_price(self.payment_method, self.payment_amount, 0.0, trade_side=SIDE_BUY_FIAT)
+                print('clean', usdt_amount, price_sell)
                 usdt_amount = Trade.format_amount('USDT', usdt_amount)
 
             print('trade usdt_amount', usdt_amount)
@@ -134,7 +135,8 @@ class Trade:
                 self.p2p_item_buy, better_p2p = self.get_p2p_price(self.withdraw_method.payment_id, usdt_amount, 0.0,
                                                                    self.withdraw_method.token, 'USDT',
                                                                    p2p_side=P2PItem.SIDE_BUY)
-                better_amount = better_p2p.min_amount if better_amount is None else min(better_amount, better_p2p.min_amount)
+                if better_p2p is not None:
+                    better_amount = better_p2p.min_amount if better_amount is None else min(better_amount, better_p2p.min_amount)
 
             price_buy = self.p2p_item_buy.price
             withdraw_amount = Trade.p2p_quantity(usdt_amount, price_buy, p2p_side=P2PItem.SIDE_BUY)
@@ -161,7 +163,8 @@ class Trade:
                 self.p2p_item_buy, better_p2p = self.get_p2p_price(self.withdraw_method.payment_id, 0.0, withdraw_amount,
                                                                    self.withdraw_method.token, 'USDT',
                                                                    p2p_side=P2PItem.SIDE_BUY)
-                better_amount = better_p2p.min_amount
+                if better_p2p is not None:
+                    better_amount = better_p2p.min_amount
 
             price_buy = self.p2p_item_buy.price
             usdt_amount = Trade.p2p_quantity(withdraw_amount, self.p2p_item_buy.price, p2p_side=P2PItem.SIDE_SELL)
@@ -171,7 +174,7 @@ class Trade:
         else:  # withdraw_method.is_crypto:
             withdraw_amount = self.crypto_transaction(amount=self.withdraw_amount, side=P2PItem.SIDE_BUY)
             print('withdraw_amount', withdraw_amount)
-            usdt_amount, price_buy = self.get_trade_price(self.withdraw_method, 0.0, withdraw_amount, trade_side=SIDE_BUY_CRYPTO)
+            usdt_amount, price_buy = self.get_trade_price(self.withdraw_method, 0.0, withdraw_amount, trade_side=SIDE_BUY_FIAT)
             usdt_amount = Trade.format_amount('USDT', usdt_amount)
             print('usdt_amount', usdt_amount)
 
@@ -185,7 +188,8 @@ class Trade:
                 self.p2p_item_sell, better_p2p = self.get_p2p_price(self.payment_method.payment_id, 0.0, usdt_amount,
                                                                     self.payment_method.token, 'USDT',
                                                                     p2p_side=P2PItem.SIDE_SELL)  # *** SIDE_BUY
-                better_amount = better_p2p.min_amount if better_amount is None else min(better_amount, better_p2p.min_amount)
+                if better_p2p is not None:
+                    better_amount = better_p2p.min_amount if better_amount is None else min(better_amount, better_p2p.min_amount)
 
             price_sell = self.p2p_item_sell.price
             payment_amount = Trade.p2p_quantity(usdt_amount, self.p2p_item_sell.price, p2p_side=P2PItem.SIDE_BUY)
@@ -235,13 +239,13 @@ class Trade:
         print('withdraw_amount', withdraw_amount)
         print('currency', currency)
         print('p2p_side', p2p_side)
-        print(p2p_side == P2PItem.SIDE_BUY, withdraw_amount != 0.0, payment_amount == 0.0)
+        print(p2p_side == P2PItem.SIDE_BUY, withdraw_amount == 0.0, payment_amount == 0.0)
 
         if ((p2p_side == P2PItem.SIDE_SELL and payment_amount == 0.0 and withdraw_amount != 0.0) or
                 (p2p_side == P2PItem.SIDE_BUY and payment_amount != 0.0 and withdraw_amount == 0.0)):
             print('FIRST')
             items_query = P2PItem.objects.annotate(
-                req_amount=F('price') * (withdraw_amount or payment_amount)).filter(
+                req_amount=(F('price') * (withdraw_amount or payment_amount))).filter(
                 Q(req_amount__gt=F('min_amount')) & Q(req_amount__lt=F('max_amount')), side=p2p_side, is_active=True,
                 currency=currency, token=token)
         elif ((p2p_side == P2PItem.SIDE_SELL and withdraw_amount == 0.0 and payment_amount != 0.0) or
@@ -254,10 +258,13 @@ class Trade:
             raise ValueError
 
         items = items_query.order_by('price' if is_p2p_buying_crypto else '-price').all()
-        print('items', items.count())
+        # print('items', items.count())
 
+        for i in items[:5]:
+            print('item', i, i.price, i.min_amount,  i.max_amount)
+        print()
         for i in items:
-            print('item', i)
+            print('item', i, i.price, i.min_amount,  i.max_amount, 'ttt', i.price * (withdraw_amount or payment_amount))
             if int(payment_method) in i.payment_methods:
                 best_p2p = i
                 break

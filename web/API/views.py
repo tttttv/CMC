@@ -1,51 +1,31 @@
+import base64
 import datetime
-import hashlib
 import random
-import time
-from dataclasses import dataclass
-from time import sleep
 import uuid
-from typing import Optional
 
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.http import JsonResponse
-from django.shortcuts import render
-import base64
-from django.core.files.base import ContentFile
-
-# Create your views here.
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework.generics import GenericAPIView
-from rest_framework.viewsets import GenericViewSet
 from rest_framework.response import Response
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework.decorators import action
+# Create your views here.
+from rest_framework.viewsets import GenericViewSet
 
 from API.mixins.decorators import widget_hash_required, order_hash_required
-from API.serializers import OrderCreateSerializer, OrderStateSerializer, GetPriceSerializer, WidgetSettingsSerializer, WidgetCreateSerializer
+from API.serializers import OrderCreateSerializer, OrderStateSerializer, GetPriceSerializer, WidgetCreateSerializer, PaymentCurrencySerializer
 from CORE.models import OrderBuyToken, BybitAccount, P2PItem, P2POrderMessage, Partner, Widget, \
     BybitCurrency, Currency
-
 from CORE.service.tools.tools import Trade
 from CORE.tasks import process_buy_order_task, task_send_message, task_send_image
-
-from rest_framework.views import APIView
-from rest_framework.decorators import action
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
-
-
-# def get_payment_methods_view(request):  # Для Партнеров
-#     """ Список валют """
-#     partner_code = request.data['partner_code']
-#     if Partner.objects.filter(code=partner_code).exists():
-#         return [payment_method.to_json() for payment_method in BybitCurrency.all_payment_methods()]
-#     return JsonResponse({}, status=404)
 
 
 class WidgetViewSet(GenericViewSet):
     serializer_class = WidgetCreateSerializer
     queryset = Widget.objects.all()
 
-    @action(methods=['post'], detail=False)
+    @action(methods=['get'], detail=False)
     @swagger_auto_schema(
         request_body=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'partner_code': openapi.Schema(type=openapi.TYPE_STRING)}),
     )
@@ -53,10 +33,29 @@ class WidgetViewSet(GenericViewSet):
         """ Список цветов """
         partner_code = request.data.get('partner_code', None)
         if partner_code and Partner.objects.filter(code=partner_code).exists():
-            return JsonResponse(Widget.DEFAULT_PALETTE)
+            return JsonResponse(Widget.DEFAULT_PALETTE, status=200)
         return JsonResponse({}, status=404)
 
+    @action(methods=['get'], detail=False)
+    @swagger_auto_schema(
+        manual_parameters=[openapi.Parameter('partner_code', openapi.IN_QUERY, 'partner_code', False, type=openapi.TYPE_STRING)],
+        responses={200: PaymentCurrencySerializer(many=True)}
+    )
+    def get_payment_methods_view(self, request):
+        """ Список валют """
+        partner_code = request.data['partner_code']
+        if Partner.objects.filter(code=partner_code).exists():
+            payment_methods = BybitCurrency.all_payment_methods()
+            serializer = PaymentCurrencySerializer(payment_methods, many=True)
+            return Response(serializer.data, status=200)
+        return Response({}, status=404)
+
+    @swagger_auto_schema(
+        request_body=WidgetCreateSerializer,
+        responses={200: openapi.Schema(type=openapi.TYPE_OBJECT, properties={'widget_hash': openapi.Schema(type=openapi.TYPE_STRING)})}
+    )
     def create(self, request):  # Для Партнеров
+        """ Создание виджета """
         serializer = WidgetCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         widget = serializer.save()
@@ -65,19 +64,12 @@ class WidgetViewSet(GenericViewSet):
     @action(methods=['post'], detail=False)
     @swagger_auto_schema(
         request_body=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'widget_hash': openapi.Schema(type=openapi.TYPE_STRING)}),
-        # responses={200: WidgetSettingsSerializer(many=False)}
+        responses={200: WidgetCreateSerializer(many=False)}
     )
     @widget_hash_required
     def current(self, request, pk, widget):
-        # TODO return Response(data=WidgetSettingsSerializer(data).data), status=status.HTTP_200_OK)
-
-        return JsonResponse({
-            'withdraw_method': widget.withdrawing_currency.to_json(),
-            'name': widget.name,
-            'email': widget.email,
-            'color_palette': widget.color_palette,
-            'payment_methods': [pm.to_json() for pm in widget.payment_methods.all()]
-        })
+        serializer = WidgetCreateSerializer(widget)
+        return Response(serializer.data)
 
 
 class ExchangeVIewSet(GenericViewSet):
@@ -125,13 +117,12 @@ class ExchangeVIewSet(GenericViewSet):
         }
     )
     def payments(self, request):
-        widget_hash = request.GET.get('widget', None)
+        widget_hash = request.query_params.get('widget', None)
         if widget_hash:
             widget = Widget.objects.get(hash=widget_hash)
-            return JsonResponse({'methods': BybitCurrency.cache_exchange(widget.payment_methods.all())})
-        return JsonResponse({'methods': BybitCurrency.cache_exchange()})
+            return Response({'methods': BybitCurrency.cache_exchange(widget.payment_methods.all())})
+        return Response({'methods': BybitCurrency.cache_exchange()})
 
-    @action(methods=['get'], detail=False)
     @action(methods=['get'], detail=False)
     @swagger_auto_schema(
         manual_parameters=[
@@ -174,10 +165,10 @@ class ExchangeVIewSet(GenericViewSet):
         }
     )
     def withdraws(self, request):
-        widget_hash = request.GET.get('widget_hash', None)
+        widget_hash = request.query_params.get('widget_hash', None)
         if widget_hash:
             widget = Widget.objects.get(hash=widget_hash)
-            return JsonResponse(BybitCurrency.cache_exchange((widget.withdrawing_currency.currency_id, ), side='BUY'))
+            return JsonResponse(BybitCurrency.cache_exchange((widget.withdrawing_currency.currency_id,), side='BUY'))
         return JsonResponse({'methods': BybitCurrency.cache_exchange(side='BUY')})
 
     @swagger_auto_schema(
@@ -231,7 +222,7 @@ class ExchangeVIewSet(GenericViewSet):
         if not withdraw_method.validate_exchange(payment_method):
             return JsonResponse({'message': 'payment method invalid'}, status=403)
 
-        widget_hash = request.GET.get('widget', None)
+        widget_hash = request.query_params.get('widget', None)
         partner_commission = 0.0
         platform_commission = 0.02  # TODO CONFIG
         trading_commission = 0.001
@@ -289,7 +280,8 @@ class OrderViewSet(GenericViewSet):
             'order_hash': openapi.Schema(type=openapi.TYPE_STRING)})}
     )
     def create(self, request):  # TODO вынести все в сериализатор
-        name = request.data['name']
+        payment_name = request.data.get('payment_name', None)
+        withdraw_name = request.data.get('withdraw_name', None)
 
         payment_method_id = int(request.data.get('payment_method'))
         payment_chain = request.data.get('payment_chain', None)
@@ -329,7 +321,7 @@ class OrderViewSet(GenericViewSet):
         withdraw_currency.address = withdraw_address
 
         order: OrderBuyToken = OrderBuyToken()
-        order.name = name
+
         order.email = email
 
         if payment_currency.is_fiat:
@@ -338,6 +330,8 @@ class OrderViewSet(GenericViewSet):
             order.p2p_item_sell = P2PItem.objects.get(item_id=p2p_item_sell)
             if not order.p2p_item_sell.is_active:
                 return JsonResponse({'message': 'Item is not active anymore', 'code': 2}, status=403)
+            if payment_name is None:
+                return JsonResponse({'message': 'Payment name not set', 'code': 2}, status=403)
 
         elif payment_currency.is_crypto:
             if not payment_currency or not payment_currency.validate_chain(payment_chain):
@@ -352,6 +346,8 @@ class OrderViewSet(GenericViewSet):
             order.p2p_item_buy = P2PItem.objects.get(item_id=p2p_item_buy)
             if not order.p2p_item_buy.is_active:
                 return JsonResponse({'message': 'Item is not active anymore', 'code': 2}, status=403)
+            if withdraw_name is None:
+                return JsonResponse({'message': 'Withdraw name not set', 'code': 2}, status=403)
 
         elif withdraw_currency.is_crypto:
             if not withdraw_chain or not withdraw_currency.validate_chain(withdraw_chain):
@@ -359,6 +355,8 @@ class OrderViewSet(GenericViewSet):
             withdraw_currency.chain = withdraw_chain
 
         order.price_buy = price_buy
+        order.payment_name = payment_name
+        order.withdraw_name = withdraw_name
 
         with transaction.atomic():  # TODO custom with account
             query = BybitAccount.objects.only('id').filter(is_active=True, active_order__isnull=True)
@@ -380,7 +378,7 @@ class OrderViewSet(GenericViewSet):
             order.withdraw_amount = withdraw_amount
             order.trading_commission = 0.001  # FIXME CONFIG
 
-            widget_hash = request.GET.get('widget', None)
+            widget_hash = request.query_params.get('widget', None)
             if widget_hash:  # Если передан виджет
                 widget = Widget.objects.get(hash=widget_hash)
 
@@ -420,22 +418,17 @@ class OrderViewSet(GenericViewSet):
         ],
         responses={200: OrderStateSerializer(many=False)}
     )
-    def state(self, request):
-        order_hash = request.GET['order_hash']
-        order = OrderBuyToken.objects.get(hash=order_hash)
-        if not order:
-            return JsonResponse({}, status=404)
-
+    @order_hash_required
+    def state(self, request, pk, order):
         state = None
         state_data = {}
         order_data = {
             'payment': order.payment_currency.to_json(),
             'withdraw': order.withdraw_currency.to_json(),
-            # 'transfer': order.internal_address.to_json() if order.internal_address else None,  # ***
             'rate': (order.payment_amount / order.withdraw_amount) if order.withdraw_amount else None,
             'payment_amount': order.payment_amount,
             'withdraw_amount': order.withdraw_amount,
-            'order_hash': order_hash,
+            'order_hash': order.hash,
             'stage': order.stage,
         }
 
@@ -447,11 +440,15 @@ class OrderViewSet(GenericViewSet):
 
         if order.state == OrderBuyToken.STATE_INITIATED:
             state = 'INITIALIZATION'  # Ожидание создания заказа на бирже
+            order_data['time_left'] = max((order.dt_initiated - datetime.datetime.now() + datetime.timedelta(minutes=60)).seconds, 0)
+
         elif order.state == OrderBuyToken.STATE_WRONG_PRICE:  # Ошибка создания - цена изменилась
             state_data = {
                 'withdraw_amount': order.withdraw_amount
             }
             state = order.state
+            order_data['time_left'] = max((order.dt_initiated - datetime.datetime.now() + datetime.timedelta(minutes=60)).seconds, 0)
+
         elif order.state == OrderBuyToken.STATE_CREATED:  # Заказ создан, ожидаем перевод
             state = 'PENDING'
             if order.payment_currency.is_fiat:
@@ -469,13 +466,13 @@ class OrderViewSet(GenericViewSet):
                 }
         elif order.state == OrderBuyToken.STATE_TRANSFERRED:  # Пользователь пометил как отправленный - ждем подтверждение
             state = 'RECEIVING'
-        elif order.state == OrderBuyToken.STATE_PAID:  # Заказ помечен как оплаченный - ждем подтверждение
+        elif order.state == OrderBuyToken.STATE_PAID or order.state == OrderBuyToken.STATE_WAITING_TRANSACTION_PROCESSED:  # Заказ помечен как оплаченный - ждем подтверждение
             state = 'RECEIVING'
-        elif order.state == OrderBuyToken.STATE_RECEIVED:  # Продавец подтвердил получение денег
+        elif order.stage == order.STAGE_PROCESS_PAYMENT or order.state == OrderBuyToken.STATE_RECEIVED:  # Продавец подтвердил получение денег
             state = 'BUYING'
-        elif order.state == OrderBuyToken.STATE_TRADING:  # Меняем на бирже
+        elif order.state == OrderBuyToken.STATE_TRADING or order.state == OrderBuyToken.STATE_RECEIVING_CRYPTO:  # Меняем на бирже
             state = 'TRADING'
-        elif order.state == OrderBuyToken.STATE_TRADED:  # Поменяли на бирже
+        elif order.state == OrderBuyToken.STATE_TRADED or order.state == order.STAGE_PROCESS_WITHDRAW and order.state == OrderBuyToken.STATE_RECEIVED:  # Поменяли на бирже
             state = 'TRADING'
         elif order.state == OrderBuyToken.STATE_WITHDRAWING:  # Выводим деньги
             state = 'WITHDRAWING'
@@ -494,13 +491,14 @@ class OrderViewSet(GenericViewSet):
             state = 'DISPUTE'
 
         elif order.state == OrderBuyToken.STATE_WAITING_CONFIRMATION:
-            state = 'PENDING'
+            # state = 'PENDING'
+            state = 'WITHDRAWING'
             if order.withdraw_currency.is_fiat:
                 state_data = {
                     'terms': order.terms,
                     'time_left': (order.dt_created_buy - datetime.datetime.now() + datetime.timedelta(minutes=20)).seconds,
-                    'commentary': "Просим вас не указывать комментарии к платежу. ФИО плательщика должно соответствовать тому,"
-                                  " которое вы указывали при создании заявки, платежи от третьих лиц не принимаются."
+                    'commentary': "Средства были переведены. Необходимо подтвердить получение за указанное время или начать спор"
+
                 }
 
         data = {
@@ -508,13 +506,13 @@ class OrderViewSet(GenericViewSet):
             'state': state,
             'state_data': state_data
         }
-
+        print('ORDER STATE RESP', data)
         return JsonResponse(data)
 
     @action(methods=['post'], detail=False)
     @swagger_auto_schema(
         request_body=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'order_hash': openapi.Schema(type=openapi.TYPE_STRING)}),
-        responses={200: OrderStateSerializer(many=False)}
+        responses={200: openapi.Schema(type=openapi.TYPE_OBJECT, properties={})}
     )
     @order_hash_required
     def cancel(self, request, pk, order):
@@ -528,7 +526,7 @@ class OrderViewSet(GenericViewSet):
     @action(methods=['post'], detail=False)
     @swagger_auto_schema(
         request_body=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'order_hash': openapi.Schema(type=openapi.TYPE_STRING)}),
-        responses={200: OrderStateSerializer(many=False)}
+        responses={200: openapi.Schema(type=openapi.TYPE_OBJECT, properties={})}
     )
     @order_hash_required
     def continue_with_new_price(self, request, pk, order):
@@ -558,11 +556,11 @@ class OrderViewSet(GenericViewSet):
     @action(methods=['post'], detail=False)
     @swagger_auto_schema(
         request_body=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'order_hash': openapi.Schema(type=openapi.TYPE_STRING)}),
-        responses={200: OrderStateSerializer(many=False)}
+        responses={200: openapi.Schema(type=openapi.TYPE_OBJECT, properties={})}
     )
     @order_hash_required
     def confirm_payment(self, request, pk, order):
-        if order.state == OrderBuyToken.STATE_CREATED:  # FIXME *** доп. проверять
+        if order.state == OrderBuyToken.STATE_CREATED:  # FIXME доп. проверять
             order.state = OrderBuyToken.STATE_TRANSFERRED
             order.save()
             return JsonResponse({})
@@ -572,7 +570,7 @@ class OrderViewSet(GenericViewSet):
     @action(methods=['post'], detail=False)
     @swagger_auto_schema(
         request_body=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'order_hash': openapi.Schema(type=openapi.TYPE_STRING)}),
-        responses={200: OrderStateSerializer(many=False)}
+        responses={200: openapi.Schema(type=openapi.TYPE_OBJECT, properties={})}
     )
     @order_hash_required
     def confirm_withdraw(self, request, pk, order):
@@ -586,7 +584,7 @@ class OrderViewSet(GenericViewSet):
     @action(methods=['post'], detail=False)
     @swagger_auto_schema(
         request_body=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'order_hash': openapi.Schema(type=openapi.TYPE_STRING)}),
-        responses={200: OrderStateSerializer(many=False)}
+        responses={200: openapi.Schema(type=openapi.TYPE_OBJECT, properties={})}
     )
     @order_hash_required
     def open_dispute(self, request, pk, order):

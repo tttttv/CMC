@@ -3,7 +3,8 @@ from CORE.models import *
 
 
 class OrderCreateSerializer(serializers.Serializer):
-    name = serializers.CharField(required=True)
+    payment_name = serializers.CharField(required=True)
+    withdraw_name = serializers.CharField(required=True)
     email = serializers.EmailField(required=True)
 
     payment_method = serializers.IntegerField(required=True)

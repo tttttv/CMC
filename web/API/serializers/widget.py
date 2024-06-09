@@ -7,17 +7,16 @@ from CORE.models import *
 class WidgetCreateSerializer(serializers.ModelSerializer):
     partner_code = serializers.CharField(source='partner.code', write_only=True)
 
-    withdrawing_token = serializers.CharField()
-    withdrawing_chain = serializers.CharField(required=False)
-    withdrawing_address = serializers.CharField()
+    withdrawing_token = serializers.CharField(write_only=True)
+    withdrawing_chain = serializers.CharField(write_only=True, required=False)
+    withdrawing_address = serializers.CharField(write_only=True)
 
-    partner_commission = serializers.FloatField(min_value=0, max_value=1.0)
+    partner_commission = serializers.FloatField(min_value=0, max_value=1.0, read_only=True)
     platform_commission = serializers.SerializerMethodField(read_only=True)
 
     hash = serializers.SerializerMethodField(read_only=True)
+    email = serializers.CharField(read_only=True)
 
-    def get_partner_commission(self, obj):
-        return obj.platform_commission
 
     def get_partner_commission(self, obj):
         return obj.partner_commission
@@ -32,14 +31,14 @@ class WidgetCreateSerializer(serializers.ModelSerializer):
                   'withdrawing_token', 'withdrawing_chain', 'withdrawing_address',
                   'partner_commission', 'platform_commission',
                   'email', 'name', 'color_palette', 'redirect_url')
-        read_only_fields = ['partner', 'withdrawing_currency', 'payment_methods']
+        read_only_fields = ['hash', 'partner', 'withdrawing_currency', 'payment_methods']
 
     def create(self, validated_data):
         print('validated_data', validated_data)
         partner = validated_data.pop('partner')
         print('partner', partner)
         try:
-            partner = Partner.objects.get(code=partner['code'])
+            partner = Partner.objects.get(code=partner['partner_code'])
         except Partner.DoesNotExist:
             raise serializers.ValidationError("Partner not found")
 
@@ -58,8 +57,7 @@ class WidgetCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Chain invalid")
             withdraw_currency.chain = withdrawing_chain
 
-        # widget = Widget.objects.create(
-        widget=Widget(
+        widget = Widget(
             partner=partner,
             withdrawing_currency=withdraw_currency,
             **validated_data)
@@ -82,14 +80,3 @@ class WidgetCreateSerializer(serializers.ModelSerializer):
         return widget
 
 
-class WidgetSettingsSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    address = serializers.CharField(read_only=True)
-    chain = serializers.CharField(read_only=True)
-    chain_name = serializers.CharField(read_only=True)
-    qrcode = serializers.CharField(read_only=True)
-
-    withdraw_method = PaymentCurrencySerializer(read_only=True),
-    email = serializers.CharField(read_only=True)
-    color_palette = serializers.JSONField(read_only=True)
-    payment_methods = PaymentCurrencySerializer(read_only=True, many=True)

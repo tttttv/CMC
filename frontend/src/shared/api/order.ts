@@ -32,7 +32,7 @@ class OrderAPI {
   };
 
   getOrderState = async () => {
-    return await axios.get<OrderState>(`${this.apiUrl}/order/state`, {
+    return await axios.get<OrderState>(`${this.apiUrl}/order/state/`, {
       params: {
         order_hash: this.getHash(),
       },
@@ -43,13 +43,13 @@ class OrderAPI {
     const data = new FormData();
     data.append("order_hash", this.getHash());
 
-    const config = this.createConfig(`${this.apiUrl}/order/cancel`, data);
+    const config = this.createConfig(`${this.apiUrl}/order/cancel/`, data);
 
     return await axios.request<{ code: number; message: string }>(config);
   };
 
   getOrderMessages = async () => {
-    return await axios.get<Messages>(`${this.apiUrl}/order/messages`, {
+    return await axios.get<Messages>(`${this.apiUrl}/order/messages/`, {
       params: {
         order_hash: this.getHash(),
       },

@@ -1,7 +1,22 @@
 from rest_framework.response import Response
 from functools import wraps
 import datetime
-from CORE.models import OrderBuyToken, Widget
+from CORE.models import OrderBuyToken, Widget, Partner
+
+
+def partner_code_required(view_func):
+    @wraps(view_func)
+    def wrapper(self, request, pk=None, *args, **kwargs):
+        partner_code = request.data.get('partner_code', None)
+        if not partner_code:
+            return Response({'message': 'partner_code required'}, 403)
+
+        partner = Partner.objects.get(code=partner_code)
+        if not partner:
+            return Response({'message': 'invalid'}, 403)
+
+        return view_func(self, request, pk, partner, *args, **kwargs)
+    return wrapper
 
 
 def widget_hash_required(view_func):

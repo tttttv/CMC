@@ -1,5 +1,4 @@
 import datetime
-import logging
 import random
 
 from django.db import transaction
@@ -232,7 +231,10 @@ def process_withdraw_crypto(order: OrderBuyToken):
             process_buy_order_task(order.id)
             return
         else:  # Нужно менять
-            bybit_api.transfer_to_trading(order.p2p_item_sell.token, usdt_amount_available)  # Переводим на биржу
+            if order.payment_currency.is_fiat:
+                bybit_api.transfer_to_trading(order.p2p_item_sell.token, usdt_amount_available)  # Переводим на биржу
+            else:  # is crypto  Входящую крипту мы уже поменяли на USDT
+                bybit_api.transfer_to_trading('USDT', usdt_amount_available)  # Переводим на биржу
             order.state = OrderBuyToken.STATE_TRADING
             order.dt_trading = datetime.datetime.now()
             order.save()
@@ -280,9 +282,11 @@ def process_withdraw_crypto(order: OrderBuyToken):
             raise ValueError("Unknown status")
     elif order.state == OrderBuyToken.STATE_WITHDRAWING:  # Инициализируем вывод крипты
         BybitAccount.release_order(order.account_id)
+        print('withdraw crypto STATE_WITHDRAWING')
 
         existed = bybit_session.addressbook_check(order.withdraw_currency.address, order.withdraw_currency.token,
                                                   order.withdraw_currency.chain)
+        print('withdraw address existed', existed)
         if not existed:  # Если в адресной книге нет адреса
             risk_token = bybit_session.addressbook_get_risk_token(order.withdraw_currency.address, order.withdraw_currency.token,
                                                                   order.withdraw_currency.chain)
@@ -323,7 +327,11 @@ def process_payment_crypto(order: OrderBuyToken):
 
         order.save()
 
-    elif order.state == OrderBuyToken.STATE_CREATED:  # Ждем перевода
+    elif order.state == OrderBuyToken.STATE_CREATED:  # Ждем подтверждения
+        print('WAITING CONFIRM FROM USER')
+        return
+
+    elif order.state == OrderBuyToken.STATE_TRANSFERRED:  # Ждем перевода
 
         deposit_data = bybit_session.get_deposit_status(token_name=order.payment_currency.token)
 
@@ -332,7 +340,9 @@ def process_payment_crypto(order: OrderBuyToken):
             if not BybitIncomingPayment.objects.filter(item_id=incoming_id).exists():
                 incoming_payment = BybitIncomingPayment.from_json(incoming_payment, order.account)
                 print('incoming_payment', incoming_payment.to_json())
-                print('dt', incoming_payment.created_time > order.dt_initiated)
+                print('trx dt', incoming_payment.created_time.strftime('%Y-%m-%d %H:%M:%S'))
+                print('sell dt', order.dt_created_sell.strftime('%Y-%m-%d %H:%M:%S'))
+                print('dt', incoming_payment.created_time > order.dt_initiated, incoming_payment.created_time > order.dt_created_sell)
                 print(incoming_payment.address, order.payment_currency.address, order.internal_address.address)
                 print(incoming_payment.chain, order.payment_currency.chain)
                 if (incoming_payment.created_time > order.dt_created_sell and
@@ -343,13 +353,13 @@ def process_payment_crypto(order: OrderBuyToken):
                         if incoming_payment.amount < order.payment_amount:
                             order.state = OrderBuyToken.STATE_PAYMENT_AMOUNT_NOT_ENOUGH  # ***
                         else:
-                            order.state = OrderBuyToken.STATE_TRANSFERRED
+                            order.state = OrderBuyToken.STATE_WAITING_TRANSACTION_PROCESSED
 
                         order.incoming_payment = incoming_payment
                         order.incoming_payment.save()
                         order.save()
 
-    elif order.state == OrderBuyToken.STATE_TRANSFERRED:  # Ждем подтверждения перевода от bybit
+    elif order.state == OrderBuyToken.STATE_WAITING_TRANSACTION_PROCESSED:  # Ждем подтверждения перевода от bybit
         if not order.incoming_payment:
             order.state = OrderBuyToken.STATE_ERROR
             order.error_message = 'Входящий перевод отсутствует'
@@ -372,7 +382,9 @@ def process_payment_crypto(order: OrderBuyToken):
                 for field, value in updated_data.items():
                     setattr(order.incoming_payment, field, value)
                 order.incoming_payment.save()
-
+                print('confirmations', order.incoming_payment.confirmations)
+                print('safeConfirmNumber', order.incoming_payment.safeConfirmNumber)
+                print('confirmed', order.incoming_payment.confirmed)
                 if order.incoming_payment.confirmed:
                     order.state = OrderBuyToken.STATE_RECEIVING_CRYPTO
                     order.save()
@@ -387,7 +399,7 @@ def process_payment_crypto(order: OrderBuyToken):
             order.save()
 
         if order.payment_currency.token == BybitCurrency.CURRENCY_USDT:  # Если не нужно менять валюту на бирже
-            order.state = OrderBuyToken.STATE_WITHDRAWING
+            order.state = OrderBuyToken.CHECK_BALANCE
             order.save()
             process_buy_order_task(order.id)
             return
@@ -456,19 +468,19 @@ def process_withdraw_fiat(order: OrderBuyToken):
         for payment_method in bybit_session.get_payments_list():
             if (payment_method.paymentType == order.withdraw_currency.payment_id and
                     payment_method.accountNo == order.withdraw_currency.address and
-                    payment_method.realName == order.name):
+                    payment_method.realName == order.withdraw_name):
                 print('WITHDRAW CARD EXIST')
                 order.payment_term = PaymentTerm.from_bybit_term(payment_method)
                 order.payment_term.save()
                 break
 
         else:  # Добавляем новую карту
-            risk_token = bybit_session.add_payment_method(realName=order.name, accountNo=order.withdraw_currency.address)
+            risk_token = bybit_session.add_payment_method(realName=order.withdraw_name, accountNo=order.withdraw_currency.address)
             print('ADD NEW WITHDRAW CARD')
             if not order.verify_risk_token(risk_token, bybit_session):
                 return
 
-            bybit_session.add_payment_method(realName=order.name, accountNo=order.withdraw_currency.address,
+            bybit_session.add_payment_method(realName=order.withdraw_name, accountNo=order.withdraw_currency.address,
                                              risk_token=risk_token)
             return
 
@@ -527,7 +539,13 @@ def process_withdraw_fiat(order: OrderBuyToken):
     elif order.state == OrderBuyToken.STATE_BUY_CONFIRMED:
         print('Withdraw confirmed')
 
-        order.finish_buy_order()
+        state, terms = bybit_session.get_order_info(order.order_buy_id, order.withdraw_currency.payment_id)
+        print('STATE_BUY_CONFIRMED state', state, terms)
+        if state != 50:  # Если не подтвердили получение средств
+            order.finish_buy_order()
+
+        BybitAccount.release_order(order.account_id)
+
         order.state = OrderBuyToken.STATE_WITHDRAWN
         order.dt_withdrawn = datetime.datetime.now()
         order.save()

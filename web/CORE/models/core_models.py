@@ -1,27 +1,20 @@
 import datetime
-import hashlib
-import json
 import random
-import time
 import secrets
-import base64
-from typing import List, Sequence
+import time
+from typing import Sequence, Optional
 
-from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.validators import URLValidator
 from django.db import models, transaction
-from django.db.models import Q
 
+# from CORE.service.bybit.models import OrderMessage
+from CORE.service.CONFIG import TOKENS_DIGITS
 from CORE.service.bybit.api import BybitAPI
 from CORE.service.bybit.code_2fa import get_ga_token
-# from CORE.service.bybit.models import OrderMessage
-from CORE.service.CONFIG import TOKENS_DIGITS, P2P_BUY_TIMEOUTS
 from CORE.service.bybit.models import BybitPaymentTerm
-from CORE.service.bybit.parser import BybitSession, InsufficientError, AuthenticationError, AdStatusChanged
-
+from CORE.service.bybit.parser import BybitSession, InsufficientError, AuthenticationError, AdStatusChanged, InsufficientErrorSell
 from CORE.service.tools.formats import file_as_base64, format_float_up
-from CORE.service.CONFIG import P2P_TOKENS
 
 
 class BybitSeller(models.Model):
@@ -447,7 +440,7 @@ class InternalCryptoAddress(models.Model):
                                         'chain': data['chain'], 'need_confirm': data['needConfirm'], 'qrcode': data['qrcode']}, account=account)
 
     def to_json(self) -> dict:
-        return {'id': self.id, 'address': self.address, 'chain': self.chain, 'chain_name': self.chain_name, 'qrcode': self.qrcode}
+        return {'id': self.id, 'account_no': self.address, 'chain': self.chain, 'chain_name': self.chain_name, 'qrcode': self.qrcode}
 
     def __str__(self):
         return f"InternalAddress {self.id}, {self.chain}: {self.address}"
@@ -490,7 +483,6 @@ def default_order_hash():
 
 
 class OrderBuyToken(models.Model):
-
     # STAGE 1
     STATE_INITIATED = 'INITIATED'  # *
     STATE_WRONG_PRICE = 'WRONG'
@@ -505,6 +497,8 @@ class OrderBuyToken(models.Model):
     STATE_TRADING_CRYPTO = 'STATE_TRADING_CRYPTO'  # Покупка USDT на бирже за крипту
     STATE_TRADED_CRYPTO = 'STATE_TRADED_CRYPTO'  # Подтверждение обмена / Вывод на Funding
     CHECK_BALANCE = 'CHECK_BALANCE'  # Проверка поступления денег на Funding  *
+
+    STATE_WAITING_TRANSACTION_PROCESSED = "WAIT_TRANSACTION"  # Ждем пока bybit проверит транзакцию с киптой
 
     # STAGE 2
     STATE_RECEIVED = 'RECEIVED'  # Токен получен
@@ -561,7 +555,9 @@ class OrderBuyToken(models.Model):
         (STATE_TRADED_CRYPTO, 'Подтверждение покупки на бирже USDT'),
         (CHECK_BALANCE, 'Проверка баланса'),
 
-        (STATE_ERROR_TRADE_VOLATILE, 'Цена на бирже выросла')
+        (STATE_ERROR_TRADE_VOLATILE, 'Цена на бирже выросла'),
+
+        (STATE_WAITING_TRANSACTION_PROCESSED, 'Ожидание подтверждения транзакции')
     )
 
     ANCHOR_BUY = 'BUY'
@@ -584,7 +580,9 @@ class OrderBuyToken(models.Model):
     account = models.ForeignKey(BybitAccount, on_delete=models.CASCADE, related_name='order_set')
     widget = models.ForeignKey(Widget, on_delete=models.CASCADE, blank=True, null=True)
 
-    name = models.CharField(max_length=100, default='')
+    payment_name = models.CharField(max_length=100, default='')
+    withdraw_name = models.CharField(max_length=100, default='')
+
     # card_number = models.CharField(max_length=100, default='')
     email = models.CharField(max_length=100, default='')
 
@@ -657,6 +655,14 @@ class OrderBuyToken(models.Model):
     error_message = models.TextField(blank=True, null=True)
 
     @property
+    def name(self):
+        if self.stage == self.STAGE_PROCESS_PAYMENT and self.payment_name:
+            return self.payment_name
+        elif self.stage == self.STAGE_PROCESS_WITHDRAW and self.withdraw_name:
+            return self.withdraw_name
+        return 'You'  # FIXME
+
+    @property
     def withdraw_from_trading_account(self):  # Сколько нужно перевести на Funding аккаунт
         digits = TOKENS_DIGITS[self.withdraw_currency.token]
         return float((('{:.' + str(digits) + 'f}').format((self.withdraw_amount + self.withdraw_currency.get_chain_commission()))))
@@ -694,13 +700,17 @@ class OrderBuyToken(models.Model):
 
     def update_items_price(self, bybit_session: BybitSession):
         print('VERIF STAGE 1')
-        if self.stage == self.STAGE_PROCESS_PAYMENT and self.p2p_item_sell:
-            print('update p2p_item_sell')
-            sell_price_data = bybit_session.get_item_price(self.p2p_item_sell.item_id)
-            print('sell_price_data', sell_price_data)
-            self.p2p_item_sell.price = sell_price_data['price']
-            self.p2p_item_sell.cur_price_hash = sell_price_data['curPrice']
-            self.p2p_item_sell.save()
+        try:
+            if self.stage == self.STAGE_PROCESS_PAYMENT and self.p2p_item_sell:
+                print('update p2p_item_sell')
+                sell_price_data = bybit_session.get_item_price(self.p2p_item_sell.item_id)
+                print('sell_price_data', sell_price_data)
+                self.p2p_item_sell.price = sell_price_data['price']
+                self.p2p_item_sell.cur_price_hash = sell_price_data['curPrice']
+                self.p2p_item_sell.save()
+        except InsufficientError:
+            raise InsufficientErrorSell
+
         if self.p2p_item_buy:
             print('update p2p_item_buy')
             buy_price_data = bybit_session.get_item_price(self.p2p_item_buy.item_id)
@@ -756,8 +766,11 @@ class OrderBuyToken(models.Model):
         self.state = OrderBuyToken.STATE_WRONG_PRICE
         self.save()
 
-    def verify_order(self) -> bool:
+    def verify_order(self, bybit_session: Optional[BybitSession] = None) -> bool:
         print('verify_order')
+        if not bybit_session:
+            bybit_session = BybitSession(self.account)
+
         try:
             (payment_amount, withdraw_amount, usdt_amount, p2p_item_sell, p2p_item_buy,
              price_sell, price_buy, better_amount) = self.get_items_price(find_new_items=False)
@@ -769,16 +782,27 @@ class OrderBuyToken(models.Model):
             self.state = OrderBuyToken.STATE_ERROR  # FIXME Менять акк если stage 1
             self.save()
             return False
-        except InsufficientError:
+        except (InsufficientErrorSell, InsufficientError) as e:  # FIXME Все отрефакторить
             print('InsufficientError')
+            if isinstance(e, InsufficientErrorSell):
+                print(InsufficientErrorSell)
+                if self.stage == self.STAGE_PROCESS_PAYMENT and self.p2p_item_sell:
+                    if self.p2p_item_sell:
+                        self.p2p_item_sell.is_active = False
+                        self.p2p_item_sell.save()
+            elif self.p2p_item_buy:
+                self.p2p_item_buy.is_active = False
+                self.p2p_item_buy.save()
+
             self.find_new_items()
             return False
+
         except ValueError as e:
             print('got exc', e)
-            raise e # FIXME DEL
-            self.state = OrderBuyToken.STATE_ERROR
-            self.save()
-            return False
+            raise e  # FIXME DEL
+            # self.state = OrderBuyToken.STATE_ERROR
+            # self.save()
+            # return False
 
         print('verify order:', payment_amount, withdraw_amount, usdt_amount)
         print('order payment', self.payment_amount, self.withdraw_amount)
@@ -786,17 +810,21 @@ class OrderBuyToken(models.Model):
         if self.stage == self.STAGE_PROCESS_PAYMENT:
             self.usdt_amount = usdt_amount
 
-        bybit_session = BybitSession(self.account)
+        # bybit_session = BybitSession(self.account)
         self.update_items_price(bybit_session)
 
         print('price_sell', self.price_sell, 'new', price_sell)
         print('price_buy', self.price_buy, 'new', price_buy)
-        if price_sell:
-            print(self.price_sell < price_sell)
+
         print(self.price_buy > price_buy, self.payment_amount * 1.001 < payment_amount, self.withdraw_amount > withdraw_amount * 1.001)
-        if ((self.stage == self.STAGE_PROCESS_PAYMENT and (self.price_buy > price_buy or self.price_sell < price_sell or self.payment_amount * 1.001 < payment_amount
-                                                           or self.withdraw_amount > withdraw_amount * 1.001)) or
-                (self.stage == self.STAGE_PROCESS_WITHDRAW and (self.price_buy > price_buy or self.withdraw_amount > withdraw_amount * 1.03))):  # Не совпала цена
+
+        if ((self.stage == self.STAGE_PROCESS_PAYMENT and (self.payment_amount * 1.001 < payment_amount or self.withdraw_amount > withdraw_amount * 1.001) or
+             ((self.payment_amount != payment_amount and (self.payment_currency.is_fiat and self.price_sell < price_sell or
+                                                          self.payment_currency.is_crypto and self.price_sell > price_sell))) or
+                # STAGE 2
+                (self.stage == self.STAGE_PROCESS_WITHDRAW and self.withdraw_amount > withdraw_amount * 1.02) or
+                (self.withdraw_amount != withdraw_amount and (self.withdraw_currency.is_fiat and self.price_buy > price_buy or
+                                                              self.withdraw_currency.is_crypto and self.price_buy < price_buy)))):
 
             print('WRONG PRICE withdraw', self.withdraw_amount, 'new', withdraw_amount, 'payment', self.payment_amount, 'new', payment_amount)
 
@@ -812,6 +840,18 @@ class OrderBuyToken(models.Model):
             self.save()
             return False
 
+        self.p2p_item_sell = p2p_item_sell  # хэши обновляем
+        self.p2p_item_buy = p2p_item_sell
+
+        # Мы заработали больше от изменения курса
+        if self.stage == self.STAGE_PROCESS_PAYMENT and (self.payment_currency.is_fiat and self.price_sell > price_sell or
+                                                         self.payment_currency.is_crypto and self.price_sell < price_sell):
+            self.price_sell = price_sell
+
+        elif self.stage == self.STAGE_PROCESS_WITHDRAW and (self.withdraw_currency.is_fiat and self.price_buy < price_buy or
+                                                            self.withdraw_currency.is_crypto and self.price_buy > price_buy):
+            self.price_buy = price_buy  # FIXME оригинальная цена обмена теряется
+
         return True
 
     def create_trade_deposit(self) -> bool:
@@ -820,7 +860,7 @@ class OrderBuyToken(models.Model):
                 return False
         bybit_session = BybitSession(self.account)
 
-        if not self.verify_order():
+        if not self.verify_order(bybit_session):
             return False
 
         deposit_data = bybit_session.get_deposit_address(token=self.payment_currency.token, chain=self.payment_currency.chain)
@@ -848,7 +888,8 @@ class OrderBuyToken(models.Model):
         if not self.verify_order():  # FIXME !!! Для вывода фиата разница > 3%
             return False
 
-        # todo {'ret_code': 912100027, 'ret_msg': 'The ad status of your P2P order has been changed. Please try another ad.', 'result': None, 'ext_code': '', 'ext_info': {}, 'time_now': '1713650504.469008'}
+        # todo {'ret_code': 912100027, 'ret_msg': 'The ad status of your P2P order has been changed. Please try another ad.', 'result': None, 'ext_code': '',
+        #  'ext_info': {}, 'time_now': '1713650504.469008'}
 
         try:
             if side == P2PItem.SIDE_SELL:  # Только Ввод
@@ -859,6 +900,7 @@ class OrderBuyToken(models.Model):
                 print('order usdt_amount', self.usdt_amount)
                 print('order comm', self.usdt_amount / (1 - self.platform_commission - self.partner_commission))  # Проверить
                 if self.p2p_item_sell.cur_price_hash is None:
+                    print('BAD VALID')
                     raise ValueError
 
                 order_sell_id = bybit_session.create_order_buy(
@@ -886,6 +928,9 @@ class OrderBuyToken(models.Model):
 
                 if self.p2p_item_buy.cur_price_hash is None or self.price_buy != self.p2p_item_buy.price:
                     # FIXME state ==
+                    print('BAD VALID')
+                    print('None', self.p2p_item_buy.cur_price_hash, self.p2p_item_buy.cur_price_hash is None)
+                    print('price_buy', self.price_buy, self.p2p_item_buy.price, self.price_buy != self.p2p_item_buy.price)
                     raise ValueError
 
                 print('amount', self.withdraw_amount)
@@ -895,28 +940,18 @@ class OrderBuyToken(models.Model):
                 rquantity = str(format_float_up(float(quantity), token='USDT'))
                 print('calc f', rquantity)
 
-                p2p_item = bybit_session.get_item_price(self.p2p_item_buy.item_id)
-                print('p2p_item', p2p_item)
-                if p2p_item['price'] != self.price_buy:
-                    print('wrong')
-                    raise ValueError
-
-                print('rerm', self.payment_term.paymentType, self.payment_term.payment_id)
+                print('term', self.payment_term.paymentType, self.payment_term.payment_id)
                 order_buy_id, risk_token = bybit_session.create_order_sell(
                     item_id=self.p2p_item_buy.item_id,
                     quantity=rquantity,  # self.usdt_amount,  # Количество крипты
                     amount=self.withdraw_amount,  # Количество фиата # FIXME ***
                     token_id='USDT',
                     currency_id=self.withdraw_currency.token,  # 'RUB'
-
-                    cur_price=p2p_item['curPrice'],
-                    # cur_price=self.p2p_item_buy.cur_price_hash,
+                    # cur_price=p2p_item['curPrice'],
+                    cur_price=self.p2p_item_buy.cur_price_hash,
                     payment_type=self.payment_term.paymentType,
                     payment_id=self.payment_term.payment_id,
                 )
-
-                # bybit_session.create_order_sell(item_id=item_id, amount=500, quantity=quantity, cur_price=data['curPrice'],
-                #                                 payment_id=6235204, payment_type=377, token_id='USDT', currency_id='RUB')
 
                 if order_buy_id is None:  # Забанен за отмену заказов
                     self.account.set_banned()
@@ -1065,7 +1100,7 @@ class P2POrderMessage(models.Model):
         if self.type == '1':
             if self.user_id == str(self.order.account.user_id):
                 side = 'USER'
-                nickname = self.order.name
+                nickname = 'YOU'  # self.order.name # TODO use order.stage and payment_name / withdraw_name
             else:
                 side = 'TRADER'
         else:

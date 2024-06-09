@@ -38,6 +38,10 @@ class InsufficientError(Exception):
         self.message = message
 
 
+class InsufficientErrorSell(InsufficientError):
+    pass
+
+
 class AdStatusChanged(Exception):
     def __init__(self,  message="The ad status of your P2P order has been changed"):
         self.message = message
@@ -188,10 +192,12 @@ class BybitSession:
             print(resp)
             if resp['ret_code'] == 912120110:
                 return None
-            elif resp['ret_code'] == 912100052:
-                return None
+
             elif resp['ret_code'] == 912100027:
-                raise AdStatusChanged()
+                raise AdStatusChanged('Ad status changed')
+
+            elif resp['ret_code'] == 912100052:  # Не попали в range по amount
+                raise AdStatusChanged("LIMIT")
             else:
                 raise ValueError
 
@@ -229,7 +235,10 @@ class BybitSession:
                 raise AdStatusChanged('The price has been changed')
 
             elif resp['ret_code'] == 912100027:
-                raise AdStatusChanged()
+                raise AdStatusChanged('Ad status changed')
+
+            elif resp['ret_code'] == 912100052:  # Не попали в range по amount
+                raise AdStatusChanged("LIMIT")
             else:
                 print(resp)
                 raise ValueError

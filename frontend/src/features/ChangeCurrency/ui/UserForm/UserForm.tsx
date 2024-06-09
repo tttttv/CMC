@@ -125,8 +125,8 @@ export const UserForm = () => {
       withdraw_address: deleteSpaces(
         (toType === "bank" ? data.toCardNumber : data.toWalletAddress) || ""
       ),
-      name_withdraw: data.withdrawName,
-      name_payment: data.paymentName,
+      withdraw_name: data.withdrawName,
+      payment_name: data.paymentName,
       ...orderData!,
     };
 

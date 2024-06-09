@@ -164,5 +164,9 @@ order = OrderBuyToken.objects.last()
 process_buy_order_task(order.id)
 
 
+order = OrderBuyToken.objects.last()
+order.find_new_items()
+order.save()
 
-task_send_message(31)
+task_send_message(39)
+
