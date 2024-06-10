@@ -841,7 +841,7 @@ class OrderBuyToken(models.Model):
             return False
 
         self.p2p_item_sell = p2p_item_sell  # хэши обновляем
-        self.p2p_item_buy = p2p_item_sell
+        self.p2p_item_buy = p2p_item_buy
 
         # Мы заработали больше от изменения курса
         if self.stage == self.STAGE_PROCESS_PAYMENT and (self.payment_currency.is_fiat and self.price_sell > price_sell or
@@ -925,12 +925,14 @@ class OrderBuyToken(models.Model):
                 withdraw_amount = Trade.p2p_quantity(self.usdt_amount, self.price_buy, p2p_side=P2PItem.SIDE_BUY)
                 print('SIDE_BUY withdraw_amount', withdraw_amount)  # FIXME Удалить ***
                 print('self.withdraw_amount', self.withdraw_amount)
+                print('self.price_buy', self.price_buy)
+                print('self.p2p_item_buy',  self.p2p_item_buy)
 
-                if self.p2p_item_buy.cur_price_hash is None or self.price_buy != self.p2p_item_buy.price:
+                if self.p2p_item_buy is None or self.p2p_item_buy.cur_price_hash is None or self.price_buy != self.p2p_item_buy.price:
                     # FIXME state ==
                     print('BAD VALID')
-                    print('None', self.p2p_item_buy.cur_price_hash, self.p2p_item_buy.cur_price_hash is None)
-                    print('price_buy', self.price_buy, self.p2p_item_buy.price, self.price_buy != self.p2p_item_buy.price)
+                    # print('None', self.p2p_item_buy.cur_price_hash, self.p2p_item_buy.cur_price_hash is None)
+                    # print('price_buy', self.price_buy, self.p2p_item_buy.price, self.price_buy != self.p2p_item_buy.price)
                     raise ValueError
 
                 print('amount', self.withdraw_amount)
@@ -970,6 +972,10 @@ class OrderBuyToken(models.Model):
             self.find_new_items()
             return False
         return True
+
+    @property
+    def current_order_id(self):
+        return self.order_sell_id if self.stage == self.STAGE_PROCESS_PAYMENT else self.order_buy_id
 
     def update_p2p_order_status(self, side=P2PItem.SIDE_SELL):
         bybit_session = BybitSession(self.account)
@@ -1044,7 +1050,7 @@ class P2POrderMessage(models.Model):
         (STATUS_DELIVERED, 'доставлено'),
         (STATUS_ERROR, 'ошибка')
     )
-
+    bybit_order_id = models.CharField(max_length=255, null=True, blank=True)
     message_id = models.CharField(max_length=50)
     account_id = models.CharField(max_length=50, blank=True, null=True)
     text = models.TextField(default='', blank=True, null=True)

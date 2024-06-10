@@ -168,5 +168,7 @@ order = OrderBuyToken.objects.last()
 order.find_new_items()
 order.save()
 
-task_send_message(39)
+
+from CORE.tasks import task_send_message
+task_send_message(75)
 

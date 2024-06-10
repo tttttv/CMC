@@ -465,9 +465,15 @@ class OrderViewSet(GenericViewSet):
                     'commentary': "SEND ME CRYPTO BRO",
                 }
         elif order.state == OrderBuyToken.STATE_TRANSFERRED:  # Пользователь пометил как отправленный - ждем подтверждение
+            # state = 'RECEIVING'
+            state = 'TRADING'  # FIXME TEST
+
+        elif order.state == OrderBuyToken.STATE_PAID:  # Заказ помечен как оплаченный - ждем подтверждение
             state = 'RECEIVING'
-        elif order.state == OrderBuyToken.STATE_PAID or order.state == OrderBuyToken.STATE_WAITING_TRANSACTION_PROCESSED:  # Заказ помечен как оплаченный - ждем подтверждение
-            state = 'RECEIVING'
+
+        elif order.state == OrderBuyToken.STATE_WAITING_TRANSACTION_PROCESSED:
+            state = 'RECEIVING'  # FIXME TEST
+
         elif order.stage == order.STAGE_PROCESS_PAYMENT or order.state == OrderBuyToken.STATE_RECEIVED:  # Продавец подтвердил получение денег
             state = 'BUYING'
         elif order.state == OrderBuyToken.STATE_TRADING or order.state == OrderBuyToken.STATE_RECEIVING_CRYPTO:  # Меняем на бирже
@@ -624,8 +630,10 @@ class OrderViewSet(GenericViewSet):
         text = request.data['text']
 
         message_uuid = str(uuid.uuid4())  # генерация uuid для сообщения
+
         message = P2POrderMessage(
             order=order,
+            bybit_order_id=order.current_order_id,
             message_id=message_uuid,
             uuid=message_uuid,
             text=text,
@@ -636,7 +644,8 @@ class OrderViewSet(GenericViewSet):
         )
         message.save()
 
-        task_send_message.delay(message.id)
+        if message.bybit_order_id is not None:
+            task_send_message.delay(message.id)
         return JsonResponse({})
 
     @action(methods=['post'], detail=False)
@@ -682,6 +691,7 @@ class OrderViewSet(GenericViewSet):
 
         message = P2POrderMessage(
             order=order,
+            bybit_order_id=order.current_order_id,
             message_id=message_uuid,
             uuid=message_uuid,
             text='',
@@ -694,6 +704,7 @@ class OrderViewSet(GenericViewSet):
         message.file.save(file_name, content)
         message.save()
 
-        task_send_image.delay(message.id, content_type)
+        if message.bybit_order_id is not None:
+            task_send_image.delay(message.id, content_type)
 
         return JsonResponse({})

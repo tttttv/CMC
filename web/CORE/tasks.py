@@ -53,28 +53,30 @@ def update_p2pitems_task():
 
 @shared_task
 def task_send_message(message_id: int):
-    message = P2POrderMessage.objects.select_related('order').only('text', 'uuid', 'order__account').get(id=message_id)
-    bybit_session = BybitSession(message.order.account)
-    if bybit_session.send_message(message.order_id, message.text, message_uuid=message.uuid):
-        message.status = message.STATUS_DELIVERED
-    else:
-        message.status = message.STATUS_ERROR
-    message.save()
+    message = P2POrderMessage.objects.select_related('order').only('bybit_order_id', 'text', 'uuid', 'order__account').get(id=message_id)
+    if message.bybit_order_id:
+        bybit_session = BybitSession(message.order.account)
+        if bybit_session.send_message(message.bybit_order_id, message.text, message_uuid=message.uuid):
+            message.status = message.STATUS_DELIVERED
+        else:
+            message.status = message.STATUS_ERROR
+        message.save()
 
 
 @shared_task()
 def task_send_image(message_id: int, content_type: str):
-    message = P2POrderMessage.objects.select_related('order').only('file', 'uuid', 'order__account').get(id=message_id)
-    bybit_session = BybitSession(message.order.account)
+    message = P2POrderMessage.objects.select_related('order').only('bybit_order_id', 'file', 'uuid', 'order__account').get(id=message_id)
+    if message.bybit_order_id:
+        bybit_session = BybitSession(message.order.account)
 
-    with message.file.open('rb') as f:
-        content = f.read()
+        with message.file.open('rb') as f:
+            content = f.read()
 
-    if bybit_session.upload_file(message.order_id, message.file.name, content, content_type):
-        message.status = message.STATUS_DELIVERED
-    else:
-        message.status = message.STATUS_ERROR
-    message.save()
+        if bybit_session.upload_file(message.bybit_order_id, message.file.name, content, content_type):
+            message.status = message.STATUS_DELIVERED
+        else:
+            message.status = message.STATUS_ERROR
+        message.save()
 
 
 @shared_task
