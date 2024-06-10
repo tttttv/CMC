@@ -39,9 +39,9 @@ export const OrderPage = () => {
     setStage((data?.order.stage ?? -1) as -1 | 1 | 2);
     setWithdrawType(data?.order.withdraw.type);
 
-    if (state === "PENDING" || state === "WRONG" || state === "INITIATED") {
-      setTime(data?.order.time_left || 0);
-    } else setTime(data?.state_data.time_left || 0);
+    if (state === "PENDING" || state === "INITIATED") {
+      setTime(data?.state_data.time_left || 0);
+    } else setTime(data?.order.time_left || 0);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
