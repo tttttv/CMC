@@ -14,7 +14,7 @@ export const SetupWidgetEnv = ({ setValue }: Props) => {
   useEffect(() => {
     const { email, name, withdrawing_address } = widgetEnv;
     if (email) setValue("email", email);
-    if (name) setValue("fullName", name);
+    if (name) setValue("withdrawName", name);
     if (withdrawing_address) {
       setValue("toWalletAddress", withdrawing_address);
     }
