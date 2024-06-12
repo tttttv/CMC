@@ -38,7 +38,7 @@ export const ChainSelect = ({ props }: { props: Props }) => {
           value={value}
           options={chains.map((chain) => ({
             name: chain.name,
-            value: chain.name,
+            value: chain.id,
           }))}
           label={label}
         />
