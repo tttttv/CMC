@@ -145,7 +145,7 @@ class Trade:
         else:  # withdraw_method.is_crypto
             withdraw_amount, price_buy = self.get_trade_price(self.withdraw_method, usdt_amount, 0.0, trade_side=SIDE_BUY_CRYPTO)
             print('trade withdraw_amount', withdraw_amount)
-            withdraw_amount = self.crypto_transaction(amount=withdraw_amount, side=P2PItem.SIDE_BUY)  # FIXME больше округлений
+            withdraw_amount = self.crypto_transaction(amount=withdraw_amount, side=P2PItem.SIDE_SELL)  # FIXME больше округлений
             print('after trade withdraw_amount', withdraw_amount)
         return self.payment_amount, withdraw_amount, usdt_amount, self.p2p_item_sell, self.p2p_item_buy, price_sell, price_buy, better_amount
 
@@ -172,7 +172,7 @@ class Trade:
             print('usdt_amount', usdt_amount)
 
         else:  # withdraw_method.is_crypto:
-            withdraw_amount = self.crypto_transaction(amount=self.withdraw_amount, side=P2PItem.SIDE_BUY)
+            withdraw_amount = self.crypto_transaction(amount=self.withdraw_amount, side=P2PItem.SIDE_SELL)
             print('withdraw_amount', withdraw_amount)
             usdt_amount, price_buy = self.get_trade_price(self.withdraw_method, 0.0, withdraw_amount, trade_side=SIDE_BUY_FIAT)
             usdt_amount = Trade.format_amount('USDT', usdt_amount)
