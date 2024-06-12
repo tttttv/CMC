@@ -8,7 +8,7 @@ from CORE.models import BybitAccount, RiskEmail, OrderBuyToken, P2PItem, P2POrde
 from CORE.service.bybit.api import BybitAPI
 from CORE.service.bybit.parser import BybitSession, AuthenticationError
 from CORE.service.bybit.code_2fa import get_codes, get_addressbook_codes
-from CORE.service.CONFIG import P2P_BUY_TIMEOUTS, TOKENS_DIGITS
+from CORE.service.CONFIG import P2P_BUY_TIMEOUTS, TOKENS_DIGITS, CREATED_TIMEOUT
 from celery import shared_task
 from CORE.utils import order_task_lock, get_active_celery_tasks
 from requests.exceptions import *
@@ -94,21 +94,11 @@ def process_orders_messages_task():
 def process_receive_order_message_task(order_id):
     order = OrderBuyToken.objects.get(id=order_id)
 
-    if order.order_sell_id:
-        bybit_session = BybitSession(order.account)
-        messages = bybit_session.get_order_messages(order.order_sell_id)  # Выгружаем сообщения
-        for msg in messages:
-            message = P2POrderMessage.from_json(order.id, msg)
-            if message:
-                message.save()
+    if order.order_sell_id and order.stage == OrderBuyToken.STAGE_PROCESS_PAYMENT:
+        order.update_p2p_order_messages(side=P2PItem.SIDE_SELL)
 
-    if order.order_buy_id:
-        bybit_session = BybitSession(order.account)
-        messages = bybit_session.get_order_messages(order.order_buy_id)  # Выгружаем сообщения
-        for msg in messages:
-            message = P2POrderMessage.from_json(order.id, msg)
-            if message:
-                message.save()
+    if order.order_buy_id and order.stage == OrderBuyToken.STAGE_PROCESS_WITHDRAW:
+        order.update_p2p_order_messages(side=P2PItem.SIDE_BUY)
 
 
 @shared_task
@@ -128,14 +118,14 @@ def healthcare_orders_task():  # Проверяем время выполнен�
     orders_buy_token = OrderBuyToken.objects.filter(
         ~Q(state=OrderBuyToken.STATE_WITHDRAWN), is_stopped=False)
 
-    dt_now = datetime.datetime.now() - datetime.timedelta(minutes=60)
+    dt_now = datetime.datetime.now() - datetime.timedelta(minutes=CREATED_TIMEOUT)
 
     for order in orders_buy_token:
         if order.dt_created < dt_now:
             BybitAccount.release_order(order.account_id)
-
             order.is_stopped = True
             order.error_message = 'task timeout'
+            order.state = OrderBuyToken.STATE_TIMEOUT
             order.save()
         elif order.is_executing:
             order_tasks = get_active_celery_tasks()
@@ -163,11 +153,9 @@ def process_payment_fiat(order: OrderBuyToken):
             return
 
         print('WAITING FOR CUSTOMER TO PAY')
-        messages = bybit_session.get_order_messages(order.order_sell_id)  # Выгружаем сообщения из базы
-        for msg in messages:
-            message = P2POrderMessage.from_json(order.id, msg)
-            if message:
-                message.save()
+
+        order.update_p2p_order_messages(side=P2PItem.SIDE_SELL)
+
     elif order.state == OrderBuyToken.STATE_TRANSFERRED:  # Оплачен клиентом
         if bybit_session.mark_order_as_paid(order.order_sell_id, order.terms['payment_id'],
                                             order.payment_currency.payment_id):
@@ -177,11 +165,8 @@ def process_payment_fiat(order: OrderBuyToken):
             order.save()
 
     elif order.state == OrderBuyToken.STATE_PAID:  # Ждет подтверждения от продавца
-        messages = bybit_session.get_order_messages(order.order_sell_id)  # Выгружаем сообщения из базы
-        for msg in messages:
-            message = P2POrderMessage.from_json(order.id, msg)
-            if message:
-                message.save()
+
+        order.update_p2p_order_messages(side=P2PItem.SIDE_SELL, bybit_session=bybit_session)
 
         state, terms = bybit_session.get_order_info(order.order_sell_id, order.payment_currency.payment_id)
 
@@ -223,8 +208,6 @@ def process_withdraw_crypto(order: OrderBuyToken):
         digits = TOKENS_DIGITS['USDT']
         usdt_amount_available = float((('{:.' + str(digits) + 'f}').format(usdt_amount_available)))
         print('usdt_amount_available formated', usdt_amount_available)
-
-        # BybitAccount.release_order(order.account_id) # FIXME
 
         if (order.payment_currency.is_fiat and order.p2p_item_sell.token == order.withdraw_currency.token or
                 order.payment_currency.is_crypto and order.payment_currency.token == order.withdraw_currency.token):
@@ -348,7 +331,7 @@ def process_payment_crypto(order: OrderBuyToken):
                 print(incoming_payment.address, order.payment_currency.address, order.internal_address.address)
                 print(incoming_payment.chain, order.payment_currency.chain)
                 if (incoming_payment.created_time > order.dt_created_sell and
-                        # order.payment_currency.address # TODO Проверять транзакцию/отправителя в RPC API NEAR / В bybit поискать
+                        # order.payment_currency.address # TODO Проверять транзакцию/отправителя в RPC API NEAR
                         incoming_payment.address == order.internal_address.address and
                         incoming_payment.chain == order.payment_currency.chain):
                     with transaction.atomic():
@@ -372,21 +355,16 @@ def process_payment_crypto(order: OrderBuyToken):
         for incoming_payment in deposit_data:
             incoming_id = int(incoming_payment['id'])
             if order.incoming_payment.item_id == incoming_id:
-                updated_data = {'confirmations': int(incoming_payment['confirmations']),
-                                'safeConfirmNumber': int(incoming_payment['safeConfirmNumber']),
-                                'blockConfirmNumber': int(incoming_payment['blockConfirmNumber']),
-                                'status': incoming_payment['status']
-                                }
-
-                # BybitIncomingPayment.objects.filter(id=incoming_id).update(**updated_data)
-                # order.incoming_payment.refresh_from_db()
+                updated_data = {
+                    'confirmations': int(incoming_payment['confirmations']),
+                    'safeConfirmNumber': int(incoming_payment['safeConfirmNumber']),
+                    'blockConfirmNumber': int(incoming_payment['blockConfirmNumber']),
+                    'status': incoming_payment['status']
+                }
 
                 for field, value in updated_data.items():
                     setattr(order.incoming_payment, field, value)
                 order.incoming_payment.save()
-                print('confirmations', order.incoming_payment.confirmations)
-                print('safeConfirmNumber', order.incoming_payment.safeConfirmNumber)
-                print('confirmed', order.incoming_payment.confirmed)
                 if order.incoming_payment.confirmed:
                     order.state = OrderBuyToken.STATE_RECEIVING_CRYPTO
                     order.save()
@@ -493,9 +471,6 @@ def process_withdraw_fiat(order: OrderBuyToken):
             except TypeError:  # Цена изменилась
                 order.verify_order()
                 return
-                # order.state = OrderBuyToken.STATE_WRONG_PRICE
-                # order.error_message = "Цена у p2p вывода изменилась"
-                # order.save()
         print('created')
         order.update_p2p_order_status(side=P2PItem.SIDE_BUY)  # state -> STATE_TRANSFERRED
         return
@@ -505,21 +480,17 @@ def process_withdraw_fiat(order: OrderBuyToken):
 
         state, terms = bybit_session.get_order_info(order.order_buy_id, order.withdraw_currency.payment_id)
         print('STATE_TRANSFERRED get_order_info', state, terms)
-        # if state == 50:
-        #     print('Token received')
-        #     order.state = OrderBuyToken.STATE_WAITING_CONFIRMATION  # todo доп. проверять
-        #     order.dt_received = datetime.datetime.now()
-        #     order.save()
-        #     process_buy_order_task(order.id)  # Вызывает себя со следующим статусом
-        # elif state == 20:
-        if state == 20:
-            print('Token received')
+        if state == 50:
+            order.state = OrderBuyToken.STATE_BUY_CONFIRMED
+            order.error_message = 'заказ подтвердили с аккаунта bybit'
+            order.save()
+
+        elif state == 20:
             order.state = OrderBuyToken.STATE_WAITING_CONFIRMATION  # todo доп. проверять
             order.dt_received = datetime.datetime.now()
             order.save()
             process_buy_order_task(order.id)  # Вызывает себя со следующим статусом
 
-            # print('Waiting for seller')
         elif state == 30:  # todo Выводить ошибку
             print('Appeal')
             order.state = OrderBuyToken.STATE_P2P_APPEAL
@@ -530,15 +501,20 @@ def process_withdraw_fiat(order: OrderBuyToken):
             raise ValueError("Unknown state", state)
 
         if order.check_p2p_timeout(minutes=P2P_BUY_TIMEOUTS['SELLER'], side=P2PItem.SIDE_BUY):
+            order.error_message = 'Продавец не перевел деньги'  # todo открывать новый p2p ордер / проверить старый
             return
 
     elif order.state == OrderBuyToken.STATE_WAITING_CONFIRMATION:
         if order.check_p2p_timeout(minutes=P2P_BUY_TIMEOUTS['CREATED'], side=P2PItem.SIDE_BUY):
+            order.state = OrderBuyToken.STATE_BUY_NOT_CONFIRMED
+            order.error_message = 'Получение средств не подтвердили/оспорили за 30 минут'
+            order.save()
+            process_withdraw_fiat(order)
             return
         print("Wait withdraw confirmation")
         order.update_p2p_order_messages(side=P2PItem.SIDE_BUY)
 
-    elif order.state == OrderBuyToken.STATE_BUY_CONFIRMED:
+    elif order.state == OrderBuyToken.STATE_BUY_CONFIRMED or order.state == OrderBuyToken.STATE_BUY_NOT_CONFIRMED:
         print('Withdraw confirmed')
 
         state, terms = bybit_session.get_order_info(order.order_buy_id, order.withdraw_currency.payment_id)
@@ -547,8 +523,12 @@ def process_withdraw_fiat(order: OrderBuyToken):
             order.finish_buy_order()
 
         BybitAccount.release_order(order.account_id)
+        if order.state == OrderBuyToken.STATE_BUY_CONFIRMED:
+            order.state = OrderBuyToken.STATE_WITHDRAWN
 
-        order.state = OrderBuyToken.STATE_WITHDRAWN
+        elif order.state == OrderBuyToken.STATE_BUY_NOT_CONFIRMED:
+            order.state = OrderBuyToken.STATE_TIMEOUT
+
         order.dt_withdrawn = datetime.datetime.now()
         order.save()
 

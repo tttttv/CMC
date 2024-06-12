@@ -17,6 +17,7 @@ from API.mixins.decorators import widget_hash_required, order_hash_required
 from API.serializers import OrderCreateSerializer, OrderStateSerializer, GetPriceSerializer, WidgetCreateSerializer, PaymentCurrencySerializer
 from CORE.models import OrderBuyToken, BybitAccount, P2PItem, P2POrderMessage, Partner, Widget, \
     BybitCurrency, Currency
+from CORE.service.CONFIG import CREATED_TIMEOUT
 from CORE.service.tools.tools import Trade
 from CORE.tasks import process_buy_order_task, task_send_message, task_send_image
 
@@ -293,6 +294,9 @@ class OrderViewSet(GenericViewSet):
         withdraw_address = request.data['withdraw_address']
         withdraw_amount = float(request.data['withdraw_amount'])
 
+        if payment_amount <= 0.0 or withdraw_amount <= 0.0:
+            return JsonResponse({'message': 'Bad payment amount', 'code': 3}, status=403)
+
         anchor = request.data.get('anchor', OrderBuyToken.ANCHOR_SELL)
         if anchor != OrderBuyToken.ANCHOR_SELL and anchor != OrderBuyToken.ANCHOR_BUY:
             return JsonResponse({'message': 'Bad anchor SELL | BUY', 'code': 3}, status=403)
@@ -434,20 +438,20 @@ class OrderViewSet(GenericViewSet):
 
         if order.dt_created_sell:
             order_data['time_left'] = max(
-                (order.dt_created_sell - datetime.datetime.now() + datetime.timedelta(minutes=60)).seconds, 0)
+                (order.dt_created_sell - datetime.datetime.now() + datetime.timedelta(minutes=CREATED_TIMEOUT)).seconds, 0)
         else:
             order_data['time_left'] = 0
 
         if order.state == OrderBuyToken.STATE_INITIATED:
             state = 'INITIALIZATION'  # Ожидание создания заказа на бирже
-            order_data['time_left'] = max((order.dt_initiated - datetime.datetime.now() + datetime.timedelta(minutes=60)).seconds, 0)
+            order_data['time_left'] = max((order.dt_initiated - datetime.datetime.now() + datetime.timedelta(minutes=CREATED_TIMEOUT)).seconds, 0)
 
         elif order.state == OrderBuyToken.STATE_WRONG_PRICE:  # Ошибка создания - цена изменилась
             state_data = {
                 'withdraw_amount': order.withdraw_amount
             }
             state = order.state
-            order_data['time_left'] = max((order.dt_initiated - datetime.datetime.now() + datetime.timedelta(minutes=60)).seconds, 0)
+            order_data['time_left'] = max((order.dt_initiated - datetime.datetime.now() + datetime.timedelta(minutes=CREATED_TIMEOUT)).seconds, 0)
 
         elif order.state == OrderBuyToken.STATE_CREATED:  # Заказ создан, ожидаем перевод
             state = 'PENDING'

@@ -511,6 +511,7 @@ class OrderBuyToken(models.Model):
 
     STATE_WAITING_CONFIRMATION = 'WAITING_CONFIRMATION'  # Подтверждение получение средств
     STATE_BUY_CONFIRMED = 'BUY_CONFIRMED'  # Закрываем p2p заказ на продажу USDT
+    STATE_BUY_NOT_CONFIRMED = 'BUY_NOT_CONFIRMED'  # Закрываем p2p заказ на продажу USDT
 
     STATE_TIMEOUT = 'TIMEOUT'  # Отменен по времени
     STATE_ERROR = 'ERROR'  # Ошибка вывода после получения средств клиента
@@ -549,6 +550,7 @@ class OrderBuyToken(models.Model):
 
         (STATE_WAITING_CONFIRMATION, 'Ожидание подтверждения получения'),
         (STATE_BUY_CONFIRMED, 'Пользователь подтвердил получение средств'),
+        (STATE_BUY_NOT_CONFIRMED, 'НЕ ПОДТВЕРДИЛИ'),
 
         (STATE_RECEIVING_CRYPTO, 'Ожидаем поступления криптовалюты'),
         (STATE_TRADING_CRYPTO, 'Покупка на бирже USDT'),
@@ -977,8 +979,9 @@ class OrderBuyToken(models.Model):
     def current_order_id(self):
         return self.order_sell_id if self.stage == self.STAGE_PROCESS_PAYMENT else self.order_buy_id
 
-    def update_p2p_order_status(self, side=P2PItem.SIDE_SELL):
-        bybit_session = BybitSession(self.account)
+    def update_p2p_order_status(self, side=P2PItem.SIDE_SELL, bybit_session: Optional[BybitSession] = None):
+        if bybit_session is None:
+            bybit_session = BybitSession(self.account)
 
         if side == P2PItem.SIDE_SELL:  # Вносит фиат
             state, terms = bybit_session.get_order_info(self.order_sell_id, self.payment_currency.payment_id)
@@ -993,10 +996,12 @@ class OrderBuyToken(models.Model):
             self.state = OrderBuyToken.STATE_CREATED if side == P2PItem.SIDE_SELL else OrderBuyToken.STATE_TRANSFERRED
             self.save()  # Нужно отдать клиенту реквизиты и ждать оплаты
 
-            self.update_p2p_order_messages(side=side)
+            self.update_p2p_order_messages(side=side, bybit_session=bybit_session)
 
-    def update_p2p_order_messages(self, side=P2PItem.SIDE_SELL):  # Выгружаем сообщения в базу
-        bybit_session = BybitSession(self.account)
+    def update_p2p_order_messages(self, side=P2PItem.SIDE_SELL, bybit_session: Optional[BybitSession] = None):  # Выгружаем сообщения в базу
+        if bybit_session is None:
+            bybit_session = BybitSession(self.account)
+
         messages = bybit_session.get_order_messages(self.order_sell_id if side == P2PItem.SIDE_SELL
                                                     else self.order_buy_id)
         for msg in messages:
@@ -1017,6 +1022,10 @@ class OrderBuyToken(models.Model):
             self.save()
             return False
         else:
+            seconds_to_wait = 30 - (time.time() % 30)
+            if seconds_to_wait < 20:
+                time.sleep(seconds_to_wait)
+
             bybit_session.verify_risk_token(risk_token, self.account.risk_get_ga_code())
             print('verified')  # TODO CHECK response
             return True
