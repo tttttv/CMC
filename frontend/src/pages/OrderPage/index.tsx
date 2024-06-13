@@ -78,9 +78,23 @@ export const OrderPage = () => {
       },
     });
   }
+
   return (
     <>
       Необработанный статус: <b>{state || "статус отсутствует"}</b>
+      <button
+        onClick={() => {
+          clearOrderHash();
+          navigate({
+            to: "/$widgetId",
+            params: {
+              widgetId: JSON.stringify(localStorage.getItem("widgetId")),
+            },
+          });
+        }}
+      >
+        вернуться
+      </button>
     </>
   );
 };
