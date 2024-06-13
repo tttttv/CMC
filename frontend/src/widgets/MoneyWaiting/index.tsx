@@ -67,10 +67,23 @@ const MoneyWaiting = () => {
 
   const { mutate: confirmPayment, isPending: paymentPending } = useMutation({
     mutationFn: orderAPI.confirmPayment,
+    onSuccess: () => {
+      setConfirmModal(false);
+    },
+    onError: () => {
+      setConfirmModal(false);
+    },
   });
 
   const { mutate: confirmWithdraw, isPending: withdrawPending } = useMutation({
     mutationFn: orderAPI.confirmWithdraw,
+    onSuccess: () => {
+      setConfirmModal(false);
+    },
+
+    onError: () => {
+      setConfirmModal(false);
+    },
   });
 
   const confirmPay = isFirstStage ? confirmPayment : confirmWithdraw;
