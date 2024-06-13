@@ -75,6 +75,7 @@ export const UserForm = () => {
     setError,
     setValue,
     getValues,
+    trigger,
   } = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   });
@@ -133,7 +134,7 @@ export const UserForm = () => {
     createOrder(newOrder);
   };
 
-  const errorHandler = () => {
+  const errorHandler = async () => {
     const {
       fromCardNumber,
       fromWalletAddress,
@@ -158,7 +159,7 @@ export const UserForm = () => {
     if (fromType === "crypto" && fromWalletAddress === "") return;
     if (toType === "crypto" && toWalletAddress === "") return;
 
-    if (errors?.email?.message) return;
+    if (email === "" || (await trigger("email")) === false) return;
 
     onSubmitHandler({
       email,
