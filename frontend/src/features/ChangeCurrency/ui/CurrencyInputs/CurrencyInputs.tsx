@@ -213,9 +213,10 @@ export const ChangeInputs = () => {
             clearTimeout(gettingTimer.current);
 
             const validatedValue = validateCurrencyInput(e.target.value);
-            if (!validatedValue) return;
+            if (!validatedValue && validatedValue !== "") return;
 
             setFromValue(validatedValue);
+
             setGetPricing("to");
             gettingTimer.current = setTimeout(() => {
               getPrice();
@@ -233,9 +234,9 @@ export const ChangeInputs = () => {
             clearTimeout(gettingTimer.current);
 
             const validatedValue = validateCurrencyInput(e.target.value);
-            if (!validatedValue) return;
-
+            if (!validatedValue && validatedValue !== "") return;
             setToValue(validatedValue);
+
             setGetPricing("from");
 
             gettingTimer.current = setTimeout(() => {

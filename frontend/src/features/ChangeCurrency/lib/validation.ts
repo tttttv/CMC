@@ -1,9 +1,10 @@
 export const validateCurrencyInput = (value: string) => {
-  if (+value === 0 || value === "") {
-    return "0";
+  if (value === "0" || value === "") {
+    return value;
   }
 
   let preparedValue = value.trim().replace(",", ".").replace(/^0+/, "");
+  if (preparedValue === "") preparedValue = "0";
   if (preparedValue.startsWith(".")) {
     preparedValue = `0${preparedValue}`;
   }
