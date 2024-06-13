@@ -126,6 +126,9 @@ def healthcare_orders_task():  # Проверяем время выполнен�
             order.is_stopped = True
             order.error_message = 'task timeout'
             order.state = OrderBuyToken.STATE_TIMEOUT
+
+            BybitAccount.release_order(order.account_id)
+
             order.save()
         elif order.is_executing:
             order_tasks = get_active_celery_tasks()
@@ -528,6 +531,7 @@ def process_withdraw_fiat(order: OrderBuyToken):
 
         elif order.state == OrderBuyToken.STATE_BUY_NOT_CONFIRMED:
             order.state = OrderBuyToken.STATE_TIMEOUT
+            BybitAccount.release_order(order.account_id)
 
         order.dt_withdrawn = datetime.datetime.now()
         order.save()

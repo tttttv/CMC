@@ -198,8 +198,11 @@ class BybitSession:
 
             elif resp['ret_code'] == 912100052:  # Не попали в range по amount
                 raise AdStatusChanged("LIMIT")
+            elif resp['ret_code'] == 41100:
+                raise AdStatusChanged('Ad removed')
             else:
                 raise ValueError
+
 
     def create_order_sell(self, item_id, quantity, amount, cur_price, payment_type, payment_id, token_id="USDT",
                           currency_id="RUB", risk_token=''):
@@ -239,6 +242,9 @@ class BybitSession:
 
             elif resp['ret_code'] == 912100052:  # Не попали в range по amount
                 raise AdStatusChanged("LIMIT")
+
+            elif resp['ret_code'] == 41100:
+                raise AdStatusChanged('Ad removed')
             else:
                 print(resp)
                 raise ValueError

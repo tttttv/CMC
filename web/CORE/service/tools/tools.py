@@ -172,13 +172,13 @@ class Trade:
             print('usdt_amount', usdt_amount)
 
         else:  # withdraw_method.is_crypto:
-            withdraw_amount = self.crypto_transaction(amount=self.withdraw_amount, side=P2PItem.SIDE_SELL)
+            withdraw_amount = self.crypto_transaction(amount=self.withdraw_amount, side=P2PItem.SIDE_BUY) # !!!
             print('withdraw_amount', withdraw_amount)
             usdt_amount, price_buy = self.get_trade_price(self.withdraw_method, 0.0, withdraw_amount, trade_side=SIDE_BUY_FIAT)
             usdt_amount = Trade.format_amount('USDT', usdt_amount)
             print('usdt_amount', usdt_amount)
 
-        usdt_amount = usdt_amount * (1 - self.partner_commission - self.platform_commission)
+        usdt_amount = usdt_amount * (1 + self.partner_commission + self.platform_commission)
         usdt_amount = Trade.format_amount('USDT', usdt_amount)
         print('usdt_amount comm', usdt_amount)
 
