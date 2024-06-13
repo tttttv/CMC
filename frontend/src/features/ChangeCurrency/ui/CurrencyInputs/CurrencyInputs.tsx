@@ -18,7 +18,8 @@ import { ExchangeRate } from "./RateInfo";
 const DELAY = 1000;
 export const ChangeInputs = () => {
   const { to, from } = useCurrency();
-  const { setPrice, fromChain, toChain, setOrderData } = usePlaceOrder();
+  const { setPrice, fromChain, toChain, setOrderData, orderData } =
+    usePlaceOrder();
   const { fromType, toType } = useExchangeSettings();
   const bankType = useCurrencyStore((state) => state.bankCurrencyType);
   const fromCurrencyId = useCurrencyStore((state) => state.fromCurrency);
@@ -87,7 +88,6 @@ export const ChangeInputs = () => {
 
   const errorCode = useRef<number>(-1);
   const [hasError, setHasError] = useState(false);
-
   const {
     refetch: getPrice,
     error,
@@ -117,16 +117,11 @@ export const ChangeInputs = () => {
   useEffect(() => {
     if (!data) return;
 
-    const amountName = isFromGetting ? "payment_amount" : "withdraw_amount";
-    const newAmount = `${data?.data[amountName] || "0"}`;
-
-    if (isFromGetting) {
-      setFromValue(newAmount);
-    } else setToValue(newAmount);
+    setFromValue(`${data?.data.payment_amount || "0"}`);
+    setToValue(`${data?.data.withdraw_amount || "0"}`);
 
     const { item_buy, item_sell, price_buy, price_sell, price, better_amount } =
       data.data;
-
     setOrderData({
       item_buy,
       item_sell,
@@ -149,22 +144,17 @@ export const ChangeInputs = () => {
       code: -1,
     };
 
-    const amount = isFromGetting ? toValue : fromValue;
-    if (newErrorCode == 3 && amount === "0") {
-      if (isFromGetting) setFromValue("0");
-      else setToValue("0");
-      setGetPricing(null);
-      setOrderData(null);
-      return;
-    }
-    errorCode.current = +(error || -1);
     setFromValue("0");
     setToValue("0");
-    setHasError(true);
     setPrice("");
     setBetterAmount("");
     setGetPricing(null);
     setOrderData(null);
+
+    if (newErrorCode !== 3) {
+      setHasError(true);
+      errorCode.current = +(error || -1);
+    }
   }, [error, isError]);
 
   // to/from currency update
@@ -174,17 +164,31 @@ export const ChangeInputs = () => {
     gettingTimer.current = setTimeout(() => {
       getPrice();
     }, DELAY);
-  }, [toCurrency]);
+  }, [toCurrency, toChain]);
   useEffect(() => {
     if (!toCurrency || !toValue || !fromCurrencyId) return;
     setGetPricing("from");
     gettingTimer.current = setTimeout(() => {
       getPrice();
     }, DELAY);
-  }, [fromCurrency]);
-
+  }, [fromCurrency, fromChain]);
   const gettingTimer = useRef<NodeJS.Timeout>();
 
+  useEffect(() => {
+    if (!orderData) return;
+    setOrderData({
+      ...orderData,
+      payment_amount: +fromValue,
+    });
+  }, [fromValue]);
+
+  useEffect(() => {
+    if (!orderData) return;
+    setOrderData({
+      ...orderData,
+      withdraw_amount: +toValue,
+    });
+  }, [toValue]);
   return (
     <>
       {hasError && (

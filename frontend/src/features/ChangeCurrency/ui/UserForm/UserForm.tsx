@@ -182,7 +182,7 @@ export const UserForm = () => {
   useEffect(() => {
     if (toType === "crypto") setToChainDefault(toChains[0]?.id);
   }, [toCurrency]);
-
+  useEffect(() => {}, [fromChain]);
   return (
     <>
       <form

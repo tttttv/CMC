@@ -9,7 +9,7 @@ import styles from "./Stages.module.scss";
 import { Timer } from "./Timer";
 
 export const Stages = () => {
-  const withdrawType = useStagesStore((state) => state.withdrawType);
+  // const withdrawType = useStagesStore((state) => state.withdrawType);
   const state = useStagesStore((state) => state.state);
   const currency = useStagesStore((state) => state.currency);
 
