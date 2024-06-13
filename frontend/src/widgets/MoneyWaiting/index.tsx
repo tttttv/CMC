@@ -77,7 +77,7 @@ const MoneyWaiting = () => {
   const pending = paymentPending || withdrawPending;
 
   const copyAddresToClipboard = () => {
-    const cardNumber = data?.state_data.terms?.address || "";
+    const cardNumber = data?.state_data.terms?.account_no || "";
     navigator.clipboard.writeText(cardNumber).then(() => {
       setCopied(true);
       setTimeout(() => {

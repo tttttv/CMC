@@ -83,6 +83,7 @@ interface StateData {
   terms: Terms;
   time_left: number;
   withdraw_amount: number;
+  payment_amount: number;
   commentary: string;
   address?: string;
 }

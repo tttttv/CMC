@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { orderAPI } from "$/shared/api/order";
 import Button from "$/shared/ui/kit/Button/Button";
@@ -10,8 +10,18 @@ import styles from "./index.module.scss";
 
 const ChangedCourse = () => {
   const queryClient = useQueryClient();
-  const newAmount = useStagesStore((state) => state.newAmount);
   const currency = useStagesStore((state) => state.currency);
+  const { data, isLoading } = useQuery({
+    queryKey: ["order"],
+    queryFn: orderAPI.getOrderState,
+    select: (data) => data.data,
+    retry: 0,
+    refetchOnWindowFocus: false,
+  });
+  const isWithdrawAmount = data?.state_data.hasOwnProperty("withdraw_amount");
+  const newAmount = isWithdrawAmount
+    ? data?.state_data.withdraw_amount
+    : data?.state_data.payment_amount;
   const { mutate: cancelOrder } = useMutation({
     mutationKey: ["cancelOrder"],
     mutationFn: orderAPI.cancelOrder,
@@ -29,9 +39,11 @@ const ChangedCourse = () => {
     >
       <h2 className={styles.modalTitle}>Курс выбранных валют изменился</h2>
       <p className={styles.newAmount}>
-        По новой цене вы получите{" "}
+        {isWithdrawAmount
+          ? "По новой цене вы получите"
+          : "По новой цене вам необходимо оплатить"}{" "}
         <span className={styles.amount}>
-          {newAmount} {currency}
+          {isLoading ? "..." : newAmount} {currency}
         </span>
       </p>
       <Button
