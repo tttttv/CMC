@@ -22,6 +22,7 @@ import { clearOrderHash } from "$/shared/helpers/orderHash/clear";
 import { CryptoIcon } from "./icons/CryptoIcon";
 import { CryptoWalletIcon } from "./icons/CryptoWalletIcon";
 import { ChainIcon } from "./icons/ChainIcon";
+import { queryClient } from "$/pages/Root/ui/Wrapper";
 
 const COPY_MESSAGE_DISAPPEAR_DELAY = 1500;
 
@@ -69,9 +70,15 @@ const MoneyWaiting = () => {
     mutationFn: orderAPI.confirmPayment,
     onSuccess: () => {
       setConfirmModal(false);
+      queryClient.refetchQueries({
+        queryKey: ["order"],
+      });
     },
     onError: () => {
       setConfirmModal(false);
+      queryClient.refetchQueries({
+        queryKey: ["order"],
+      });
     },
   });
 
@@ -79,10 +86,15 @@ const MoneyWaiting = () => {
     mutationFn: orderAPI.confirmWithdraw,
     onSuccess: () => {
       setConfirmModal(false);
+      queryClient.refetchQueries({
+        queryKey: ["order"],
+      });
     },
-
     onError: () => {
       setConfirmModal(false);
+      queryClient.refetchQueries({
+        queryKey: ["order"],
+      });
     },
   });
 
