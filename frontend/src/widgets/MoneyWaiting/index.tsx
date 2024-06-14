@@ -52,6 +52,12 @@ const MoneyWaiting = () => {
   const transferObj = isFirstStage ? from : to;
   const isTransferToCrypto = transferObj?.type === "crypto";
 
+  const closeModalAfterReq = () => {
+    setConfirmModal(false);
+    queryClient.refetchQueries({
+      queryKey: ["order"],
+    });
+  }
   const { mutate: cancelPay } = useMutation({
     mutationKey: ["cancelPay"],
     mutationFn: orderAPI.cancelOrder,
@@ -68,34 +74,14 @@ const MoneyWaiting = () => {
 
   const { mutate: confirmPayment, isPending: paymentPending } = useMutation({
     mutationFn: orderAPI.confirmPayment,
-    onSuccess: () => {
-      setConfirmModal(false);
-      queryClient.refetchQueries({
-        queryKey: ["order"],
-      });
-    },
-    onError: () => {
-      setConfirmModal(false);
-      queryClient.refetchQueries({
-        queryKey: ["order"],
-      });
-    },
+    onSuccess: closeModalAfterReq,
+    onError: closeModalAfterReq,
   });
 
   const { mutate: confirmWithdraw, isPending: withdrawPending } = useMutation({
     mutationFn: orderAPI.confirmWithdraw,
-    onSuccess: () => {
-      setConfirmModal(false);
-      queryClient.refetchQueries({
-        queryKey: ["order"],
-      });
-    },
-    onError: () => {
-      setConfirmModal(false);
-      queryClient.refetchQueries({
-        queryKey: ["order"],
-      });
-    },
+    onSuccess: closeModalAfterReq,
+    onError: closeModalAfterReq,
   });
 
   const confirmPay = isFirstStage ? confirmPayment : confirmWithdraw;
