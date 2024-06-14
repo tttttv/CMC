@@ -52,12 +52,8 @@ const MoneyWaiting = () => {
   const transferObj = isFirstStage ? from : to;
   const isTransferToCrypto = transferObj?.type === "crypto";
 
-  const closeModalAfterReq = () => {
-    setConfirmModal(false);
-    queryClient.refetchQueries({
-      queryKey: ["order"],
-    });
-  }
+  const [isButtonDisabled, setButtonDisabled] = useState(false);
+
   const { mutate: cancelPay } = useMutation({
     mutationKey: ["cancelPay"],
     mutationFn: orderAPI.cancelOrder,
@@ -72,20 +68,28 @@ const MoneyWaiting = () => {
     },
   });
 
-  const { mutate: confirmPayment, isPending: paymentPending } = useMutation({
+  const refetchOrder = () => {
+    queryClient.refetchQueries({
+      queryKey: ["order"],
+    });
+  };
+  const errorHandler = () => {
+    refetchOrder();
+    setButtonDisabled(false);
+  };
+  const { mutate: confirmPayment } = useMutation({
     mutationFn: orderAPI.confirmPayment,
-    onSuccess: closeModalAfterReq,
-    onError: closeModalAfterReq,
+    onSuccess: refetchOrder,
+    onError: errorHandler,
   });
 
-  const { mutate: confirmWithdraw, isPending: withdrawPending } = useMutation({
+  const { mutate: confirmWithdraw } = useMutation({
     mutationFn: orderAPI.confirmWithdraw,
-    onSuccess: closeModalAfterReq,
-    onError: closeModalAfterReq,
+    onSuccess: refetchOrder,
+    onError: errorHandler,
   });
 
   const confirmPay = isFirstStage ? confirmPayment : confirmWithdraw;
-  const pending = paymentPending || withdrawPending;
 
   const copyAddresToClipboard = () => {
     const cardNumber = data?.state_data.terms?.account_no || "";
@@ -215,8 +219,11 @@ const MoneyWaiting = () => {
       )}
       <Modal opened={isConfirmModal}>
         <OperationCancel
-          isPending={pending}
-          confirmFn={confirmPay}
+          isPending={isButtonDisabled}
+          confirmFn={() => {
+            setButtonDisabled(true);
+            confirmPay();
+          }}
           closeFn={() => setConfirmModal(false)}
         />
       </Modal>
