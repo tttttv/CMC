@@ -169,6 +169,11 @@ order.find_new_items()
 order.save()
 
 
-from CORE.tasks import task_send_message
-task_send_message(75)
+from CORE.tasks import task_send_message, task_send_image
+task_send_message(116)
+task_send_image(117, 'application/pdf')
 
+
+
+order.update_p2p_order_messages(side=P2PItem.SIDE_SELL)
+order.update_p2p_order_messages(side=P2PItem.SIDE_BUY)

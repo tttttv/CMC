@@ -17,3 +17,6 @@ Pillow
 djangorestframework
 drf-yasg
 django-cors-headers
+# proxy
+websocket-client[optional]
+requests[socks]

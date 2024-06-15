@@ -39,3 +39,7 @@ admin.site.register(Currency, CurrencyAdmin)
 
 admin.site.register(InternalCryptoAddress)
 admin.site.register(BybitIncomingPayment)
+
+
+admin.site.register(Config)
+

@@ -15,6 +15,10 @@ def setup_periodic_tasks(sender, **kwargs):
             'task': 'CORE.tasks.update_p2pitems_task',
             'schedule': crontab(hour='*', minute='*/1'),
         },
+        'remove_insufficient_items': {
+            'task': 'CORE.tasks.task_remove_insufficient_items',
+            'schedule': crontab(hour='*', minute='0'),
+        },
         'update_latest_email_codes': {
             'task': 'CORE.tasks.update_latest_email_codes_task',
             'schedule': crontab(hour='*', minute='*/2'),
@@ -24,14 +28,14 @@ def setup_periodic_tasks(sender, **kwargs):
             'schedule': crontab(hour='*', minute='*/1'),
         },
 
-        'healthcare_orders_task': {
-            'task': 'CORE.tasks.process_orders_task',
+        'healthcare_orders': {
+            'task': 'CORE.tasks.healthcare_orders_task',
             'schedule': crontab(hour='*', minute='*/5'),
         },
 
-        'process_orders_messages': {
+        'process_messages': {
             'task': 'CORE.tasks.process_orders_messages_task',
-            'schedule': crontab(hour='*', minute='*/2'),
+            'schedule': crontab(hour='*', minute='*/1'),
         },
 
     }

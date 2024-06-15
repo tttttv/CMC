@@ -201,16 +201,7 @@ class ExchangeVIewSet(GenericViewSet):
         amount = float(request.data['amount'])
 
         if amount == 0.0:
-            return JsonResponse({'message': 'amount is zero with anchor=currency', 'code': 3}, status=403)
-
-        if anchor == OrderBuyToken.ANCHOR_SELL:
-            payment_amount = amount
-            withdraw_amount = 0.0
-        elif anchor == OrderBuyToken.ANCHOR_BUY:
-            payment_amount = 0.0
-            withdraw_amount = amount
-        else:
-            return JsonResponse({'message': 'Bad anchor SELL | BUY', 'code': 3}, status=403)
+            return JsonResponse({'message': 'Сумма должна быть больше нуля', 'code': 4}, status=403)
 
         payment_method = BybitCurrency.get_by_id(payment_method_id)
         if payment_method.is_crypto and not payment_method.validate_chain(payment_chain):
@@ -220,8 +211,31 @@ class ExchangeVIewSet(GenericViewSet):
         if withdraw_method.is_crypto and not withdraw_method.validate_chain(withdraw_chain):
             return JsonResponse({'message': 'chain invalid'}, status=403)
 
+        if anchor == OrderBuyToken.ANCHOR_SELL:
+            payment_amount = amount
+            withdraw_amount = 0.0
+
+            min_amount, max_amount = payment_method.payment_min_max(payment_chain)
+            if amount < min_amount:
+                return JsonResponse({'message': f'Минимальное количество для пополнения {min_amount}', 'code': 5}, status=403)
+            elif amount > max_amount:
+                return JsonResponse({'message': f'Максимально количество для пополнения {max_amount}', 'code': 6}, status=403)
+
+        elif anchor == OrderBuyToken.ANCHOR_BUY:
+            payment_amount = 0.0
+            withdraw_amount = amount
+
+            min_amount, max_amount = withdraw_method.withdraw_min_max(withdraw_chain)
+            if amount < min_amount:
+                return JsonResponse({'message': f'Минимальное количество для вывода {min_amount}', 'code': 7}, status=403)
+            elif amount > max_amount:
+                return JsonResponse({'message': f'Максимально количество для вывода {max_amount}', 'code': 8}, status=403)
+
+        else:
+            return JsonResponse({'message': 'Bad anchor SELL | BUY'}, status=403)
+
         if not withdraw_method.validate_exchange(payment_method):
-            return JsonResponse({'message': 'payment method invalid'}, status=403)
+            return JsonResponse({'message': f'Данный способ {"пополнения" if anchor == OrderBuyToken.ANCHOR_SELL else "вывода"} недоступен.', 'code': 3}, status=403)
 
         widget_hash = request.query_params.get('widget', None)
         partner_commission = 0.0
@@ -245,14 +259,30 @@ class ExchangeVIewSet(GenericViewSet):
 
         except TypeError as ex:
             print('ex', ex)
-            raise ex
+            # raise ex
             return JsonResponse({'message': 'Биржа не работает', 'code': 2}, status=403)
         except ValueError as ex:
             print('ex', ex)
-            raise ex
+            # raise ex
             return JsonResponse(
                 {'message': 'Ошибка получения цены. Попробуйте другую цену или другой способ пополнения.', 'code': 3},
                 status=403)
+
+        print('РАСЧИТАЛ')
+
+        if anchor == OrderBuyToken.ANCHOR_SELL:
+            min_amount, max_amount = withdraw_method.withdraw_min_max(withdraw_chain)
+            if amount < min_amount:
+                return JsonResponse({'message': f'Минимальное количество для вывода {min_amount}', 'code': 7}, status=403)
+            elif amount > max_amount:
+                return JsonResponse({'message': f'Максимально количество для вывода {max_amount}', 'code': 8}, status=403)
+
+        elif anchor == OrderBuyToken.ANCHOR_BUY:
+            min_amount, max_amount = payment_method.payment_min_max(payment_chain)
+            if amount < min_amount:
+                return JsonResponse({'message': f'Минимальное количество для пополнения {min_amount}', 'code': 5}, status=403)
+            elif amount > max_amount:
+                return JsonResponse({'message': f'Максимально количество для пополнения {max_amount}', 'code': 6}, status=403)
 
         data = {
             'price': "%.2f" % (payment_amount / withdraw_amount),
@@ -447,10 +477,15 @@ class OrderViewSet(GenericViewSet):
             order_data['time_left'] = max((order.dt_initiated - datetime.datetime.now() + datetime.timedelta(minutes=CREATED_TIMEOUT)).seconds, 0)
 
         elif order.state == OrderBuyToken.STATE_WRONG_PRICE:  # Ошибка создания - цена изменилась
-            state_data = {
-                'withdraw_amount': order.withdraw_amount
-            }
-            state = order.state
+            if order.anchor == OrderBuyToken.ANCHOR_SELL:
+                state_data = {
+                    'withdraw_amount': order.withdraw_amount
+                }
+            else:
+                state_data = {
+                    'payment_amount': order.payment_amount
+                }
+            state = order.state  # 'WRONG'
             order_data['time_left'] = max((order.dt_initiated - datetime.datetime.now() + datetime.timedelta(minutes=CREATED_TIMEOUT)).seconds, 0)
 
         elif order.state == OrderBuyToken.STATE_CREATED:  # Заказ создан, ожидаем перевод
@@ -469,8 +504,7 @@ class OrderViewSet(GenericViewSet):
                     'commentary': "SEND ME CRYPTO BRO",
                 }
         elif order.state == OrderBuyToken.STATE_TRANSFERRED:  # Пользователь пометил как отправленный - ждем подтверждение
-            # state = 'RECEIVING'
-            state = 'TRADING'  # FIXME TEST
+            state = 'RECEIVING'
 
         elif order.state == OrderBuyToken.STATE_PAID:  # Заказ помечен как оплаченный - ждем подтверждение
             state = 'RECEIVING'
@@ -478,14 +512,22 @@ class OrderViewSet(GenericViewSet):
         elif order.state == OrderBuyToken.STATE_WAITING_TRANSACTION_PROCESSED:
             state = 'RECEIVING'  # FIXME TEST
 
-        elif order.stage == order.STAGE_PROCESS_PAYMENT or order.state == OrderBuyToken.STATE_RECEIVED:  # Продавец подтвердил получение денег
+        elif order.state == OrderBuyToken.STATE_RECEIVED:  # Продавец подтвердил получение денег
             state = 'BUYING'
+
+        elif order.state == OrderBuyToken.STATE_CHECK_BALANCE:
+            state = 'BUYING'
+
         elif order.state == OrderBuyToken.STATE_TRADING or order.state == OrderBuyToken.STATE_RECEIVING_CRYPTO:  # Меняем на бирже
             state = 'TRADING'
-        elif order.state == OrderBuyToken.STATE_TRADED or order.state == order.STAGE_PROCESS_WITHDRAW and order.state == OrderBuyToken.STATE_RECEIVED:  # Поменяли на бирже
+
+        # Поменяли на бирже
+        elif order.state == OrderBuyToken.STATE_TRADED: #  or order.state == order.STAGE_PROCESS_WITHDRAW and order.state == OrderBuyToken.STATE_RECEIVED:
             state = 'TRADING'
+
         elif order.state == OrderBuyToken.STATE_WITHDRAWING:  # Выводим деньги
             state = 'WITHDRAWING'
+
         elif order.state == OrderBuyToken.STATE_WAITING_VERIFICATION:  # Подтверждаем вывод
             state = 'WITHDRAWING'
         elif order.state == OrderBuyToken.STATE_WITHDRAWN or order.state == OrderBuyToken.STATE_BUY_CONFIRMED:  # Успешно
@@ -546,19 +588,21 @@ class OrderViewSet(GenericViewSet):
             else:  # order.state == order.STAGE_PROCESS_WITHDRAW:
                 order.state = OrderBuyToken.STATE_RECEIVED
 
-            try:
-                trade = Trade(order.payment_currency, order.withdraw_currency, order.payment_amount, order.withdraw_amount,
-                              order.withdraw_currency.chain, order.payment_currency.chain,
-                              order.trading_commission, order.partner_commission, order.platform_commission,
-                              is_direct=order.anchor == OrderBuyToken.ANCHOR_SELL)
-                payment_amount, withdraw_amount, usdt_amount, p2p_item_sell, p2p_item_buy, price_sell, price_buy, better_amount = trade.get_amount()
-            except TypeError as ex:  # FIXME ValueError
-                return JsonResponse({'message': 'cant get new price', 'code': 2}, status=403)
+            # try:
+            #     trade = Trade(order.payment_currency, order.withdraw_currency, order.payment_amount, order.withdraw_amount,
+            #                   order.withdraw_currency.chain, order.payment_currency.chain,
+            #                   order.trading_commission, order.partner_commission, order.platform_commission,
+            #                   is_direct=order.anchor == OrderBuyToken.ANCHOR_SELL)
+            #     payment_amount, withdraw_amount, usdt_amount, p2p_item_sell, p2p_item_buy, price_sell, price_buy, better_amount = trade.get_amount()
+            # except TypeError as ex:  # FIXME ValueError
+            #     return JsonResponse({'message': 'cant get new price', 'code': 2}, status=403)
 
             # order.p2p_item_sell = p2p_item_sell
             # order.p2p_item_buy = p2p_item_buy
 
             order.save()
+
+            process_buy_order_task.apply_async(args=[order.id])
             return JsonResponse({})
         else:
             return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)
@@ -573,6 +617,8 @@ class OrderViewSet(GenericViewSet):
         if order.state == OrderBuyToken.STATE_CREATED:  # FIXME доп. проверять
             order.state = OrderBuyToken.STATE_TRANSFERRED
             order.save()
+            process_buy_order_task.apply_async(args=[order.id])
+
             return JsonResponse({})
         else:
             return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)
@@ -587,6 +633,8 @@ class OrderViewSet(GenericViewSet):
         if order.state == OrderBuyToken.STATE_WAITING_CONFIRMATION:
             order.state = OrderBuyToken.STATE_BUY_CONFIRMED
             order.save()
+            process_buy_order_task.apply_async(args=[order.id])
+
             return JsonResponse({})
         else:
             return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)
@@ -673,6 +721,7 @@ class OrderViewSet(GenericViewSet):
 
         message_uuid = uuid.uuid4()
         file_name = request.data.get('file_name', f'{message_uuid}.{ext}')  # NEW INPUT
+        print('file_name', file_name)
         content = ContentFile(base64.b64decode(imgstr), name=file_name)
 
         mime_types = {

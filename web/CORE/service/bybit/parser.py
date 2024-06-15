@@ -51,8 +51,10 @@ class BybitSession:
     def __init__(self, user):
         self.user_id = user.user_id
         self.session = TimeoutRequestsSession()
-        self.user = user
-        if user.proxy_settings:
+        self.user: BybitAccount = user
+
+        if user.use_proxy:
+            print('BybitSession proxy settings:', user.proxy_settings)
             self.session.proxies.update(user.proxy_settings)
 
         for c in user.cookies:
@@ -92,16 +94,16 @@ class BybitSession:
 
         r = self.session.post('https://api2.bybit.com/fiat/otc/item/online', json=data)
         resp = r.json()
-        print('online resp:', resp)
+        # print('online resp:', resp)
         user_info = None
         if filter_ineligible:
             user_info = self.get_user_info()
-            print('user_info', user_info)
+            # print('user_info', user_info)
 
         if resp['ret_code'] == 0:
             p2p = []
             for item in resp['result']['items']:
-                print(f"Seller id {item['accountId']} online: {item['isOnline']}")
+                # print(f"Seller id {item['accountId']} online: {item['isOnline']}")
                 if filter_online and not item['isOnline']:
                     continue
 
@@ -198,11 +200,11 @@ class BybitSession:
 
             elif resp['ret_code'] == 912100052:  # Не попали в range по amount
                 raise AdStatusChanged("LIMIT")
+
             elif resp['ret_code'] == 41100:
                 raise AdStatusChanged('Ad removed')
             else:
                 raise ValueError
-
 
     def create_order_sell(self, item_id, quantity, amount, cur_price, payment_type, payment_id, token_id="USDT",
                           currency_id="RUB", risk_token=''):
@@ -291,6 +293,7 @@ class BybitSession:
             'currentPage': 1,
             'size': 1000
         }
+        print('data', data)
         r = self.session.post("https://api2.bybit.com/fiat/otc/order/message/listpage", data=data)
         resp = r.json()
         print(resp)
@@ -314,7 +317,13 @@ class BybitSession:
             result = resp['result']
             deviceId = self.session.cookies.get_dict()['deviceId']
             url = "wss://ws2.bybit.com/private?appid=bybit&os=web&deviceid=" + deviceId
-            ws = create_connection(url)  # Установка соединения с веб сокетом
+
+            # Установка соединения с веб сокетом
+            if self.user.use_proxy:
+                ws = create_connection(url, http_proxy_host=self.user.proxy_host, http_proxy_port=self.user.proxy_port, proxy_type=self.user.proxy_type,
+                                       http_proxy_auth=self.user.proxy_auth)
+            else:
+                ws = create_connection(url)
 
             req_id = self.session.cookies.get_dict()['_by_l_g_d']
             data = {"req_id": req_id, "op": "login", "args": [result]}
@@ -365,7 +374,7 @@ class BybitSession:
             print(resp)
             raise ValueError()
 
-    def upload_file(self, order_id, file_name, content, content_type):
+    def upload_file(self, order_id, file_name, content, content_type, message_uuid: Optional[str] = None):
         files = {'upload_file': (file_name, content, content_type)}  # (file_name, content, 'application/pdf')
         r = self.session.post('https://api2.bybit.com/fiat/p2p/oss/upload_file', files=files)
         resp = r.json()
@@ -397,7 +406,7 @@ class BybitSession:
                 'onlyForCustomer': '0'
             }
             print('extra_data', extra_data)
-            result = self.send_message(order_id, file_url, contentType=subtype, extra_data=extra_data)
+            result = self.send_message(order_id, file_url, message_uuid=message_uuid, contentType=subtype, extra_data=extra_data)
             print('result', result)
             return result
         return False

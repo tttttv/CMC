@@ -2,7 +2,7 @@ import datetime
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from CORE.models import OrderBuyToken, P2POrderMessage, BybitAccount, P2PItem
+from CORE.models import OrderBuyToken, P2POrderMessage, BybitAccount, P2PItem, AccountInsufficientItems
 from CORE.service.CONFIG import TOKENS_DIGITS, P2P_BUY_TIMEOUTS
 from django.db.models import F, Q
 
@@ -35,6 +35,8 @@ class Trade:
 
     stage: int = STAGE_PROCESS_PAYMENT
     usdt_amount: Optional[float] = None
+
+    account_id: Optional[int] = None
 
     def get_amount(self):  # TODO rename ***
         digits = TOKENS_DIGITS[self.payment_method.token]
@@ -220,18 +222,10 @@ class Trade:
         #     raise ValueError
         return trade_rate
 
-    @classmethod
-    def get_p2p_price(cls, payment_method: int, payment_amount: float, withdraw_amount: float, currency, token, p2p_side):
+    def get_p2p_price(self, payment_method: int, payment_amount: float, withdraw_amount: float, currency, token, p2p_side):
         from CORE.models import P2PItem
 
-        # if token not in P2P_TOKENS: # todo тут только usdt
-        #     p2p_token = 'USDT'
-        #     trade_rate = BybitAccount.get_random_account().get_api().get_trading_rate(token, 'USDT')
-        # else:
-        #     p2p_token = token
-        #     trade_rate = 1
-
-        token = 'USDT'
+        token = 'USDT'   # todo тут только usdt
 
         is_p2p_buying_crypto = p2p_side == P2PItem.SIDE_SELL
         print('p2p price')
@@ -257,6 +251,19 @@ class Trade:
         else:
             raise ValueError
 
+        if self.account_id is not None:
+            print('EXCLUDE')
+            exclude_insufficient = AccountInsufficientItems.objects.filter(
+                account_id=self.account_id,
+                expire_dt__gt=datetime.datetime.now()
+            ).values_list('item_id', flat=True)
+
+            print('exclude_insufficient', exclude_insufficient)
+
+            items_query = items_query.exclude(id__in=exclude_insufficient)
+
+        print('SQL')
+        print(items_query.query)
         items = items_query.order_by('price' if is_p2p_buying_crypto else '-price').all()
         # print('items', items.count())
 

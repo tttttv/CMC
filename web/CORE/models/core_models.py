@@ -17,11 +17,30 @@ from CORE.service.bybit.parser import BybitSession, InsufficientError, Authentic
 from CORE.service.tools.formats import file_as_base64, format_float_up
 
 
+class Config(models.Model):
+    tokens_digits = models.JSONField(default=dict)
+    timeouts = models.JSONField(default=dict)
+    token_amounts = models.JSONField(default=dict)
+
+
 class BybitSeller(models.Model):
-    item_id = models.IntegerField()
-    account_id = models.IntegerField()
+    item_id = models.IntegerField(primary_key=True)
     user_id = models.IntegerField()
+
     is_active = models.BooleanField(default=True)
+    update_dt = models.DateTimeField(auto_now=True)
+
+
+def expire_day_default():
+    return datetime.datetime.now() + datetime.timedelta(days=1)
+
+
+# class InsufficientErrorSellers(models.Model):
+#     item_id = models.IntegerField(primary_key=True)
+#     user_id = models.IntegerField()
+#
+#     is_active = models.BooleanField(default=True)
+#     expire_dt = models.DateTimeField(default=expire_day_default)
 
 
 class BybitIncomingPayment(models.Model):
@@ -109,6 +128,9 @@ class AbstractCurrency(models.Model):
     token = models.CharField(max_length=10, choices=CURRENCY, verbose_name='Токен валюты')  # RUB / USDT / NEAR
     exchange_from = models.ManyToManyField("self", blank=True, symmetrical=False, related_name='exchange_to')
 
+    min_amount = models.FloatField(default=500.0)
+    max_amount = models.FloatField(default=2000000)
+
     class Meta:
         abstract = True
 
@@ -147,7 +169,9 @@ class AbstractCurrency(models.Model):
                 if currency.token not in fiats:
                     fiats[currency.token] = {'id': currency.token,  # 'type': currency.type,
                                              'name': currency.get_token_display(),
-                                             'payment_methods': [payment_method]}
+                                             'payment_methods': [payment_method],
+                                             'min_amount': currency.min_amount,
+                                             'max_amount': currency.max_amount}
                 else:
                     fiats[currency.token]['payment_methods'].append(payment_method)
 
@@ -159,6 +183,28 @@ class AbstractCurrency(models.Model):
                 tokens.append(token_data)
 
         return {'fiat': list(fiats.values()), 'crypto': tokens}
+
+    def validate_payment_amount(self, amount, chain) -> bool:
+        min_amount, max_amount = self.payment_min_max(chain)
+        return min_amount <= amount <= max_amount
+
+    def payment_min_max(self, chain):
+        if self.is_crypto:
+            chain_info = self.get_chain(chain)
+            return chain_info['min_payment'], chain_info['max_payment']
+        else:
+            return self.min_amount, self.max_amount
+
+    def withdraw_min_max(self, chain):
+        if self.is_crypto:
+            chain_info = self.get_chain(chain)
+            return chain_info['min_withdraw'], chain_info['max_withdraw']
+        else:
+            return self.min_amount, self.max_amount
+
+    def validate_withdraw_amount(self, amount, chain) -> bool:
+        min_amount, max_amount = self.withdraw_min_max(chain)
+        return min_amount <= amount <= max_amount
 
     def validate_exchange(self, other):
         return self.exchange_from.filter(id=other.id).exists()
@@ -172,7 +218,7 @@ class AbstractCurrency(models.Model):
                 return True
         return False
 
-    def get_chain(self, chain: str):
+    def get_chain(self, chain: str) -> Optional[dict]:
         for c in self.chains:
             if c['id'] == chain:
                 return c
@@ -225,6 +271,18 @@ class Currency(AbstractCurrency):
     def get_chain_commission(self):
         return float(self.get_chain(self.chain)['withdraw_commission'])
 
+    def validate_payment_amount(self, amount, *_, **__) -> bool:
+        return super().validate_payment_amount(amount, self.chain)
+
+    def validate_withdraw_amount(self, amount, *_, **__) -> bool:
+        return super().validate_withdraw_amount(amount, self.chain)
+
+    def payment_min_max(self, *_):
+        return super().payment_min_max(self.chain)
+
+    def withdraw_min_max(self, *_):
+        return super().withdraw_min_max(self.chain)
+
     def __str__(self):
         return f"Кошелек {self.name} - {self.address}"
 
@@ -257,101 +315,6 @@ class Currency(AbstractCurrency):
 
     def __ne__(self, other):
         return not self.__eq__(other)
-
-
-class BybitAccount(models.Model):
-    is_active = models.BooleanField(default=True)
-    user_id = models.IntegerField(unique=True)  # Айди пользователя
-    # nick_name = models.CharField(default='')  # Ник пользователя
-    cookies = models.JSONField(default=list)  # Куки пользователя
-    cookies_updated = models.DateTimeField(default=datetime.datetime.now)  # Время установки кук
-    cookies_valid = models.BooleanField(default=True)  # Не возникало ошибок с куками
-    ga_secret = models.CharField(max_length=30, default='GHO5UKQ3IDTCRIXY')  # Секрет гугл 2фа
-
-    imap_username = models.CharField(default=None, max_length=50, blank=True, null=True)  # Почта привязанная к аккаунту
-    imap_server = models.CharField(default=None, max_length=50, blank=True, null=True)  # Сервер почты
-    imap_password = models.CharField(default=None, max_length=30, blank=True, null=True)  # Пароль от почты
-
-    proxy_settings = models.JSONField(default=dict, blank=True, null=True)  # Настройки прокси, привязанные к аккаунту
-
-    api_key = models.CharField(max_length=50, blank=True, null=True)
-    api_secret = models.CharField(max_length=50, blank=True, null=True)
-
-    is_active_commentary = models.CharField(max_length=200, default='')
-
-    active_order = models.OneToOneField('OrderBuyToken', on_delete=models.SET_NULL, null=True, blank=True)
-
-    # Можно просто флаг
-
-    def risk_get_ga_code(self):
-        return get_ga_token(self.ga_secret)
-
-    @staticmethod
-    def risk_get_email_code(address, amount):
-        email = RiskEmail.objects.filter(address=address, amount=amount, used=False).order_by('-dt').first()
-        email_rounded = RiskEmail.objects.filter(address=address, amount=round(amount, 4), used=False).order_by(
-            '-dt').first()
-        if not email:
-            email = email_rounded
-
-        if email:
-            email.used = True
-            email.save()
-            return email.code
-        else:
-            return None
-
-    def __str__(self):
-        return str(self.user_id)
-
-    def get_api(self):
-        return BybitAPI(api_key=self.api_key, api_secret=self.api_secret, proxy=self.proxy_settings)
-
-    @classmethod
-    def assign_order(cls, order_id):  # FIXME сделать свой with
-        with transaction.atomic():
-            query = BybitAccount.objects.filter(active_order__isnull=True)
-            count = query.count()
-            if count == 0:
-                return None
-
-            random_index = random.randint(0, count - 1)
-            account = query.all()[random_index:random_index + 1].select_for_update().first()
-
-            if account:
-                account.active_order = OrderBuyToken.objects.get(id=order_id)
-                account.save(update_fields=['active_order'])
-                return account
-
-    @classmethod
-    def release_order(cls, account_id):
-        with transaction.atomic():  # ***
-            account = BybitAccount.objects.select_related().select_for_update().get(id=account_id)
-            if account.active_order is not None:
-                if account.active_order.state in [OrderBuyToken.STATE_TRADED, OrderBuyToken.STATE_WITHDRAWING,
-                                                  OrderBuyToken.STATE_TRADING,
-                                                  OrderBuyToken.STATE_WAITING_VERIFICATION,
-                                                  OrderBuyToken.STATE_WITHDRAWN]:
-                    account.active_order = None
-                    account.save(update_fields=['active_order'])
-
-    @classmethod
-    def get_random_account(cls):
-        return random.choice(BybitAccount.objects.filter(is_active=True).all())
-
-    def set_banned(self):
-        self.is_active = False
-        self.is_active_commentary = 'Banned for frod at ' + datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
-        self.save()
-
-    def set_cookie_die(self):
-        self.is_active = False
-        self.is_active_commentary = 'Cookie die at' + datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
-        self.save()
-
-    def set_proxy_dead(self):
-        self.is_active_commentary = 'ProxyDead at ' + datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
-        self.save()
 
 
 class P2PItem(models.Model):
@@ -412,6 +375,164 @@ class P2PItem(models.Model):
         item.side = P2PItem.SIDE_SELL if int(data['side']) == 1 else P2PItem.SIDE_BUY
         item.restrictions = data.get('tradingPreferenceSet', None)
         return item
+
+
+class AccountInsufficientItems(models.Model):
+    account = models.ForeignKey('BybitAccount', on_delete=models.CASCADE)
+    item = models.ForeignKey(P2PItem, on_delete=models.CASCADE)
+
+    expire_dt = models.DateTimeField(default=expire_day_default)
+
+    # class Meta:
+    #     unique_together = ('account', 'item')
+
+
+class BybitAccount(models.Model):
+    is_active = models.BooleanField(default=True)
+    user_id = models.IntegerField(unique=True)  # Айди пользователя
+    # nick_name = models.CharField(default='')  # Ник пользователя
+    cookies = models.JSONField(default=list)  # Куки пользователя
+    cookies_updated = models.DateTimeField(default=datetime.datetime.now)  # Время установки кук
+    cookies_valid = models.BooleanField(default=True)  # Не возникало ошибок с куками
+    ga_secret = models.CharField(max_length=30, default='GHO5UKQ3IDTCRIXY')  # Секрет гугл 2фа
+
+    imap_username = models.CharField(default=None, max_length=50, blank=True, null=True)  # Почта привязанная к аккаунту
+    imap_server = models.CharField(default=None, max_length=50, blank=True, null=True)  # Сервер почты
+    imap_password = models.CharField(default=None, max_length=30, blank=True, null=True)  # Пароль от почты
+
+    PROXY_TYPE_NONE = None
+    PROXY_TYPE_SOCKS4 = 'socks4'
+    PROXY_TYPE_SOCKS5 = 'socks5'
+    PROXY_TYPE_HTTP = 'http'
+
+    PROXY_TYPES = (
+        (PROXY_TYPE_NONE, 'без прокси'),
+        (PROXY_TYPE_SOCKS4, 'socks4'),
+        (PROXY_TYPE_SOCKS5, 'socks5'),
+        (PROXY_TYPE_HTTP, 'http'),
+    )
+
+    # proxy_settings = models.JSONField(default=dict, blank=True, null=True)  # Настройки прокси, привязанные к аккаунту
+    proxy_host = models.CharField(max_length=50, default=None, blank=True, null=True)
+    proxy_port = models.CharField(max_length=50, default=None, blank=True, null=True)
+    proxy_type = models.CharField(max_length=50, default=PROXY_TYPE_NONE, choices=PROXY_TYPES, blank=True, null=True)
+
+    proxy_username = models.CharField(max_length=50, default=None, blank=True, null=True)
+    proxy_password = models.CharField(max_length=50, default=None, blank=True, null=True)
+
+    api_key = models.CharField(max_length=50, blank=True, null=True)
+    api_secret = models.CharField(max_length=50, blank=True, null=True)
+
+    is_active_commentary = models.CharField(max_length=200, default='')
+
+    active_order = models.OneToOneField('OrderBuyToken', on_delete=models.SET_NULL, null=True, blank=True)
+
+    insufficient = models.ManyToManyField(P2PItem, default=None, null=True, blank=True, through=AccountInsufficientItems, related_name='accounts')
+
+    @property
+    def use_proxy(self) -> bool:
+        return self.proxy_type != self.PROXY_TYPE_NONE
+
+    @property
+    def proxy_auth(self) -> Optional[tuple]:
+        if not self.use_proxy:
+            return None
+        return self.proxy_username, self.proxy_password
+
+    @property
+    def proxy_settings(self) -> Optional[dict]:
+        if not self.use_proxy:
+            return None
+
+        if self.proxy_username and self.proxy_password:
+            auth = f'{self.proxy_username}:{self.proxy_password}@'
+        else:
+            auth = ''
+
+        return {
+            'http': f'{self.proxy_type}://{auth}{self.proxy_host}:{self.proxy_port}',
+            'https': f'{"https" if self.proxy_type == self.PROXY_TYPE_HTTP else self.proxy_type}://{auth}{self.proxy_host}:{self.proxy_port}'
+        }
+
+    def add_insufficient(self, item: P2PItem):
+        insufficient_item = AccountInsufficientItems(account=self, item=item)
+        insufficient_item.save()
+
+    def risk_get_ga_code(self):
+        return get_ga_token(self.ga_secret)
+
+    @staticmethod
+    def risk_get_email_code(address, amount):
+        email = RiskEmail.objects.filter(address=address, amount=amount, used=False).order_by('-dt').first()
+        email_rounded = RiskEmail.objects.filter(address=address, amount=round(amount, 4), used=False).order_by('-dt').first()
+        if not email:
+            email = email_rounded
+
+        if email:
+            email.used = True
+            email.save()
+            return email.code
+        else:
+            return None
+
+    def __str__(self):
+        return str(self.user_id)
+
+    def get_api(self):
+        return BybitAPI(api_key=self.api_key, api_secret=self.api_secret, proxy_settings=self.proxy_settings)
+
+    @classmethod
+    def assign_order(cls, order_id):  # FIXME сделать свой with
+        with transaction.atomic():
+            query = BybitAccount.objects.filter(active_order__isnull=True)
+            count = query.count()
+            if count == 0:
+                return None
+
+            random_index = random.randint(0, count - 1)
+            account = query.all()[random_index:random_index + 1].select_for_update().first()
+
+            if account:
+                account.active_order = OrderBuyToken.objects.get(id=order_id)
+                account.save(update_fields=['active_order'])
+                return account
+
+    @classmethod
+    def order_release_states(cls) -> tuple:
+        return (OrderBuyToken.STATE_TIMEOUT, OrderBuyToken.STATE_ERROR, OrderBuyToken.STATE_CANCELLED,
+                OrderBuyToken.STATE_WAITING_VERIFICATION, OrderBuyToken.STATE_WITHDRAWN, OrderBuyToken.STATE_WITHDRAWING)
+
+    @classmethod
+    def order_end_states(cls) -> tuple:
+        return (OrderBuyToken.STATE_TIMEOUT, OrderBuyToken.STATE_ERROR, OrderBuyToken.STATE_CANCELLED,
+                OrderBuyToken.STATE_WITHDRAWN, OrderBuyToken.STATE_ERROR_TRADE_VOLATILE)
+
+    @classmethod
+    def release_order(cls, account_id):
+        with transaction.atomic():  # ***
+            account = BybitAccount.objects.select_related().select_for_update().get(id=account_id)
+            if account.active_order is not None:
+                if account.active_order.state in cls.order_release_states():
+                    account.active_order = None
+                    account.save(update_fields=['active_order'])
+
+    @classmethod
+    def get_random_account(cls):
+        return random.choice(BybitAccount.objects.filter(is_active=True).all())
+
+    def set_banned(self):
+        self.is_active = False
+        self.is_active_commentary = 'Banned for frod at ' + datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
+        self.save()
+
+    def set_cookie_die(self):
+        self.is_active = False
+        self.is_active_commentary = 'Cookie die at' + datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
+        self.save()
+
+    def set_proxy_dead(self):
+        self.is_active_commentary = 'ProxyDead at ' + datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
+        self.save()
 
 
 def default_session_token():
@@ -496,7 +617,7 @@ class OrderBuyToken(models.Model):
     STATE_RECEIVING_CRYPTO = 'RECEIVING_CRYPTO'  # Ожидаем поступления крипты
     STATE_TRADING_CRYPTO = 'STATE_TRADING_CRYPTO'  # Покупка USDT на бирже за крипту
     STATE_TRADED_CRYPTO = 'STATE_TRADED_CRYPTO'  # Подтверждение обмена / Вывод на Funding
-    CHECK_BALANCE = 'CHECK_BALANCE'  # Проверка поступления денег на Funding  *
+    STATE_CHECK_BALANCE = 'CHECK_BALANCE'  # Проверка поступления денег на Funding  *
 
     STATE_WAITING_TRANSACTION_PROCESSED = "WAIT_TRANSACTION"  # Ждем пока bybit проверит транзакцию с киптой
 
@@ -555,7 +676,7 @@ class OrderBuyToken(models.Model):
         (STATE_RECEIVING_CRYPTO, 'Ожидаем поступления криптовалюты'),
         (STATE_TRADING_CRYPTO, 'Покупка на бирже USDT'),
         (STATE_TRADED_CRYPTO, 'Подтверждение покупки на бирже USDT'),
-        (CHECK_BALANCE, 'Проверка баланса'),
+        (STATE_CHECK_BALANCE, 'Проверка баланса'),
 
         (STATE_ERROR_TRADE_VOLATILE, 'Цена на бирже выросла'),
 
@@ -727,6 +848,7 @@ class OrderBuyToken(models.Model):
         bybit_session = BybitSession(self.account)
 
         if not find_new_items:
+            print('BEFORE')
             self.update_items_price(bybit_session)
 
         start_time = time.time()
@@ -737,9 +859,12 @@ class OrderBuyToken(models.Model):
                       p2p_item_sell=None if find_new_items else self.p2p_item_sell,
                       p2p_item_buy=None if find_new_items else self.p2p_item_buy,
                       stage=self.stage,
-                      usdt_amount=self.usdt_amount if self.stage == self.STAGE_PROCESS_WITHDRAW else None)
+                      usdt_amount=self.usdt_amount if self.stage == self.STAGE_PROCESS_WITHDRAW else None,
+                      account_id=self.account_id if self.account else None)
+
         amount = trade.get_amount()
-        print("time duration:", time.time() - start_time)
+        print('\n')
+        print("get_items_price time duration:", time.time() - start_time)
 
         return amount
 
@@ -761,21 +886,31 @@ class OrderBuyToken(models.Model):
 
         return False
 
-    def find_new_items(self):
-        print('find_new_items')
-        (self.payment_amount, self.withdraw_amount, self.usdt_amount, self.p2p_item_sell, self.p2p_item_buy,
-         self.price_sell, self.price_buy, better_amount) = self.get_items_price(find_new_items=True)
-        self.state = OrderBuyToken.STATE_WRONG_PRICE
-        self.save()
+    # def find_new_items(self):
+    #     print('find_new_items')
+    #     (self.payment_amount, self.withdraw_amount, self.usdt_amount, self.p2p_item_sell, self.p2p_item_buy,
+    #      self.price_sell, self.price_buy, better_amount) = self.get_items_price(find_new_items=True)
+    #     self.state = OrderBuyToken.STATE_WRONG_PRICE
+    #     self.save()
 
-    def verify_order(self, bybit_session: Optional[BybitSession] = None) -> bool:
-        print('verify_order')
+    def verify_order(self, bybit_session: Optional[BybitSession] = None, find_new_items: bool = False, max_counts: int = 8) -> bool:
+        print('verify_order max_counts', find_new_items, max_counts)
+
         if not bybit_session:
             bybit_session = BybitSession(self.account)
 
         try:
             (payment_amount, withdraw_amount, usdt_amount, p2p_item_sell, p2p_item_buy,
-             price_sell, price_buy, better_amount) = self.get_items_price(find_new_items=False)
+             price_sell, price_buy, better_amount) = self.get_items_price(find_new_items=find_new_items)
+            print('new', p2p_item_sell, p2p_item_buy)
+            print('old', self.p2p_item_sell, self.p2p_item_buy)
+
+            self.p2p_item_sell = p2p_item_sell  # хэши обновляем
+            self.p2p_item_buy = p2p_item_buy
+
+            if find_new_items:
+                print('AFTER')
+                self.update_items_price(bybit_session)
 
         # TODO banned
         except AuthenticationError:
@@ -790,13 +925,23 @@ class OrderBuyToken(models.Model):
                 print(InsufficientErrorSell)
                 if self.stage == self.STAGE_PROCESS_PAYMENT and self.p2p_item_sell:
                     if self.p2p_item_sell:
-                        self.p2p_item_sell.is_active = False
-                        self.p2p_item_sell.save()
+                        # self.p2p_item_sell.is_active = False
+                        # self.p2p_item_sell.save()
+                        self.account.add_insufficient(self.p2p_item_sell)
             elif self.p2p_item_buy:
-                self.p2p_item_buy.is_active = False
-                self.p2p_item_buy.save()
+                # self.p2p_item_buy.is_active = False
+                # self.p2p_item_buy.save()
+                self.account.add_insufficient(self.p2p_item_buy)
 
-            self.find_new_items()
+            # self.find_new_items()
+            # return False
+            # (payment_amount, withdraw_amount, usdt_amount, p2p_item_sell, p2p_item_buy,
+            #  price_sell, price_buy, better_amount) = self.get_items_price(find_new_items=True)
+            print('FINE NEW P2P ORDER')
+
+            if max_counts > 0:  # FIXME Переделать ВСЕ
+                time.sleep(3)  # FIXME Переделать
+                return self.verify_order(bybit_session=bybit_session, find_new_items=True, max_counts=max_counts - 1)  # FIXME max count + delay
             return False
 
         except ValueError as e:
@@ -823,11 +968,10 @@ class OrderBuyToken(models.Model):
         if ((self.stage == self.STAGE_PROCESS_PAYMENT and (self.payment_amount * 1.001 < payment_amount or self.withdraw_amount > withdraw_amount * 1.001) or
              ((self.payment_amount != payment_amount and (self.payment_currency.is_fiat and self.price_sell < price_sell or
                                                           self.payment_currency.is_crypto and self.price_sell > price_sell))) or
-                # STAGE 2
-                (self.stage == self.STAGE_PROCESS_WITHDRAW and self.withdraw_amount > withdraw_amount * 1.02) or
-                (self.withdraw_amount != withdraw_amount and (self.withdraw_currency.is_fiat and self.price_buy > price_buy or
-                                                              self.withdraw_currency.is_crypto and self.price_buy < price_buy)))):
-
+             # STAGE 2
+             (self.stage == self.STAGE_PROCESS_WITHDRAW and self.withdraw_amount > withdraw_amount * 1.02) or
+             (self.withdraw_amount != withdraw_amount and (self.withdraw_currency.is_fiat and self.price_buy > price_buy or
+                                                           self.withdraw_currency.is_crypto and self.price_buy < price_buy)))):
             print('WRONG PRICE withdraw', self.withdraw_amount, 'new', withdraw_amount, 'payment', self.payment_amount, 'new', payment_amount)
 
             # Сохраняется для передачи нового количества. Пользователь может согласиться или нет
@@ -842,8 +986,6 @@ class OrderBuyToken(models.Model):
             self.save()
             return False
 
-        self.p2p_item_sell = p2p_item_sell  # хэши обновляем
-        self.p2p_item_buy = p2p_item_buy
 
         # Мы заработали больше от изменения курса
         if self.stage == self.STAGE_PROCESS_PAYMENT and (self.payment_currency.is_fiat and self.price_sell > price_sell or
@@ -878,8 +1020,10 @@ class OrderBuyToken(models.Model):
         print('saved')
         return True
 
-    def create_p2p_order(self, side=P2PItem.SIDE_SELL) -> bool:
+    def create_p2p_order(self, side=P2PItem.SIDE_SELL, find_new_items=False, max_counts: int = 5) -> bool:
         from CORE.service.tools.tools import Trade  # FIXME
+
+        print('create_p2p_order max_counts', max_counts)
 
         if self.account is None:
             if not self.add_account():
@@ -887,11 +1031,8 @@ class OrderBuyToken(models.Model):
 
         bybit_session = BybitSession(self.account)
 
-        if not self.verify_order():  # FIXME !!! Для вывода фиата разница > 3%
+        if not self.verify_order(bybit_session, find_new_items=find_new_items):  # FIXME !!! Для вывода фиата разница > 3%
             return False
-
-        # todo {'ret_code': 912100027, 'ret_msg': 'The ad status of your P2P order has been changed. Please try another ad.', 'result': None, 'ext_code': '',
-        #  'ext_info': {}, 'time_now': '1713650504.469008'}
 
         try:
             if side == P2PItem.SIDE_SELL:  # Только Ввод
@@ -928,7 +1069,7 @@ class OrderBuyToken(models.Model):
                 print('SIDE_BUY withdraw_amount', withdraw_amount)  # FIXME Удалить ***
                 print('self.withdraw_amount', self.withdraw_amount)
                 print('self.price_buy', self.price_buy)
-                print('self.p2p_item_buy',  self.p2p_item_buy)
+                print('self.p2p_item_buy', self.p2p_item_buy)
 
                 if self.p2p_item_buy is None or self.p2p_item_buy.cur_price_hash is None or self.price_buy != self.p2p_item_buy.price:
                     # FIXME state ==
@@ -951,7 +1092,6 @@ class OrderBuyToken(models.Model):
                     amount=self.withdraw_amount,  # Количество фиата # FIXME ***
                     token_id='USDT',
                     currency_id=self.withdraw_currency.token,  # 'RUB'
-                    # cur_price=p2p_item['curPrice'],
                     cur_price=self.p2p_item_buy.cur_price_hash,
                     payment_type=self.payment_term.paymentType,
                     payment_id=self.payment_term.payment_id,
@@ -971,7 +1111,11 @@ class OrderBuyToken(models.Model):
 
         except AdStatusChanged:
             print('AdStatusChanged')
-            self.find_new_items()
+            # self.find_new_items()
+            print('FIND NEW ITEMS')
+            if max_counts > 0:
+                time.sleep(3)  # FIXME Переделать
+                return self.create_p2p_order(side=side, find_new_items=True, max_counts=max_counts - 1)  # FIXME max count + delay
             return False
         return True
 
@@ -1074,19 +1218,23 @@ class P2POrderMessage(models.Model):
 
     @classmethod
     def from_json(cls, order_index, data):
-
+        print('receive msg', data)
         if P2POrderMessage.objects.filter(message_id=data['id']).exists():
             return
 
         if data['msgUuid']:  # data['userId'] == order.account.user_id  Отправили мы, проверка на дубли
-            if data['contentType'] == cls.CONTENT_TYPE_STR:
-                if P2POrderMessage.objects.filter(uuid=data['msgUuid']).exists():
-                    return
-            elif data['contentType'] in [cls.CONTENT_TYPE_PIC, cls.CONTENT_TYPE_PDF, cls.CONTENT_TYPE_VIDEO]:
-                file_name = f"sent/{data['message'].rsplit('/', 1)[-1]}"
-                if P2POrderMessage.objects.filter(file=file_name).exists():
-                    return
-
+            # if data['contentType'] == cls.CONTENT_TYPE_STR:
+            if P2POrderMessage.objects.filter(uuid=data['msgUuid']).exists():
+                print('SKIP!')
+                print('UUID EXIST')
+                return
+            # elif data['contentType'] in [cls.CONTENT_TYPE_PIC, cls.CONTENT_TYPE_PDF, cls.CONTENT_TYPE_VIDEO]:
+            #     file_name = f"sent/{data['message'].rsplit('/', 1)[-1]}"
+            #     print('from serv file_name', file_name)
+            #     if P2POrderMessage.objects.filter(file=file_name).exists():
+            #         return
+            # else:
+            #     print('Not handle file type', data['contentType'])
         message = P2POrderMessage(order_id=order_index)
         message.message_id = data['id']
         message.account_id = data['accountId']

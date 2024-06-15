@@ -16,13 +16,15 @@ class BybitAPI:
     SIDE_BUY_CRYPTO = 'Buy'
     SIDE_BUY_FIAT = 'Sell'
 
-    def __init__(self, api_key, api_secret, proxy: dict = None):
-        self.proxy: dict = proxy
+    def __init__(self, api_key, api_secret, proxy_settings: dict = None):
+        self.proxy_settings: dict = proxy_settings
+        print('BybitAPI use proxy', proxy_settings)
+
         self.session = ProxyHTTP(
             testnet=False,
             api_key=api_key,
             api_secret=api_secret,
-            proxy=proxy
+            proxy=proxy_settings
         )
 
     def get_trading_rate(self, crypto, fiat):
