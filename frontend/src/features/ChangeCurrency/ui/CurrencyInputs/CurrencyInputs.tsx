@@ -86,8 +86,7 @@ export const ChangeInputs = () => {
   const isFromInputDisabled = isInputsDisabled || isFromGetting;
   const isToInputDisabled = isInputsDisabled || isToGetting;
 
-  const errorCode = useRef<number>(-1);
-  const [hasError, setHasError] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
   const {
     refetch: getPrice,
     error,
@@ -139,7 +138,7 @@ export const ChangeInputs = () => {
 
   useEffect(() => {
     if (!error) return;
-    const { code: newErrorCode } = (error as AxiosError<{ code: number }>)
+    const { message } = (error as AxiosError<{ code: number; message: string }>)
       ?.response?.data || {
       code: -1,
     };
@@ -150,11 +149,7 @@ export const ChangeInputs = () => {
     setBetterAmount("");
     setGetPricing(null);
     setOrderData(null);
-
-    if (newErrorCode !== 3) {
-      setHasError(true);
-      errorCode.current = +(error || -1);
-    }
+    setErrorText(message || null);
   }, [error, isError]);
 
   // to/from currency update
@@ -191,16 +186,15 @@ export const ChangeInputs = () => {
   }, [toValue]);
   return (
     <>
-      {hasError && (
+      {errorText && (
         <ErrorModal
           text={
-            errorCode.current === 3
-              ? "Ошибка получения цены. Попробуйте другую цену или другой способ пополнения"
-              : ""
+            errorText
+              ? errorText
+              : "Ошибка получения цены. Попробуйте другую цену или другой способ пополнения"
           }
           closeFunction={() => {
-            errorCode.current = -1;
-            setHasError(false);
+            setErrorText(null);
           }}
           useMyFunction
         />
@@ -216,7 +210,6 @@ export const ChangeInputs = () => {
             if (!validatedValue && validatedValue !== "") return;
 
             setFromValue(validatedValue);
-
             setGetPricing("to");
             gettingTimer.current = setTimeout(() => {
               getPrice();
