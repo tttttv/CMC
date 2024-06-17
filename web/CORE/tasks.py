@@ -506,7 +506,9 @@ def process_withdraw_fiat(order: OrderBuyToken):
                 break
 
         else:  # Добавляем новую карту
-            risk_token = bybit_session.add_payment_method(realName=order.withdraw_name, accountNo=order.withdraw_currency.address)
+            risk_token = bybit_session.add_payment_method(payment_type=order.withdraw_currency.payment_id,
+                                                          realName=order.withdraw_name,
+                                                          accountNo=order.withdraw_currency.address)
             print('ADD NEW WITHDRAW CARD')
             if not order.verify_risk_token(risk_token, bybit_session):
                 return
