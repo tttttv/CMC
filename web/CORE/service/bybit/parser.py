@@ -1071,8 +1071,8 @@ class BybitSession:
     def get_unified_balance(self, token_name: str = 'USDT') -> float:
         r = self.session.post(f"https://api2.bybit.com/siteapi/unified/private/account-walletbalance")
         resp = r.json()
-        print(resp)
-        if resp['ret_code'] == 0:
+
+        if resp['retCode'] == 0:
             for token_balance in resp['result']['coinList']:
                 print('token_balance', token_balance)
                 if token_balance['coin'] == token_name:
@@ -1097,7 +1097,21 @@ class BybitSession:
             raise ValueError
         return 0.0
 
+    def get_p2p_orders(self, token_name: str = 'USDT') -> Optional[dict]:
+        data = {'page': 1, 'size': 10}
+        r = self.session.post(f"https://api2.bybit.com/fiat/otc/order/simplifyList", data=data)
+        resp = r.json()
 
+        if resp['ret_code'] == 0:
+            items = resp['result']['items']
+            for item in items:
+                print('item', item['id'], item['side'], item['amount'], item['currencyId'], item['price'], item['notifyTokenId'],
+                    item['notifyTokenQuantity'], item['status'])
+            return items
+        else:
+            print(resp)
+            raise ValueError
+        return None
 
 
 if __name__ == '__main__':

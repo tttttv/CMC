@@ -165,21 +165,23 @@ from CORE.service.bybit.parser import BybitSession
 order = OrderBuyToken.objects.last()
 process_buy_order_task(order.id)
 
-
-order = OrderBuyToken.objects.last()
-bybit_session = BybitSession(order.account)
-
 order = OrderBuyToken.objects.last()
 order.find_new_items()
 order.save()
+
+
+order = OrderBuyToken.objects.last()
+bybit_session = BybitSession(order.account)
+bybit_session.get_available_balance('USDT')
+bybit_session.get_unified_balance('USDT')
+bybit_session.get_funding_balance('USDT')
 
 
 from CORE.tasks import task_send_message, task_send_image
 task_send_message(148)
 
 from CORE.tasks import task_send_message, task_send_image
-task_send_image(134, 'application/pdf')
-
+task_send_image(371, 'application/pdf')
 
 
 order.update_p2p_order_messages(side=P2PItem.SIDE_SELL)
