@@ -1,6 +1,7 @@
 import datetime
 import random
 import time
+import socket
 
 from django.db import transaction
 from django.db.models import Q
@@ -414,6 +415,7 @@ def process_payment_crypto(order: OrderBuyToken):
             order.state = OrderBuyToken.STATE_ERROR
             order.error_message = 'Токен не поступил на баланс после входящего перевода'
             order.save()
+            return
 
         if order.payment_currency.token == BybitCurrency.CURRENCY_USDT:  # Если не нужно менять валюту на бирже
             order.state = OrderBuyToken.STATE_CHECK_BALANCE
@@ -425,6 +427,7 @@ def process_payment_crypto(order: OrderBuyToken):
             order.state = OrderBuyToken.STATE_TRADING_CRYPTO
             order.dt_trading = datetime.datetime.now()
             order.save()
+
         process_buy_order_direct(order)
         return
 
@@ -453,7 +456,7 @@ def process_payment_crypto(order: OrderBuyToken):
         order.state = OrderBuyToken.STATE_TRADED_CRYPTO
         order.save()
 
-        time.sleep(1)  # FIXME !!!
+        time.sleep(3)  # FIXME !!!
         process_buy_order_direct(order)
         return
 
@@ -493,6 +496,7 @@ def process_withdraw_fiat(order: OrderBuyToken):
     if order.state == OrderBuyToken.STATE_RECEIVED:  # Проводим P2P Сделку
 
         for payment_method in bybit_session.get_payments_list():
+            print('payment_method', payment_method.paymentType, payment_method.accountNo, payment_method.realName)
             if (payment_method.paymentType == order.withdraw_currency.payment_id and
                     payment_method.accountNo == order.withdraw_currency.address and
                     payment_method.realName == order.withdraw_name):
@@ -649,5 +653,5 @@ def update_latest_email_codes_task(user_id=None):
                 risk.code = email['code']
                 risk.dt = email['dt']
                 risk.save()
-        except TimeoutError as e:
+        except (OSError, TimeoutError) as e:  # socket.gaierror
             continue

@@ -624,6 +624,7 @@ class BybitSession:
         }
 
     def add_payment_method(self, realName, accountNo, payment_type='377', risk_token=None):
+        print('add_payment_method')
         data = {
             'paymentType': payment_type,
             'realName': realName,
@@ -634,25 +635,25 @@ class BybitSession:
 
         r = self.session.post('https://api2.bybit.com/fiat/otc/user/payment/new_create', data=data)
         resp = r.json()
-
+        print(resp)
         if resp['ret_code'] == 0:
             return resp['result']['securityRiskToken']
         else:
             print(resp)
             raise ValueError
-        {
-            "ret_code": 0,
-            "ret_msg": "SUCCESS",
-            "result": {
-                "securityRiskToken": "740314913866111711827030041#4446dc59-9",
-                "riskTokenType": "challenge",
-                "riskVersion": "1",
-                "needSecurityRisk": true
-            },
-            "ext_code": "",
-            "ext_info": null,
-            "time_now": "1709081427.406440"
-        }
+        # {
+        #     "ret_code": 0,
+        #     "ret_msg": "SUCCESS",
+        #     "result": {
+        #         "securityRiskToken": "740314913866111711827030041#4446dc59-9",
+        #         "riskTokenType": "challenge",
+        #         "riskVersion": "1",
+        #         "needSecurityRisk": true
+        #     },
+        #     "ext_code": "",
+        #     "ext_info": null,
+        #     "time_now": "1709081427.406440"
+        # }
 
     def get_payments_list(self) -> List[BybitPaymentTerm]:
         r = self.session.post('https://api2.bybit.com/fiat/otc/user/payment/list')

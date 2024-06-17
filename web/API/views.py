@@ -272,8 +272,6 @@ class ExchangeVIewSet(GenericViewSet):
         except AmountException as ex:
             return JsonResponse({'message': str(ex), 'code': 3}, status=403)
 
-        print('РАСЧИТАЛ')
-
         if anchor == OrderBuyToken.ANCHOR_SELL:
             min_amount, max_amount = withdraw_method.withdraw_min_max(withdraw_chain)
             if withdraw_amount < min_amount:
