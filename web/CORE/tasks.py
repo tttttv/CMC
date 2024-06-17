@@ -347,7 +347,6 @@ def process_payment_crypto(order: OrderBuyToken):
 
         order.state = OrderBuyToken.STATE_CREATED
         order.dt_created_sell = datetime.datetime.now()
-
         order.save()
 
     elif order.state == OrderBuyToken.STATE_CREATED:  # Ждем подтверждения
@@ -382,6 +381,8 @@ def process_payment_crypto(order: OrderBuyToken):
                         order.incoming_payment.save()
                         order.save()
 
+                        process_buy_order_direct(order)
+
     elif order.state == OrderBuyToken.STATE_WAITING_TRANSACTION_PROCESSED:  # Ждем подтверждения перевода от bybit
         if not order.incoming_payment:
             order.state = OrderBuyToken.STATE_ERROR
@@ -403,11 +404,13 @@ def process_payment_crypto(order: OrderBuyToken):
                 for field, value in updated_data.items():
                     setattr(order.incoming_payment, field, value)
                 order.incoming_payment.save()
+
                 if order.incoming_payment.confirmed:
                     order.state = OrderBuyToken.STATE_RECEIVING_CRYPTO
                     order.save()
                     process_buy_order_direct(order)
                 return
+        return
 
     elif order.state == OrderBuyToken.STATE_RECEIVING_CRYPTO:  # Переводим на биржу
         account_balance = bybit_session.get_available_balance(token_name=order.payment_currency.token)
@@ -517,7 +520,18 @@ def process_withdraw_fiat(order: OrderBuyToken):
                                              realName=order.withdraw_name,
                                              accountNo=order.withdraw_currency.address,
                                              risk_token=risk_token)
-            return
+
+            time.sleep(3)
+
+            for payment_method in bybit_session.get_payments_list():
+                if (payment_method.paymentType == order.withdraw_currency.payment_id and
+                        payment_method.accountNo == order.withdraw_currency.address and
+                        payment_method.realName == order.withdraw_name):
+                    order.payment_term = PaymentTerm.from_bybit_term(payment_method)
+                    order.payment_term.save()
+                    break
+            else:
+                return
 
         if not order.order_buy_id:  # Запрос к bybit еще не делали
             try:

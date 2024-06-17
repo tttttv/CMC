@@ -29,12 +29,12 @@ class TimeoutRequestsSession(requests.Session):
 
 
 class AuthenticationError(Exception):
-    def __init__(self,  message="Authentication failed"):
+    def __init__(self, message="Authentication failed"):
         self.message = message
 
 
 class InsufficientError(Exception):
-    def __init__(self,  message="Insufficient ad inventory"):
+    def __init__(self, message="Insufficient ad inventory"):
         self.message = message
 
 
@@ -43,7 +43,7 @@ class InsufficientErrorSell(InsufficientError):
 
 
 class AdStatusChanged(Exception):
-    def __init__(self,  message="The ad status of your P2P order has been changed"):
+    def __init__(self, message="The ad status of your P2P order has been changed"):
         self.message = message
 
 
@@ -73,11 +73,11 @@ class BybitSession:
         self.session.headers.update(self.headers)
         print('COOKIES SUCCESSFULLY SET')
 
-    def get_prices_list(self, token_id='USDT', currency_id='RUB', payment_methods=("379", ),
+    def get_prices_list(self, token_id='USDT', currency_id='RUB', payment_methods=("379",),
                         items: Optional[list] = None, amount="", side="1", filter_online: bool = True,
                         filter_ineligible: bool = True):
 
-        from CORE.models import P2PItem # FIXME ** Разбить на файлы модель
+        from CORE.models import P2PItem  # FIXME ** Разбить на файлы модель
         """Выгружает список цен на п2п"""
         data = {
             "userId": self.user_id,
@@ -623,6 +623,17 @@ class BybitSession:
             "time_now": "1709080989.726645"
         }
 
+    def check_payment_method(self, paymentID):
+        print('delete_payment_method')
+        data = {'id': paymentID}
+        r = self.session.post('https://api2.bybit.com/fiat/otc/item/payment', data=data)
+
+        resp = r.json()
+        print(resp)
+        if resp['ret_code'] == 0:
+            return True
+        return False
+
     def add_payment_method(self, realName, accountNo, payment_type='377', risk_token=None):
         print('add_payment_method')
         data = {
@@ -641,25 +652,11 @@ class BybitSession:
         else:
             print(resp)
             raise ValueError
-        # {
-        #     "ret_code": 0,
-        #     "ret_msg": "SUCCESS",
-        #     "result": {
-        #         "securityRiskToken": "740314913866111711827030041#4446dc59-9",
-        #         "riskTokenType": "challenge",
-        #         "riskVersion": "1",
-        #         "needSecurityRisk": true
-        #     },
-        #     "ext_code": "",
-        #     "ext_info": null,
-        #     "time_now": "1709081427.406440"
-        # }
 
     def delete_payment_method(self, paymentId, risk_token=None):
         print('delete_payment_method')
-        data = {
-            'id': paymentId,
-        }
+        data = {'id': paymentId}
+
         if risk_token:
             data['securityRiskToken'] = risk_token
 
@@ -1074,6 +1071,7 @@ class BybitSession:
 
 if __name__ == '__main__':
     from CORE.models import BybitAccount
+
     account = BybitAccount.objects.get(id=2)
     bybit_session = BybitSession(account)
     # result = bybit_session.get_deposit_address('USDT', 'MANTLE')
@@ -1084,6 +1082,7 @@ if __name__ == '__main__':
     # payments = bybit_session.get_payments_list()
     # print(payments)
     from CORE.service.tools.formats import format_float_up
+
     item_id = "1797264716497227776"
     data = bybit_session.get_item_price(item_id)
     amount = 520.45
@@ -1110,6 +1109,3 @@ if __name__ == '__main__':
     {'itemId': '1797243172272623616', 'tokenId': 'USDT', 'currencyId': 'RUB', 'side': '1', 'quantity': '5.5056', 'amount': '500.0',
      'curPrice': 'e59d5461de2e492abb4cb5c71b3b6076',
      'flag': 'amount', 'version': '1.0', 'securityRiskToken': '', 'paymentType': '377', 'paymentId': '6235204', 'online': '0'}
-
-
-
