@@ -181,11 +181,15 @@ bybit_session.get_unified_balance('NEAR')
 bybit_session.get_funding_balance('NEAR')
 
 from CORE.tasks import task_send_message, task_send_image
-task_send_message(148)
+task_send_message(387)
 
 from CORE.tasks import task_send_message, task_send_image
-task_send_image(371, 'application/pdf')
+task_send_image(384, 'application/pdf')
+task_send_image(384, 'image/jpeg')
 
 
 order.update_p2p_order_messages(side=P2PItem.SIDE_SELL)
 order.update_p2p_order_messages(side=P2PItem.SIDE_BUY)
+
+
+bybit_session.get_user_info()
