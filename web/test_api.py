@@ -153,6 +153,8 @@ from CORE.service.bybit.parser import BybitSession
 update_p2pitems_task()
 
 account = BybitAccount.objects.get(id=2)
+
+account = BybitAccount.objects.last()
 bybit_session = BybitSession(account)
 
 
@@ -163,6 +165,9 @@ from CORE.service.bybit.parser import BybitSession
 order = OrderBuyToken.objects.last()
 process_buy_order_task(order.id)
 
+
+order = OrderBuyToken.objects.last()
+bybit_session = BybitSession(order.account)
 
 order = OrderBuyToken.objects.last()
 order.find_new_items()

@@ -891,6 +891,7 @@ class OrderBuyToken(models.Model):
 
     def verify_order(self, bybit_session: Optional[BybitSession] = None, find_new_items: bool = False, max_counts: int = 8) -> bool:
         print('verify_order max_counts', find_new_items, max_counts)
+        print('STAGE', self.stage)
 
         if not bybit_session:
             bybit_session = BybitSession(self.account)
@@ -954,13 +955,13 @@ class OrderBuyToken(models.Model):
         print('verify order:', payment_amount, withdraw_amount, usdt_amount)
         print('order payment', self.payment_amount, self.withdraw_amount)
 
-        if self.stage == self.STAGE_PROCESS_PAYMENT:
-            self.usdt_amount = usdt_amount
-
         print('price_sell', self.price_sell, 'new', price_sell)
         print('price_buy', self.price_buy, 'new', price_buy)  # FIXME !!! нужно в модель сохранить исходную и новую
 
-        self.price_sell = price_sell
+        if self.stage == self.STAGE_PROCESS_PAYMENT:
+            self.usdt_amount = usdt_amount
+            self.price_sell = price_sell
+
         self.price_buy = price_buy
 
         if ((self.stage == self.STAGE_PROCESS_PAYMENT and (self.payment_amount * 1.0001 < payment_amount or self.withdraw_amount > withdraw_amount * 1.0001) or

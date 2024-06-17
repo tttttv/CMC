@@ -1068,6 +1068,37 @@ class BybitSession:
             raise ValueError
         return 0.0
 
+    def get_unified_balance(self, token_name: str = 'USDT') -> float:
+        r = self.session.post(f"https://api2.bybit.com/siteapi/unified/private/account-walletbalance")
+        resp = r.json()
+        print(resp)
+        if resp['ret_code'] == 0:
+            for token_balance in resp['result']['coinList']:
+                print('token_balance', token_balance)
+                if token_balance['coin'] == token_name:
+                    return float(token_balance['wb'])
+        else:
+            print(resp)
+            raise ValueError
+        return 0.0
+
+    def get_funding_balance(self, token_name: str = 'USDT') -> float:
+
+        r = self.session.get('https://api2.bybit.com/fiat/private/fund-account/balance-list?account_category=crypto')
+        resp = r.json()
+
+        if resp['ret_code'] == 0:
+            for token_balance in resp['result']:
+                print('token_balance', token_balance)
+                if token_balance['currency'] == token_name:
+                    return float(token_balance['balance'])
+        else:
+            print(resp)
+            raise ValueError
+        return 0.0
+
+
+
 
 if __name__ == '__main__':
     from CORE.models import BybitAccount
