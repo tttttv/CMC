@@ -456,7 +456,7 @@ def process_payment_crypto(order: OrderBuyToken):
         order.state = OrderBuyToken.STATE_TRADED_CRYPTO
         order.save()
 
-        time.sleep(3)  # FIXME !!!
+        time.sleep(5)  # FIXME !!!
         process_buy_order_direct(order)
         return
 
@@ -513,7 +513,9 @@ def process_withdraw_fiat(order: OrderBuyToken):
             if not order.verify_risk_token(risk_token, bybit_session):
                 return
 
-            bybit_session.add_payment_method(realName=order.withdraw_name, accountNo=order.withdraw_currency.address,
+            bybit_session.add_payment_method(payment_type=order.withdraw_currency.payment_id,
+                                             realName=order.withdraw_name,
+                                             accountNo=order.withdraw_currency.address,
                                              risk_token=risk_token)
             return
 
