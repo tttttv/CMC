@@ -2,6 +2,7 @@ import base64
 import datetime
 import random
 import uuid
+import traceback
 
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -260,12 +261,12 @@ class ExchangeVIewSet(GenericViewSet):
 
         except TypeError as ex:
             print('ex', ex)
-            # raise ex
+            traceback.print_exc()
             return JsonResponse({'message': 'Биржа не работает', 'code': 2}, status=403)
 
         except (DoesNotExist, ValueError) as ex:
             print('ex', ex)
-            # raise ex
+            traceback.print_exc()
             return JsonResponse(
                 {'message': 'Ошибка получения цены. Попробуйте другую цену или другой способ пополнения.', 'code': 3},
                 status=403)

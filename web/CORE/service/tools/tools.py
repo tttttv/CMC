@@ -108,7 +108,7 @@ class Trade:
         print('stage', self.stage)
 
         if self.stage == STAGE_PROCESS_PAYMENT:
-            self.payment_amount = format_float(self.payment_amount, self.payment_method.token)
+            self.payment_amount = format_float(self.payment_amount, token=self.payment_method.token)
 
             if self.payment_method.is_fiat:
                 if self.p2p_item_sell is None:
@@ -169,7 +169,7 @@ class Trade:
         print('self.withdraw_amount', self.withdraw_amount)
 
         if self.stage == STAGE_PROCESS_PAYMENT:
-            self.withdraw_amount = format_float(self.withdraw_amount, self.withdraw_method.token)
+            self.withdraw_amount = format_float(self.withdraw_amount, token=self.withdraw_method.token)
 
         # STEP 1
         if self.withdraw_method.is_fiat:
@@ -367,7 +367,7 @@ class Trade:
             better_query = P2PItem.objects.filter(min_amount__gte=payment_amount or withdraw_amount)
 
         else:
-            raise ValueError
+            raise DoesNotExist
 
         better_query = better_query.filter(side=p2p_side, is_active=True, currency=currency, token=token, payment_methods__contains=[payment_method])
         if exclude_insufficient:

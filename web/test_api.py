@@ -178,6 +178,7 @@ bybit_session.get_funding_balance('USDT')
 bybit_session.get_p2p_orders()
 
 bybit_session.get_unified_balance('NEAR')
+bybit_session.get_funding_balance('NEAR')
 
 from CORE.tasks import task_send_message, task_send_image
 task_send_message(148)
