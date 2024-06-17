@@ -130,7 +130,7 @@ def healthcare_orders_task():  # Проверяем время выполнен�
     dt_now = datetime.datetime.now() - datetime.timedelta(minutes=CREATED_TIMEOUT)
 
     for order in orders_buy_token:
-        if order and order.dt_created < dt_now:
+        if order and order.dt_created_sell < dt_now:
             if order.account.active_order is not None:
                 BybitAccount.release_order(order.account_id)
 
