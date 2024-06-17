@@ -1097,7 +1097,7 @@ class BybitSession:
             raise ValueError
         return 0.0
 
-    def get_p2p_orders(self, token_name: str = 'USDT') -> Optional[dict]:
+    def get_p2p_orders(self) -> Optional[dict]:
         data = {'page': 1, 'size': 10}
         r = self.session.post(f"https://api2.bybit.com/fiat/otc/order/simplifyList", data=data)
         resp = r.json()

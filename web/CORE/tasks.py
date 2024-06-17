@@ -12,6 +12,8 @@ from CORE.service.bybit.parser import BybitSession, AuthenticationError
 from CORE.service.bybit.code_2fa import get_codes, get_addressbook_codes
 from CORE.service.CONFIG import P2P_BUY_TIMEOUTS, TOKENS_DIGITS, CREATED_TIMEOUT
 from celery import shared_task
+
+from CORE.service.tools.formats import format_float
 from CORE.utils import order_task_lock, get_active_celery_tasks
 from requests.exceptions import *
 
@@ -230,17 +232,18 @@ def process_withdraw_crypto(order: OrderBuyToken):
         # usdt_amount_available = order.usdt_amount * (1 - order.partner_commission - order.platform_commission)
         # print('usdt_amount_available', usdt_amount_available)
 
-        usdt_amount_available = order.usdt_amount / (1 - order.platform_commission)
-        digits = TOKENS_DIGITS['USDT']
-        usdt_amount_available = float((('{:.' + str(digits) + 'f}').format(usdt_amount_available)))
-        print('usdt_amount_available formated', usdt_amount_available)
-
         if (order.payment_currency.is_fiat and order.p2p_item_sell.token == order.withdraw_currency.token or
                 order.payment_currency.is_crypto and order.payment_currency.token == order.withdraw_currency.token):
             order.state = OrderBuyToken.STATE_WITHDRAWING  # Если не нужно менять валюту на бирже
             order.save()
         else:  # Нужно менять
-            if order.payment_currency.is_fiat:
+            usdt_amount_available = order.usdt_amount / (1 - order.platform_commission)
+            # digits = TOKENS_DIGITS['USDT']
+            # usdt_amount_available = float((('{:.' + str(digits) + 'f}').format(usdt_amount_available)))
+            print('usdt_amount_available formated', usdt_amount_available)
+            usdt_amount_available = format_float(usdt_amount_available, token='USDT')
+
+            if order.payment_currency.is_fiat: # order.p2p_item_sell.token == 'USDT
                 bybit_api.transfer_to_trading(order.p2p_item_sell.token, usdt_amount_available)  # Переводим на биржу
             else:  # is crypto  Входящую крипту мы уже поменяли на USDT
                 bybit_api.transfer_to_trading('USDT', usdt_amount_available)  # Переводим на биржу
@@ -256,8 +259,9 @@ def process_withdraw_crypto(order: OrderBuyToken):
         withdraw_chain_commission = order.withdraw_currency.get_chain_commission()
         trading_quantity = (order.withdraw_amount + withdraw_chain_commission) / (1 - order.trading_commission)
         print('trading_quantity', trading_quantity)
-        digits = TOKENS_DIGITS[order.withdraw_currency.token]
-        trading_quantity = float((('{:.' + str(digits) + 'f}').format(trading_quantity)))
+        # digits = TOKENS_DIGITS[order.withdraw_currency.token]
+        # trading_quantity = float((('{:.' + str(digits) + 'f}').format(trading_quantity)))
+        trading_quantity = format_float(trading_quantity, token=order.withdraw_currency.token)
         print('trading_quantity', trading_quantity)
 
         usdt_price = bybit_api.get_price_for_amount(order.withdraw_currency.token, 'USDT', trading_quantity, side=BybitAPI.SIDE_BUY_CRYPTO)
@@ -276,6 +280,8 @@ def process_withdraw_crypto(order: OrderBuyToken):
         if trade_rate > order.price_buy * 1.01:
             order.state = OrderBuyToken.STATE_ERROR_TRADE_VOLATILE  # FIXME change state
             order.save()
+            order.error_message = "Цена на бирже изменилась > 3%"
+            return
 
         print('trading_quantity', trading_quantity)
         market_order_id = bybit_api.place_order(order.withdraw_currency.token, 'USDT', trading_quantity,
@@ -435,23 +441,30 @@ def process_payment_crypto(order: OrderBuyToken):
         return
 
     elif order.state == OrderBuyToken.STATE_TRADING_CRYPTO:
-        # FIXME chain комиссия на ввод ???
-        digits = TOKENS_DIGITS[order.payment_currency.token]
-        trading_quantity = float((('{:.' + str(digits) + 'f}').format(order.payment_amount)))
+        # digits = TOKENS_DIGITS[order.payment_currency.token]
+        # trading_quantity = float((('{:.' + str(digits) + 'f}').format(order.payment_amount)))
 
-        usdt_price = bybit_api.get_price_for_amount(order.payment_currency.token, BybitCurrency.CURRENCY_USDT,
-                                                    trading_quantity, side=BybitAPI.SIDE_BUY_FIAT)
-        trade_rate = usdt_price / order.payment_amount
-        print('usdt_price', usdt_price)
-        print('usdt_amount', order.usdt_amount)
-        print('trade_rate', trade_rate)
+        trading_quantity = format_float(order.payment_amount, token=order.payment_currency.token)
 
-        usdt_available = order.usdt_amount * (1 - order.partner_commission)
-        print('usdt_available', usdt_available, 'usdt_price', usdt_price, usdt_price > usdt_available * 1.03)
-        if usdt_price > usdt_available * 1.03:  # FIXME CONFIG
+        # usdt_price = bybit_api.get_price_for_amount(order.payment_currency.token, BybitCurrency.CURRENCY_USDT,
+        #                                             trading_quantity, side=BybitAPI.SIDE_BUY_FIAT)
+        # trade_rate = usdt_price / order.payment_amount
+        # print('usdt_price', usdt_price)
+        # print('usdt_amount', order.usdt_amount)
+        # print('trade_rate', trade_rate)
+
+        # usdt_available = order.usdt_amount * (1 - order.platform_commission)
+        # print('usdt_available', usdt_available, 'usdt_price', usdt_price, usdt_price > usdt_available * 1.03)
+
+        trade_rate = bybit_api.get_trading_rate(order.withdraw_currency.token, 'USDT')
+        print('orig trade_rate', trade_rate, 'from order', order.price_sell)
+
+        if trade_rate * 1.03 < order.price_sell :
             order.state = OrderBuyToken.STATE_ERROR_TRADE_VOLATILE  # FIXME change state
-            order.error_message = f'trade: usdt_price {usdt_price}, usdt_available {usdt_available}, rate {trade_rate}, k {usdt_price/usdt_available}'
+            # order.error_message = f'trade: usdt_price {usdt_price}, usdt_available {usdt_available}, rate {trade_rate}, k {usdt_price/usdt_available}'
+            order.error_message = "Цена на бирже изменилась > 3%"
             order.save()
+            return
 
         market_order_id = bybit_api.place_order(order.payment_currency.token, 'USDT', trading_quantity,  # Меняем всю крипту что нам дали
                                                 side=BybitAPI.SIDE_BUY_FIAT)
@@ -467,10 +480,10 @@ def process_payment_crypto(order: OrderBuyToken):
         status = bybit_api.get_order_status(order.order_sell_id)
         print(status)
         if status == 'Filled' or status == 'PartiallyFilledCanceled':  # Успешно вывели
-            digits = TOKENS_DIGITS['USDT']
-            usdt_amount = float((('{:.' + str(digits) + 'f}').format(order.usdt_amount)))
-
-            bybit_api.transfer_to_funding('USDT', usdt_amount)
+            # digits = TOKENS_DIGITS['USDT']
+            # usdt_amount = float((('{:.' + str(digits) + 'f}').format(order.usdt_amount)))
+            print('STATE_TRADED_CRYPTO order.usdt_amount', order.usdt_amount)
+            bybit_api.transfer_to_funding('USDT', order.usdt_amount)
             order.state = OrderBuyToken.STATE_CHECK_BALANCE
             order.save()
             process_buy_order_direct(order)

@@ -8,7 +8,7 @@ from django.db.models import F, Q
 from django.db.models import Min
 
 from CORE.exceptions import MinWithdrawException, DoesNotExist, MaxWithdrawException, MinPaymentException, MaxPaymentException
-from CORE.service.tools.formats import format_float_up
+from CORE.service.tools.formats import format_float_up, format_float
 
 SIDE_BUY_CRYPTO = 'a'
 SIDE_BUY_FIAT = 'b'
@@ -46,14 +46,14 @@ class Trade:
             return self.direct()
         return self.inverse()
 
-    def crypto_transaction(self, amount, side=P2PItem.SIDE_SELL):
-        digits = TOKENS_DIGITS[self.withdraw_method.token]
-        if side == P2PItem.SIDE_SELL:  # Ввод крипты  FIXME Учитывать комиссию chain при вводе ???
-            return float((('{:.' + str(digits) + 'f}').format((amount -
-                                                               self.get_chain_commission(self.withdraw_method, self.withdraw_chain)))))
-        else:  # Вывод крипты
-            return float((('{:.' + str(digits) + 'f}').format((amount +
-                                                               self.get_chain_commission(self.withdraw_method, self.withdraw_chain)))))
+    # def crypto_transaction(self, amount, side=P2PItem.SIDE_SELL):
+    #     digits = TOKENS_DIGITS[self.withdraw_method.token]
+    #     if side == P2PItem.SIDE_SELL:  # Ввод крипты  FIXME Учитывать комиссию chain при вводе ???
+    #         return float((('{:.' + str(digits) + 'f}').format((amount -
+    #                                                            self.get_chain_commission(self.withdraw_method, self.withdraw_chain)))))
+    #     else:  # Вывод крипты
+    #         return float((('{:.' + str(digits) + 'f}').format((amount +
+    #                                                            self.get_chain_commission(self.withdraw_method, self.withdraw_chain)))))
 
     @classmethod
     def get_chain_commission(cls, method, chain):
@@ -75,9 +75,9 @@ class Trade:
         digits = TOKENS_DIGITS[token]
         return float((('{:.' + str(digits) + 'f}').format(amount)))
 
-    @classmethod
-    def format_amount_up(cls, token, amount):
-        return format_float_up(amount, token=token)
+    # @classmethod
+    # def format_amount_up(cls, token, amount):
+    #     return format_float_up(amount, token=token)
 
     def calculate_trade_quantity(self, amount, token_rate, trade_side=SIDE_BUY_CRYPTO):
         if trade_side == SIDE_BUY_CRYPTO:
@@ -108,7 +108,7 @@ class Trade:
         print('stage', self.stage)
 
         if self.stage == STAGE_PROCESS_PAYMENT:
-            self.payment_amount = Trade.format_amount(self.payment_method.token, self.payment_amount)
+            self.payment_amount = format_float(self.payment_amount, self.payment_method.token)
 
             if self.payment_method.is_fiat:
                 if self.p2p_item_sell is None:
@@ -127,7 +127,7 @@ class Trade:
                 usdt_amount, price_sell = self.get_trade_price(self.payment_method, self.payment_amount, 0.0, trade_side=SIDE_BUY_FIAT)
                 print('usdt_amount crypto', usdt_amount)
 
-            usdt_amount = Trade.format_amount('USDT', usdt_amount)
+            usdt_amount = format_float(usdt_amount, token='USDT')
 
             print('trade usdt_amount', usdt_amount)
             usdt_amount = usdt_amount * (1 - self.partner_commission - self.platform_commission)
@@ -135,7 +135,7 @@ class Trade:
         else:
             usdt_amount = self.usdt_amount  # Первый stage пропущен
 
-        usdt_amount = Trade.format_amount('USDT', usdt_amount)
+        usdt_amount = format_float(usdt_amount, token='USDT')
         print('usdt_amount', usdt_amount)
 
         # STEP 2
@@ -156,7 +156,7 @@ class Trade:
             withdraw_amount, price_buy = self.get_trade_price(self.withdraw_method, usdt_amount, 0.0, trade_side=SIDE_BUY_CRYPTO)
             print('trade withdraw_amount', withdraw_amount)
 
-        withdraw_amount = Trade.format_amount(self.withdraw_method.token, withdraw_amount)
+        withdraw_amount = format_float(withdraw_amount, token=self.withdraw_method.token)
 
         print('after trade withdraw_amount', withdraw_amount)
         return self.payment_amount, withdraw_amount, usdt_amount, self.p2p_item_sell, self.p2p_item_buy, price_sell, price_buy, better_amount
@@ -167,33 +167,40 @@ class Trade:
 
         print('inverse')
         print('self.withdraw_amount', self.withdraw_amount)
+
+        if self.stage == STAGE_PROCESS_PAYMENT:
+            self.withdraw_amount = format_float(self.withdraw_amount, self.withdraw_method.token)
+
         # STEP 1
         if self.withdraw_method.is_fiat:
-            withdraw_amount = Trade.format_amount_up(self.withdraw_method.token, self.withdraw_amount)
             if self.p2p_item_buy is None:
-                print('get p2p')
-                self.p2p_item_buy, better_p2p = self.get_p2p_price(self.withdraw_method.payment_id, 0.0, withdraw_amount,
+                self.p2p_item_buy, better_p2p = self.get_p2p_price(self.withdraw_method.payment_id, 0.0, self.withdraw_amount,
                                                                    self.withdraw_method.token, 'USDT',
                                                                    p2p_side=P2PItem.SIDE_BUY)
                 if better_p2p is not None:
                     better_amount = better_p2p.min_amount
 
             price_buy = self.p2p_item_buy.price
-            usdt_amount = Trade.p2p_quantity(withdraw_amount, self.p2p_item_buy.price, p2p_side=P2PItem.SIDE_SELL)
+            usdt_amount = Trade.p2p_quantity(self.withdraw_amount, self.p2p_item_buy.price, p2p_side=P2PItem.SIDE_SELL)
 
         else:  # withdraw_method.is_crypto:
-            withdraw_amount = self.crypto_transaction(amount=self.withdraw_amount, side=P2PItem.SIDE_BUY)  # !!!
-            print('withdraw_amount', withdraw_amount)
+            # withdraw_amount = self.crypto_transaction(amount=self.withdraw_amount, side=P2PItem.SIDE_BUY)  # !!!
+            print('withdraw_amount', self.withdraw_amount)
+            withdraw_commission = self.get_chain_commission(self.withdraw_method, self.withdraw_chain)
+            withdraw_amount = format_float_up(self.withdraw_amount + withdraw_commission, token=self.withdraw_method.token)
+
+            print('withdraw_amount comm', withdraw_amount)
             usdt_amount, price_buy = self.get_trade_price(self.withdraw_method, 0.0, withdraw_amount, trade_side=SIDE_BUY_FIAT)
 
-        usdt_amount = Trade.format_amount_up('USDT', usdt_amount)
+        usdt_amount = format_float_up(usdt_amount, token='USDT')
         print('usdt_amount', usdt_amount)
 
-        usdt_amount = usdt_amount * (1 + self.partner_commission + self.platform_commission)
-        usdt_amount = Trade.format_amount_up('USDT', usdt_amount)
+        usdt_amount = usdt_amount / (1 - self.partner_commission - self.platform_commission)
+
+        usdt_amount = format_float_up(usdt_amount, token='USDT')
         print('usdt_amount comm', usdt_amount)
 
-        if self.stage == STAGE_PROCESS_PAYMENT:
+        if self.stage == STAGE_PROCESS_PAYMENT:  # FIXME !!! withdraw_amount unchanged
             # STEP 2
             if self.payment_method.is_fiat:
                 if self.p2p_item_sell is None:
@@ -212,7 +219,7 @@ class Trade:
                 print('price_sell', price_sell)
                 print('payment_amount', payment_amount)
 
-            self.payment_amount = Trade.format_amount_up(self.payment_method.token, payment_amount)
+            self.payment_amount = format_float_up(payment_amount, token=self.payment_method.token)
             print('payment_amount up', payment_amount)
 
         return self.payment_amount, self.withdraw_amount, usdt_amount, self.p2p_item_sell, self.p2p_item_buy, price_sell, price_buy, better_amount

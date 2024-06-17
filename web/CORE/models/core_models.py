@@ -14,7 +14,7 @@ from CORE.service.bybit.api import BybitAPI
 from CORE.service.bybit.code_2fa import get_ga_token
 from CORE.service.bybit.models import BybitPaymentTerm
 from CORE.service.bybit.parser import BybitSession, InsufficientError, AuthenticationError, AdStatusChanged, InsufficientErrorSell
-from CORE.service.tools.formats import file_as_base64, format_float_up
+from CORE.service.tools.formats import file_as_base64, format_float_up, format_float
 from CORE.exceptions import DoesNotExist, AmountException
 
 
@@ -788,8 +788,9 @@ class OrderBuyToken(models.Model):
 
     @property
     def withdraw_from_trading_account(self):  # Сколько нужно перевести на Funding аккаунт
-        digits = TOKENS_DIGITS[self.withdraw_currency.token]
-        return float((('{:.' + str(digits) + 'f}').format((self.withdraw_amount + self.withdraw_currency.get_chain_commission()))))
+        # digits = TOKENS_DIGITS[self.withdraw_currency.token]
+        # return float((('{:.' + str(digits) + 'f}').format((self.withdraw_amount + self.withdraw_currency.get_chain_commission()))))
+        return format_float(self.withdraw_amount + self.withdraw_currency.get_chain_commission(), token=self.withdraw_currency.token)
 
     def risk_get_ga_code(self):
         return self.account.risk_get_ga_code()
