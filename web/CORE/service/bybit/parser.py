@@ -655,6 +655,24 @@ class BybitSession:
         #     "time_now": "1709081427.406440"
         # }
 
+    def delete_payment_method(self, paymentId, risk_token=None):
+        print('delete_payment_method')
+        data = {
+            'id': paymentId,
+        }
+        if risk_token:
+            data['securityRiskToken'] = risk_token
+
+        r = self.session.post('https://api2.bybit.com/fiat/otc/user/payment/new_delete', data=data)
+
+        resp = r.json()
+        print(resp)
+        if resp['ret_code'] == 0:
+            return resp['result']['securityRiskToken']
+        else:
+            print(resp)
+            raise ValueError
+
     def get_payments_list(self) -> List[BybitPaymentTerm]:
         r = self.session.post('https://api2.bybit.com/fiat/otc/user/payment/list')
         resp = r.json()
