@@ -270,7 +270,7 @@ class ExchangeVIewSet(GenericViewSet):
                 {'message': 'Ошибка получения цены. Попробуйте другую цену или другой способ пополнения.', 'code': 3},
                 status=403)
         except AmountException as ex:
-            return JsonResponse({'message': str(ex), 'code': 3}, status=403)
+            return JsonResponse({'message': str(ex), 'code': ex.code}, status=403)
 
         if anchor == OrderBuyToken.ANCHOR_SELL:
             min_amount, max_amount = withdraw_method.withdraw_min_max(withdraw_chain)
@@ -287,7 +287,7 @@ class ExchangeVIewSet(GenericViewSet):
                 return JsonResponse({'message': f'Максимально количество для пополнения {max_amount}', 'code': 6}, status=403)
 
         data = {
-            'price': "%.2f" % (payment_amount / withdraw_amount),
+            'price': "%.4f" % (payment_amount / withdraw_amount),
 
             'payment_amount': payment_amount,
             'withdraw_amount': withdraw_amount,
@@ -518,17 +518,21 @@ class OrderViewSet(GenericViewSet):
         elif order.state == OrderBuyToken.STATE_WAITING_TRANSACTION_PROCESSED:
             state = 'RECEIVING'  # FIXME TEST
 
+        elif order.stage == OrderBuyToken.STAGE_PROCESS_WITHDRAW and order.withdraw_currency.is_fiat and order.state == OrderBuyToken.STATE_RECEIVED:
+            state = 'TRADING'
+
         elif order.state == OrderBuyToken.STATE_RECEIVED:  # Продавец подтвердил получение денег
             state = 'BUYING'
 
-        elif order.state == OrderBuyToken.STATE_CHECK_BALANCE:
+        elif (order.state == OrderBuyToken.STATE_TRADING_CRYPTO or order.state == OrderBuyToken.STATE_TRADED_CRYPTO or
+              order.state == OrderBuyToken.STATE_CHECK_BALANCE or order.state == OrderBuyToken.STATE_RECEIVING_CRYPTO):
             state = 'BUYING'
 
-        elif order.state == OrderBuyToken.STATE_TRADING or order.state == OrderBuyToken.STATE_RECEIVING_CRYPTO:  # Меняем на бирже
+        elif order.state == OrderBuyToken.STATE_TRADING:  # Меняем на бирже
             state = 'TRADING'
 
         # Поменяли на бирже
-        elif order.state == OrderBuyToken.STATE_TRADED: #  or order.state == order.STAGE_PROCESS_WITHDRAW and order.state == OrderBuyToken.STATE_RECEIVED:
+        elif order.state == OrderBuyToken.STATE_TRADED:  #  or order.state == order.STAGE_PROCESS_WITHDRAW and order.state == OrderBuyToken.STATE_RECEIVED:
             state = 'TRADING'
 
         elif order.state == OrderBuyToken.STATE_WITHDRAWING:  # Выводим деньги
@@ -545,7 +549,7 @@ class OrderViewSet(GenericViewSet):
             state = 'TIMEOUT'
         elif order.state == OrderBuyToken.STATE_ERROR:  # Критическая ошибка, требующая связи через бота
             state = 'ERROR'
-        elif order.state == OrderBuyToken.STATE_P2P_APPEAL:
+        elif order.state == OrderBuyToken.STATE_P2P_APPEAL or order.state == OrderBuyToken.STATE_BUY_NOT_CONFIRMED:
             state = 'DISPUTE'
 
         elif order.state == OrderBuyToken.STATE_WAITING_CONFIRMATION:
