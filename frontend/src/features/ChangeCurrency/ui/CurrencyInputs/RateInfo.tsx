@@ -51,11 +51,12 @@ export const ExchangeRate = ({
           {fromCurrency && betterAmount && toCurrency ? (
             <>
               {getPricing !== null ? "..." : betterAmount}{" "}
-              {fromType === "bank"
+              {/* {fromType === "bank"
                 ? bankType === "all"
                   ? "RUB"
                   : bankType
-                : fromCurrency?.name}
+                : fromCurrency?.name} */}
+              RUB
             </>
           ) : (
             "---"
