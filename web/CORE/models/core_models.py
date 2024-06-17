@@ -15,6 +15,7 @@ from CORE.service.bybit.code_2fa import get_ga_token
 from CORE.service.bybit.models import BybitPaymentTerm
 from CORE.service.bybit.parser import BybitSession, InsufficientError, AuthenticationError, AdStatusChanged, InsufficientErrorSell
 from CORE.service.tools.formats import file_as_base64, format_float_up
+from CORE.exceptions import DoesNotExist, AmountException
 
 
 class Config(models.Model):
@@ -451,7 +452,7 @@ class BybitAccount(models.Model):
 
         return {
             'http': f'{self.proxy_type}://{auth}{self.proxy_host}:{self.proxy_port}',
-            'https': f'{"https" if self.proxy_type == self.PROXY_TYPE_HTTP else self.proxy_type}://{auth}{self.proxy_host}:{self.proxy_port}'
+            'https': f'{self.proxy_type}://{auth}{self.proxy_host}:{self.proxy_port}'
         }
 
     def add_insufficient(self, item: P2PItem):
@@ -520,7 +521,7 @@ class BybitAccount(models.Model):
     def get_random_account(cls):
         return random.choice(BybitAccount.objects.filter(is_active=True).all())
 
-    def set_banned(self):
+    def set_banned(self):  # FIXME UNUSED
         self.is_active = False
         self.is_active_commentary = 'Banned for frod at ' + datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
         self.save()
@@ -851,7 +852,6 @@ class OrderBuyToken(models.Model):
             print('BEFORE')
             self.update_items_price(bybit_session)
 
-        start_time = time.time()
         trade = Trade(self.payment_currency, self.withdraw_currency, self.payment_amount, self.withdraw_amount,
                       self.withdraw_currency.chain, self.payment_currency.chain,
                       self.trading_commission, self.partner_commission, self.platform_commission,
@@ -862,11 +862,7 @@ class OrderBuyToken(models.Model):
                       usdt_amount=self.usdt_amount if self.stage == self.STAGE_PROCESS_WITHDRAW else None,
                       account_id=self.account_id if self.account else None)
 
-        amount = trade.get_amount()
-        print('\n')
-        print("get_items_price time duration:", time.time() - start_time)
-
-        return amount
+        return trade.get_amount()
 
     def check_p2p_timeout(self, minutes, side=P2PItem.SIDE_SELL):
         delta = datetime.datetime.now() - datetime.timedelta(minutes=minutes)
@@ -902,15 +898,19 @@ class OrderBuyToken(models.Model):
         try:
             (payment_amount, withdraw_amount, usdt_amount, p2p_item_sell, p2p_item_buy,
              price_sell, price_buy, better_amount) = self.get_items_price(find_new_items=find_new_items)
+
+            if find_new_items:
+                self.p2p_item_sell = p2p_item_sell
+                self.p2p_item_buy = p2p_item_buy
+
+                (payment_amount, withdraw_amount, usdt_amount, p2p_item_sell, p2p_item_buy,
+                 price_sell, price_buy, better_amount) = self.get_items_price(find_new_items=False)
+
             print('new', p2p_item_sell, p2p_item_buy)
             print('old', self.p2p_item_sell, self.p2p_item_buy)
 
             self.p2p_item_sell = p2p_item_sell  # хэши обновляем
             self.p2p_item_buy = p2p_item_buy
-
-            if find_new_items:
-                print('AFTER')
-                self.update_items_price(bybit_session)
 
         # TODO banned
         except AuthenticationError:
@@ -944,12 +944,12 @@ class OrderBuyToken(models.Model):
                 return self.verify_order(bybit_session=bybit_session, find_new_items=True, max_counts=max_counts - 1)  # FIXME max count + delay
             return False
 
-        except ValueError as e:
-            print('got exc', e)
-            raise e  # FIXME DEL
-            # self.state = OrderBuyToken.STATE_ERROR
-            # self.save()
-            # return False
+        except (AmountException, DoesNotExist, ValueError) as ex:  # TODO AmountException Обработать как STATE_WRONG_PRICE
+            print(f'AmountException/DoesNotExist: {str(ex)}')
+            self.state = OrderBuyToken.STATE_ERROR
+            self.error_message = 'p2p item not exist'
+            self.save()
+            return False
 
         print('verify order:', payment_amount, withdraw_amount, usdt_amount)
         print('order payment', self.payment_amount, self.withdraw_amount)
@@ -957,19 +957,17 @@ class OrderBuyToken(models.Model):
         if self.stage == self.STAGE_PROCESS_PAYMENT:
             self.usdt_amount = usdt_amount
 
-        # bybit_session = BybitSession(self.account)
-        self.update_items_price(bybit_session)
-
         print('price_sell', self.price_sell, 'new', price_sell)
-        print('price_buy', self.price_buy, 'new', price_buy)
+        print('price_buy', self.price_buy, 'new', price_buy)  # FIXME !!! нужно в модель сохранить исходную и новую
 
-        print(self.price_buy > price_buy, self.payment_amount * 1.001 < payment_amount, self.withdraw_amount > withdraw_amount * 1.001)
+        self.price_sell = price_sell
+        self.price_buy = price_buy
 
-        if ((self.stage == self.STAGE_PROCESS_PAYMENT and (self.payment_amount * 1.001 < payment_amount or self.withdraw_amount > withdraw_amount * 1.001) or
+        if ((self.stage == self.STAGE_PROCESS_PAYMENT and (self.payment_amount * 1.0001 < payment_amount or self.withdraw_amount > withdraw_amount * 1.0001) or
              ((self.payment_amount != payment_amount and (self.payment_currency.is_fiat and self.price_sell < price_sell or
                                                           self.payment_currency.is_crypto and self.price_sell > price_sell))) or
              # STAGE 2
-             (self.stage == self.STAGE_PROCESS_WITHDRAW and self.withdraw_amount > withdraw_amount * 1.02) or
+             (self.stage == self.STAGE_PROCESS_WITHDRAW and self.withdraw_amount > withdraw_amount * 1.01) or
              (self.withdraw_amount != withdraw_amount and (self.withdraw_currency.is_fiat and self.price_buy > price_buy or
                                                            self.withdraw_currency.is_crypto and self.price_buy < price_buy)))):
             print('WRONG PRICE withdraw', self.withdraw_amount, 'new', withdraw_amount, 'payment', self.payment_amount, 'new', payment_amount)
@@ -979,22 +977,23 @@ class OrderBuyToken(models.Model):
             self.withdraw_amount = withdraw_amount
             self.payment_amount = payment_amount
 
-            self.price_sell = price_sell
-            self.price_buy = price_buy
             self.usdt_amount = usdt_amount
 
             self.save()
             return False
 
-
         # Мы заработали больше от изменения курса
-        if self.stage == self.STAGE_PROCESS_PAYMENT and (self.payment_currency.is_fiat and self.price_sell > price_sell or
-                                                         self.payment_currency.is_crypto and self.price_sell < price_sell):
-            self.price_sell = price_sell
-
-        elif self.stage == self.STAGE_PROCESS_WITHDRAW and (self.withdraw_currency.is_fiat and self.price_buy < price_buy or
-                                                            self.withdraw_currency.is_crypto and self.price_buy > price_buy):
-            self.price_buy = price_buy  # FIXME оригинальная цена обмена теряется
+        # if self.stage == self.STAGE_PROCESS_PAYMENT and (self.payment_currency.is_fiat and self.price_sell > price_sell or
+        #                                                  self.payment_currency.is_crypto and self.price_sell < price_sell):
+        #     print('Мы зарботали')
+        #     print('new price', self.price_sell, price_sell)
+        #     self.price_sell = price_sell
+        #
+        # elif self.stage == self.STAGE_PROCESS_WITHDRAW and (self.withdraw_currency.is_fiat and self.price_buy < price_buy or
+        #                                                     self.withdraw_currency.is_crypto and self.price_buy > price_buy):
+        #     print('Мы зарботали')
+        #     print('new price', self.price_sell, price_sell)
+        #     self.price_buy = price_buy  # FIXME оригинальная цена обмена теряется
 
         return True
 
@@ -1038,17 +1037,24 @@ class OrderBuyToken(models.Model):
             if side == P2PItem.SIDE_SELL:  # Только Ввод
                 print('create_p2p_order SIDE_SELL:', self.price_sell, self.p2p_item_sell.price)
                 # FIXME *** Нужно пересчитывать или убрать?
-                self.usdt_amount = Trade.p2p_quantity(self.payment_amount, self.price_sell, p2p_side=P2PItem.SIDE_SELL)
+                # old_usdt_amount = Trade.p2p_quantity(self.payment_amount, self.price_sell, p2p_side=P2PItem.SIDE_SELL)
+
                 print('SIDE_SELL usdt_amount', self.usdt_amount)
                 print('order usdt_amount', self.usdt_amount)
                 print('order comm', self.usdt_amount / (1 - self.platform_commission - self.partner_commission))  # Проверить
-                if self.p2p_item_sell.cur_price_hash is None:
+
+                if self.p2p_item_sell is None or self.p2p_item_sell.cur_price_hash is None or self.price_sell != self.p2p_item_sell.price:
+                    # FIXME state ==
                     print('BAD VALID')
-                    raise ValueError
+                    # print('None', self.p2p_item_buy.cur_price_hash, self.p2p_item_buy.cur_price_hash is None)
+                    # print('price_buy', self.price_buy, self.p2p_item_buy.price, self.price_buy != self.p2p_item_buy.price)
+                    raise AdStatusChanged
+
+                usdt_amount_no_comm = Trade.p2p_quantity(self.payment_amount, self.p2p_item_sell.price, p2p_side=P2PItem.SIDE_SELL)
 
                 order_sell_id = bybit_session.create_order_buy(
                     self.p2p_item_sell.item_id,
-                    quantity=self.usdt_amount,  # Количество крипты
+                    quantity=usdt_amount_no_comm,  # Количество крипты
                     amount=self.payment_amount,  # Количество фиата
                     cur_price=self.p2p_item_sell.cur_price_hash,
                     token_id='USDT',
@@ -1065,8 +1071,7 @@ class OrderBuyToken(models.Model):
                 self.dt_created_sell = datetime.datetime.now()
 
             elif side == P2PItem.SIDE_BUY:  # Только Вывод
-                withdraw_amount = Trade.p2p_quantity(self.usdt_amount, self.price_buy, p2p_side=P2PItem.SIDE_BUY)
-                print('SIDE_BUY withdraw_amount', withdraw_amount)  # FIXME Удалить ***
+
                 print('self.withdraw_amount', self.withdraw_amount)
                 print('self.price_buy', self.price_buy)
                 print('self.p2p_item_buy', self.p2p_item_buy)
@@ -1076,10 +1081,14 @@ class OrderBuyToken(models.Model):
                     print('BAD VALID')
                     # print('None', self.p2p_item_buy.cur_price_hash, self.p2p_item_buy.cur_price_hash is None)
                     # print('price_buy', self.price_buy, self.p2p_item_buy.price, self.price_buy != self.p2p_item_buy.price)
-                    raise ValueError
+                    raise AdStatusChanged
+
+                del_withdraw_amount = Trade.p2p_quantity(self.usdt_amount, self.price_buy, p2p_side=P2PItem.SIDE_BUY)
+                print('SIDE_BUY withdraw_amount', del_withdraw_amount)  # Удалить
 
                 print('amount', self.withdraw_amount)
                 print('quantity', self.usdt_amount)
+
                 quantity = self.withdraw_amount / self.price_buy
                 print('calc quantity', quantity)
                 rquantity = str(format_float_up(float(quantity), token='USDT'))

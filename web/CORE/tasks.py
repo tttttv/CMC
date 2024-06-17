@@ -37,7 +37,7 @@ def update_p2pitems_task():
         print(e)
         return
     except AuthenticationError:
-        account.set_banned()
+        account.set_cookie_die()
         return
 
     P2PItem.objects.filter(is_active=True).update(is_active=False)
@@ -49,7 +49,7 @@ def update_p2pitems_task():
             # print(item.id)
         item.is_active = True
         item.save()
-        print('SAVED ID', item.id)
+        # print('SAVED ID', item.id)
 
 
 @shared_task
@@ -226,9 +226,10 @@ def process_withdraw_crypto(order: OrderBuyToken):
     print('process_withdraw_crypto ORDER', order.id, order.state, order.account.imap_username)
 
     if order.state == OrderBuyToken.STATE_RECEIVED:  # Переводим на биржу
-        usdt_amount_available = order.usdt_amount * (1 - order.partner_commission - order.platform_commission)
-        print('usdt_amount_available', usdt_amount_available)
+        # usdt_amount_available = order.usdt_amount * (1 - order.partner_commission - order.platform_commission)
+        # print('usdt_amount_available', usdt_amount_available)
 
+        usdt_amount_available = order.usdt_amount / (1 - order.platform_commission)
         digits = TOKENS_DIGITS['USDT']
         usdt_amount_available = float((('{:.' + str(digits) + 'f}').format(usdt_amount_available)))
         print('usdt_amount_available formated', usdt_amount_available)
@@ -254,20 +255,24 @@ def process_withdraw_crypto(order: OrderBuyToken):
         withdraw_chain_commission = order.withdraw_currency.get_chain_commission()
         trading_quantity = (order.withdraw_amount + withdraw_chain_commission) / (1 - order.trading_commission)
         print('trading_quantity', trading_quantity)
-
         digits = TOKENS_DIGITS[order.withdraw_currency.token]
         trading_quantity = float((('{:.' + str(digits) + 'f}').format(trading_quantity)))
         print('trading_quantity', trading_quantity)
 
         usdt_price = bybit_api.get_price_for_amount(order.withdraw_currency.token, 'USDT', trading_quantity, side=BybitAPI.SIDE_BUY_CRYPTO)
-        usdt_available = order.usdt_amount * (1 - order.partner_commission)
+        # usdt_available = order.usdt_amount * (1 - order.partner_commission)
 
         trade_rate = usdt_price / trading_quantity
         print('usdt_price', usdt_price)
         print('usdt_amount', order.usdt_amount)
         print('trade_rate', trade_rate)
 
-        if usdt_price > usdt_available * 1.03:  # FIXME CONFIG
+        trade_rate = bybit_api.get_trading_rate(order.withdraw_currency.token, 'USDT')
+        print('orig trade_rate', trade_rate, 'from order', order.price_buy)
+        # withdraw_amount = order.usdt_amount / trade_rate * (1 - order.trading_commission)
+
+        # if usdt_price > usdt_available * 1.03:  # FIXME CONFIG
+        if trade_rate > order.price_buy * 1.01:
             order.state = OrderBuyToken.STATE_ERROR_TRADE_VOLATILE  # FIXME change state
             order.save()
 

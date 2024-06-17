@@ -6,15 +6,16 @@ import uuid
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.http import JsonResponse
-from rest_framework.response import Response
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
+from rest_framework.response import Response
 # Create your views here.
 from rest_framework.viewsets import GenericViewSet
 
 from API.mixins.decorators import widget_hash_required, order_hash_required
 from API.serializers import OrderCreateSerializer, OrderStateSerializer, GetPriceSerializer, WidgetCreateSerializer, PaymentCurrencySerializer
+from CORE.exceptions import DoesNotExist, AmountException
 from CORE.models import OrderBuyToken, BybitAccount, P2PItem, P2POrderMessage, Partner, Widget, \
     BybitCurrency, Currency
 from CORE.service.CONFIG import CREATED_TIMEOUT
@@ -240,7 +241,7 @@ class ExchangeVIewSet(GenericViewSet):
         widget_hash = request.query_params.get('widget', None)
         partner_commission = 0.0
         platform_commission = 0.02  # TODO CONFIG
-        trading_commission = 0.001
+        trading_commission = 0.0018
 
         if widget_hash:  # Если вдруг по виджету передана не та крипта
             widget = Widget.objects.get(hash=widget_hash)
@@ -261,27 +262,30 @@ class ExchangeVIewSet(GenericViewSet):
             print('ex', ex)
             # raise ex
             return JsonResponse({'message': 'Биржа не работает', 'code': 2}, status=403)
-        except ValueError as ex:
+
+        except (DoesNotExist, ValueError) as ex:
             print('ex', ex)
             # raise ex
             return JsonResponse(
                 {'message': 'Ошибка получения цены. Попробуйте другую цену или другой способ пополнения.', 'code': 3},
                 status=403)
+        except AmountException as ex:
+            return JsonResponse({'message': str(ex), 'code': 3}, status=403)
 
         print('РАСЧИТАЛ')
 
         if anchor == OrderBuyToken.ANCHOR_SELL:
             min_amount, max_amount = withdraw_method.withdraw_min_max(withdraw_chain)
-            if amount < min_amount:
+            if withdraw_amount < min_amount:
                 return JsonResponse({'message': f'Минимальное количество для вывода {min_amount}', 'code': 7}, status=403)
-            elif amount > max_amount:
+            elif withdraw_amount > max_amount:
                 return JsonResponse({'message': f'Максимально количество для вывода {max_amount}', 'code': 8}, status=403)
 
         elif anchor == OrderBuyToken.ANCHOR_BUY:
             min_amount, max_amount = payment_method.payment_min_max(payment_chain)
-            if amount < min_amount:
+            if payment_amount < min_amount:
                 return JsonResponse({'message': f'Минимальное количество для пополнения {min_amount}', 'code': 5}, status=403)
-            elif amount > max_amount:
+            elif payment_amount > max_amount:
                 return JsonResponse({'message': f'Максимально количество для пополнения {max_amount}', 'code': 6}, status=403)
 
         data = {
@@ -410,7 +414,7 @@ class OrderViewSet(GenericViewSet):
 
             order.payment_amount = payment_amount
             order.withdraw_amount = withdraw_amount
-            order.trading_commission = 0.001  # FIXME CONFIG
+            order.trading_commission = 0.0018  # FIXME CONFIG
 
             widget_hash = request.query_params.get('widget', None)
             if widget_hash:  # Если передан виджет
@@ -503,6 +507,10 @@ class OrderViewSet(GenericViewSet):
                     'time_left': (order.dt_created_sell - datetime.datetime.now() + datetime.timedelta(minutes=30)).seconds,
                     'commentary': "SEND ME CRYPTO BRO",
                 }
+
+        elif order.stage == OrderBuyToken.STAGE_PROCESS_WITHDRAW and order.state == OrderBuyToken.STATE_TRANSFERRED:  # Вывод на карту
+            state = 'TRADING'
+
         elif order.state == OrderBuyToken.STATE_TRANSFERRED:  # Пользователь пометил как отправленный - ждем подтверждение
             state = 'RECEIVING'
 

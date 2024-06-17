@@ -170,8 +170,10 @@ order.save()
 
 
 from CORE.tasks import task_send_message, task_send_image
-task_send_message(116)
-task_send_image(117, 'application/pdf')
+task_send_message(148)
+
+from CORE.tasks import task_send_message, task_send_image
+task_send_image(134, 'application/pdf')
 
 
 

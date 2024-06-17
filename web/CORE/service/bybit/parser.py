@@ -203,6 +203,10 @@ class BybitSession:
 
             elif resp['ret_code'] == 41100:
                 raise AdStatusChanged('Ad removed')
+
+            elif resp['ret_code'] == 40001:  # FIXME Request parameter verification error В основном наша цена устарела
+                raise ValueError('Ad price changed')
+                # raise AdStatusChanged('Ad price changed')
             else:
                 raise ValueError
 
