@@ -943,11 +943,12 @@ class OrderBuyToken(models.Model):
             print('old', self.p2p_item_sell, self.p2p_item_buy)
 
             if find_new_items:
-                prev = {'item_sell': self.p2p_item_sell.to_json(), 'price_sell': self.price_sell,
-                        'item_buy': self.p2p_item_buy.to_json(), 'price_buy': self.price_buy}
+                prev = {'item_buy': self.p2p_item_buy.to_json() if self.p2p_item_buy else None, 'price_buy': self.price_buy}
+                new = { 'item_buy': p2p_item_buy.to_json() if p2p_item_buy else None, 'price_buy': price_buy}
 
-                new = {'item_sell': p2p_item_sell.to_json(), 'price_sell': price_sell,
-                       'item_buy': p2p_item_buy.to_json(), 'price_buy': price_buy}
+                if self.state == self.STAGE_PROCESS_PAYMENT and self.p2p_item_sell != p2p_item_sell:
+                    prev.update({'item_sell': self.p2p_item_sell.to_json() if self.p2p_item_sell else None, 'price_sell': self.price_sell})
+                    new.update({'item_sell': p2p_item_sell.to_json() if p2p_item_sell else None, 'price_sell': price_sell})
 
                 self.add_message(message=f'P2P новый ордер', prev=prev, new=new)
 
