@@ -370,7 +370,7 @@ class P2PItem(models.Model):
         return '[' + self.side + '] ' + str(self.item_id)
 
     def to_json(self):
-        return {'price': self.price, 'item_id': self.item_id, 'user_id': self.user_id, 'dt_updated': self.dt_updated}
+        return {'price': self.price, 'item_id': self.item_id, 'user_id': self.user_id, 'dt_updated': self.dt_updated.strftime("%Y-%m-%d %H:%M:%S")}
 
     @staticmethod
     def get_payment_methods():
@@ -812,7 +812,7 @@ class OrderBuyToken(models.Model):
     messages_log = models.JSONField(default=list)
 
     def add_message(self, message, **kwarg):
-        message = {'dt': datetime.datetime.now(), 'message': message, 'stage': self.stage, 'state': self.state}
+        message = {'dt': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'message': message, 'stage': self.stage, 'state': self.state}
         message.update(kwarg)
         self.messages_log.append(message)
         self.save()
@@ -920,6 +920,17 @@ class OrderBuyToken(models.Model):
 
         return False
 
+
+    def add_message_with_items(self, message, p2p_item_sell, price_sell, p2p_item_buy, price_buy):
+        prev = {'item_buy': self.p2p_item_buy.to_json() if self.p2p_item_buy else None, 'price_buy': self.price_buy}
+        new = {'item_buy': p2p_item_buy.to_json() if p2p_item_buy else None, 'price_buy': price_buy}
+
+        if self.state == self.STAGE_PROCESS_PAYMENT and self.p2p_item_sell != p2p_item_sell:
+            prev.update({'item_sell': self.p2p_item_sell.to_json() if self.p2p_item_sell else None, 'price_sell': self.price_sell})
+            new.update({'item_sell': p2p_item_sell.to_json() if p2p_item_sell else None, 'price_sell': price_sell})
+
+        self.add_message(message=message, prev=prev, new=new)
+
     def verify_order(self, bybit_session: Optional[BybitSession] = None, find_new_items: bool = False, max_counts: int = 8) -> bool:
         print('verify_order max_counts', find_new_items, max_counts)
         print('STAGE', self.stage)
@@ -943,14 +954,7 @@ class OrderBuyToken(models.Model):
             print('old', self.p2p_item_sell, self.p2p_item_buy)
 
             if find_new_items:
-                prev = {'item_buy': self.p2p_item_buy.to_json() if self.p2p_item_buy else None, 'price_buy': self.price_buy}
-                new = { 'item_buy': p2p_item_buy.to_json() if p2p_item_buy else None, 'price_buy': price_buy}
-
-                if self.state == self.STAGE_PROCESS_PAYMENT and self.p2p_item_sell != p2p_item_sell:
-                    prev.update({'item_sell': self.p2p_item_sell.to_json() if self.p2p_item_sell else None, 'price_sell': self.price_sell})
-                    new.update({'item_sell': p2p_item_sell.to_json() if p2p_item_sell else None, 'price_sell': price_sell})
-
-                self.add_message(message=f'P2P новый ордер', prev=prev, new=new)
+                self.add_message_with_items('NEW ORDER', p2p_item_sell, price_sell, p2p_item_buy, price_buy)
 
             if self.stage == self.STAGE_PROCESS_PAYMENT:
                 self.p2p_item_sell: P2PItem = p2p_item_sell  # хэши обновляем
@@ -1006,8 +1010,14 @@ class OrderBuyToken(models.Model):
                                                            self.withdraw_currency.is_crypto and self.price_buy < price_buy)))):
             print('WRONG PRICE withdraw', self.withdraw_amount, 'new', withdraw_amount, 'payment', self.payment_amount, 'new', payment_amount)
 
+            self.add_message_with_items('WRONG PRICE', p2p_item_sell, price_sell, p2p_item_buy, price_buy)
             # Сохраняется для передачи нового количества. Пользователь может согласиться или нет
-            self.state = OrderBuyToken.STATE_WRONG_PRICE
+
+            if self.stage == self.STAGE_PROCESS_PAYMENT:
+                self.state = OrderBuyToken.STATE_WRONG_PRICE
+            else:
+                self.state = OrderBuyToken.STATE_ERROR
+
             self.withdraw_amount = withdraw_amount
             self.payment_amount = payment_amount
 
