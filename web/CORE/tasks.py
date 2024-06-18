@@ -444,8 +444,6 @@ def process_payment_crypto(order: OrderBuyToken):
         # digits = TOKENS_DIGITS[order.payment_currency.token]
         # trading_quantity = float((('{:.' + str(digits) + 'f}').format(order.payment_amount)))
 
-        trading_quantity = format_float(order.payment_amount, token=order.payment_currency.token)
-
         # usdt_price = bybit_api.get_price_for_amount(order.payment_currency.token, BybitCurrency.CURRENCY_USDT,
         #                                             trading_quantity, side=BybitAPI.SIDE_BUY_FIAT)
         # trade_rate = usdt_price / order.payment_amount
@@ -456,16 +454,17 @@ def process_payment_crypto(order: OrderBuyToken):
         # usdt_available = order.usdt_amount * (1 - order.platform_commission)
         # print('usdt_available', usdt_available, 'usdt_price', usdt_price, usdt_price > usdt_available * 1.03)
 
-        trade_rate = bybit_api.get_trading_rate(order.withdraw_currency.token, 'USDT')
+        trade_rate = bybit_api.get_trading_rate(order.payment_currency.token, 'USDT')
         print('orig trade_rate', trade_rate, 'from order', order.price_sell)
 
-        if trade_rate * 1.03 < order.price_sell :
+        if 1 / trade_rate > order.price_sell * 1.01:
             order.state = OrderBuyToken.STATE_ERROR_TRADE_VOLATILE  # FIXME change state
             # order.error_message = f'trade: usdt_price {usdt_price}, usdt_available {usdt_available}, rate {trade_rate}, k {usdt_price/usdt_available}'
             order.error_message = "Цена на бирже изменилась > 3%"
             order.save()
             return
 
+        trading_quantity = format_float(order.payment_amount, token=order.payment_currency.token)
         market_order_id = bybit_api.place_order(order.payment_currency.token, 'USDT', trading_quantity,  # Меняем всю крипту что нам дали
                                                 side=BybitAPI.SIDE_BUY_FIAT)
         order.order_sell_id = market_order_id
@@ -547,12 +546,10 @@ def process_withdraw_fiat(order: OrderBuyToken):
                 return
 
         if not order.order_buy_id:  # Запрос к bybit еще не делали
-            try:
-                if not order.create_p2p_order(side=P2PItem.SIDE_BUY):  # Создаем заказ
-                    return  # state -> ERROR
-            except TypeError:  # Цена изменилась
-                order.verify_order()
-                return
+            if not order.create_p2p_order(side=P2PItem.SIDE_BUY,
+                                          find_new_items=False if order.p2p_item_buy is not None else True):  # Создаем заказ
+                return  # state -> ERROR
+
         print('created')
         order.update_p2p_order_status(side=P2PItem.SIDE_BUY)  # state -> STATE_TRANSFERRED
         return
@@ -566,6 +563,15 @@ def process_withdraw_fiat(order: OrderBuyToken):
             order.state = OrderBuyToken.STATE_BUY_CONFIRMED
             order.error_message = 'заказ подтвердили с аккаунта bybit'
             order.save()
+
+        elif state == 40:
+            order.error_message = 'продавец не подтвердил заказ'
+            order.state = OrderBuyToken.STATE_RECEIVED
+            order.order_buy_id = None  # TODO сохранять все изменения prev new
+            order.p2p_item_buy = None
+
+            order.save()
+            return
 
         elif state == 20:
             order.state = OrderBuyToken.STATE_WAITING_CONFIRMATION  # todo доп. проверять
@@ -584,11 +590,13 @@ def process_withdraw_fiat(order: OrderBuyToken):
 
         if order.check_p2p_timeout(minutes=P2P_BUY_TIMEOUTS['SELLER'], side=P2PItem.SIDE_BUY):
             order.error_message = 'Продавец не перевел деньги'  # todo открывать новый p2p ордер / проверить старый
+            order.state = OrderBuyToken.STATE_ERROR
             return
 
     elif order.state == OrderBuyToken.STATE_WAITING_CONFIRMATION:
-        if order.check_p2p_timeout(minutes=P2P_BUY_TIMEOUTS['CREATED'], side=P2PItem.SIDE_BUY):
-            order.state = OrderBuyToken.STATE_BUY_NOT_CONFIRMED
+        # if order.check_p2p_timeout(minutes=P2P_BUY_TIMEOUTS['CREATED'], side=P2PItem.SIDE_BUY):
+        if order.dt_received <= datetime.datetime.now() - datetime.timedelta(minutes=P2P_BUY_TIMEOUTS['CREATED']):
+            # order.state = OrderBuyToken.STATE_BUY_NOT_CONFIRMED # FIXME
             order.error_message = 'Получение средств не подтвердили/оспорили за 30 минут'
             order.save()
             process_buy_order_direct(order)
