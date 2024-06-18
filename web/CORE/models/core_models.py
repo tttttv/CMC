@@ -31,7 +31,7 @@ class BybitP2PBlackList(models.Model):
         (SIDE_BUY, 'Продажа USDT'),
     )
 
-    item_id = models.IntegerField(primary_key=True)
+    item_id = models.CharField(primary_key=True, max_length=50)
     user_id = models.IntegerField()
 
     is_active = models.BooleanField(default=True)
