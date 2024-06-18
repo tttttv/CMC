@@ -45,5 +45,5 @@ admin.site.register(Config)
 
 admin.site.register(PaymentTerm)
 
-admin.site.reguster(BybitP2PBlackList)
+admin.site.register(BybitP2PBlackList)
 
