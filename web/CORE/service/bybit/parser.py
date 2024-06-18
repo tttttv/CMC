@@ -1078,7 +1078,8 @@ class BybitSession:
             for token_balance in resp['result']['coinList']:
                 print('token_balance', token_balance)
                 if token_balance['coin'] == token_name:
-                    return float(token_balance['wb'])
+                    balance = token_balance['wb']
+                    return float(balance) if balance else 0.0
         else:
             print(resp)
             raise ValueError
@@ -1093,7 +1094,8 @@ class BybitSession:
             for token_balance in resp['result']:
                 print('token_balance', token_balance)
                 if token_balance['currency'] == token_name:
-                    return float(token_balance['balance'])
+                    balance = token_balance['balance']
+                    return float(balance) if balance else 0.0
         else:
             print(resp)
             raise ValueError
