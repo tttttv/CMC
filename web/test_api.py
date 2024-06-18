@@ -159,6 +159,9 @@ bybit_session = BybitSession(account)
 bybit_api = order.account.get_api()
 
 
+deposit_data = bybit_session.get_deposit_address(token='USDT', chain='MANTLE')
+
+
 from CORE.models import *
 from CORE.tasks import process_buy_order_task, update_p2pitems_task
 from CORE.service.bybit.parser import BybitSession
@@ -181,7 +184,7 @@ bybit_session.get_unified_balance('NEAR')
 bybit_session.get_funding_balance('NEAR')
 
 from CORE.tasks import task_send_message, task_send_image
-task_send_message(387)
+task_send_message(397)
 
 from CORE.tasks import task_send_message, task_send_image
 task_send_image(384, 'application/pdf')

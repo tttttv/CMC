@@ -271,13 +271,9 @@ class Trade:
             print('EXCLUDE')
             exclude_insufficient = AccountInsufficientItems.objects.filter(
                 account_id=self.account_id,
-                expire_dt__gt=datetime.datetime.now()
+                expire_dt__gt=datetime.datetime.now(),
+                is_active=True
             ).values_list('item_id', flat=True).all()
-
-            # AccountInsufficientItems.objects.filter(
-            #     account_id=self.account_id,
-            #     expire_dt__gt=datetime.datetime.now()
-            # ).values_list('item__item_id', flat=True).all()
 
             print('exclude_insufficient', exclude_insufficient)
             if exclude_insufficient:
@@ -285,18 +281,9 @@ class Trade:
 
         print('SQL')
         print(items_query.query)
-        # items = items_query.order_by('price' if is_p2p_buying_crypto else '-price').all()
-        # print('items', items.count())
+
         best_p2p = items_query.order_by('price' if is_p2p_buying_crypto else '-price').first()
-        # for i in items[:5]:
-        #     print('item', i, i.price, i.min_amount, i.max_amount)
-        # print()
-        # for i in items:
-        #     print('item', i, i.price, i.min_amount, i.max_amount, 'ttt', i.price * (withdraw_amount or payment_amount))
-        #     if int(payment_method) in i.payment_methods:
-        #         best_p2p = i
-        #         break
-        # else:
+
         if best_p2p is None:
             if ((p2p_side == P2PItem.SIDE_SELL and payment_amount == 0.0 and withdraw_amount != 0.0) or
                     (p2p_side == P2PItem.SIDE_BUY and payment_amount != 0.0 and withdraw_amount == 0.0)):
@@ -345,8 +332,6 @@ class Trade:
 
                     raise MaxPaymentException(max_amount)
 
-            # if P2PItem.objects.filter(is_active=True).exists():
-            #     raise DoesNotExist
             raise DoesNotExist()
 
         print('BEST P2P', best_p2p.price, best_p2p.min_amount, best_p2p.id)
@@ -381,15 +366,4 @@ class Trade:
             better_p2p = better_query.filter(price__gt=best_p2p.price).order_by('min_amount', '-price').first()
             print('SECOND better_p2p', better_p2p)
 
-        # better_p2p = None
-        # for i in better_items:
-        #     print(i.payment_methods, i.item_id)
-        #     if int(payment_method) in i.payment_methods:
-        #         better_p2p = i
-        #         print('FINAL', i.price, i.min_amount, i.id)
-        #         break
-
-        # p2p_price = best_p2p.price
-
-        # print(p2p_price, better_p2p)
         return best_p2p, better_p2p

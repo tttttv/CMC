@@ -263,11 +263,13 @@ class BybitSession:
         r = self.session.post("https://api2.bybit.com/fiat/otc/order/info", json=data)
         resp = r.json()
         if resp['ret_code'] == 0:
-            for term in resp['result']['paymentTermList']:
+            result = resp['result']
+            for term in result['paymentTermList']:
                 term = BybitPaymentTerm(term)
                 if not payment_type or str(term.paymentType) == str(payment_type):
                     # 10 - в процессе, 50 - совершено, 20 - при продаже отправили монеты
-                    return resp['result']['status'], term
+                    additional_info = {'amount': result['amount'], 'quantity': result['quantity'], 'price': result['price']}
+                    return result['status'], term, additional_info
             else:
                 print(resp)
                 raise NotImplementedError

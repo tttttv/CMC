@@ -599,18 +599,6 @@ class OrderViewSet(GenericViewSet):
             else:  # order.state == order.STAGE_PROCESS_WITHDRAW:
                 order.state = OrderBuyToken.STATE_RECEIVED
 
-            # try:
-            #     trade = Trade(order.payment_currency, order.withdraw_currency, order.payment_amount, order.withdraw_amount,
-            #                   order.withdraw_currency.chain, order.payment_currency.chain,
-            #                   order.trading_commission, order.partner_commission, order.platform_commission,
-            #                   is_direct=order.anchor == OrderBuyToken.ANCHOR_SELL)
-            #     payment_amount, withdraw_amount, usdt_amount, p2p_item_sell, p2p_item_buy, price_sell, price_buy, better_amount = trade.get_amount()
-            # except TypeError as ex:  # FIXME ValueError
-            #     return JsonResponse({'message': 'cant get new price', 'code': 2}, status=403)
-
-            # order.p2p_item_sell = p2p_item_sell
-            # order.p2p_item_buy = p2p_item_buy
-
             order.save()
 
             process_buy_order_task.apply_async(args=[order.id])
@@ -627,6 +615,7 @@ class OrderViewSet(GenericViewSet):
     def confirm_payment(self, request, pk, order):
         if order.state == OrderBuyToken.STATE_CREATED:  # FIXME доп. проверять
             order.state = OrderBuyToken.STATE_TRANSFERRED
+            order.dt_confirmed_sell = datetime.datetime.now()
             order.save()
             process_buy_order_task.apply_async(args=[order.id])
 
@@ -643,6 +632,7 @@ class OrderViewSet(GenericViewSet):
     def confirm_withdraw(self, request, pk, order):
         if order.state == OrderBuyToken.STATE_WAITING_CONFIRMATION:
             order.state = OrderBuyToken.STATE_BUY_CONFIRMED
+            order.dt_confirmed_buy = datetime.datetime.now()
             order.save()
             process_buy_order_task.apply_async(args=[order.id])
 
