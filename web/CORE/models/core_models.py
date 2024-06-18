@@ -920,7 +920,6 @@ class OrderBuyToken(models.Model):
 
         return False
 
-
     def add_message_with_items(self, message, p2p_item_sell, price_sell, p2p_item_buy, price_buy):
         prev = {'item_buy': self.p2p_item_buy.to_json() if self.p2p_item_buy else None, 'price_buy': self.price_buy}
         new = {'item_buy': p2p_item_buy.to_json() if p2p_item_buy else None, 'price_buy': price_buy}
@@ -1311,7 +1310,7 @@ class P2POrderMessage(models.Model):
             'file_name': self.file.name,
             'side': side,
         }
-        print(res)
+        # print(res)
         return res
 
 

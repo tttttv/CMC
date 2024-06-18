@@ -174,3 +174,4 @@ if __name__ == '__main__':
     # print('market_order_id', market_order_id)
 
     bybit_api.transfer_to_trading('USDT', 100)
+    bybit_api.transfer_to_funding('USDT', 100)

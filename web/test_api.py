@@ -156,7 +156,7 @@ account = BybitAccount.objects.get(id=2)
 
 account = BybitAccount.objects.filter(is_active=True).last()
 bybit_session = BybitSession(account)
-bybit_api = order.account.get_api()
+bybit_api = account.get_api()
 
 
 deposit_data = bybit_session.get_deposit_address(token='USDT', chain='MANTLE')
@@ -189,7 +189,7 @@ from CORE.tasks import task_send_message, task_send_image
 task_send_message(408)
 
 from CORE.tasks import task_send_message, task_send_image
-task_send_image(384, 'application/pdf')
+task_send_image(419, 'application/pdf')
 task_send_image(384, 'image/jpeg')
 
 
