@@ -210,6 +210,9 @@ export const ChangeInputs = () => {
             if (!validatedValue && validatedValue !== "") return;
 
             setFromValue(validatedValue);
+            setOrderData(null);
+            if (validatedValue === "0" || validatedValue === "") return;
+
             setGetPricing("to");
             gettingTimer.current = setTimeout(() => {
               getPrice();
@@ -225,13 +228,14 @@ export const ChangeInputs = () => {
           value={isToGetting ? "Рассчитываем..." : toValue}
           onChange={(e) => {
             clearTimeout(gettingTimer.current);
-
             const validatedValue = validateCurrencyInput(e.target.value);
             if (!validatedValue && validatedValue !== "") return;
+            setOrderData(null);
             setToValue(validatedValue);
 
-            setGetPricing("from");
+            if (validatedValue === "0" || validatedValue === "") return;
 
+            setGetPricing("from");
             gettingTimer.current = setTimeout(() => {
               getPrice();
             }, DELAY);
