@@ -75,7 +75,7 @@ class BybitSession:
 
     def get_prices_list(self, token_id='USDT', currency_id='RUB', payment_methods=("379",),
                         items: Optional[list] = None, amount="", side="1", filter_online: bool = True,
-                        filter_ineligible: bool = True):
+                        filter_ineligible: bool = True, user_info: Optional[dict] = None):
 
         from CORE.models import P2PItem  # FIXME ** Разбить на файлы модель
         """Выгружает список цен на п2п"""
@@ -94,11 +94,6 @@ class BybitSession:
 
         r = self.session.post('https://api2.bybit.com/fiat/otc/item/online', json=data)
         resp = r.json()
-        # print('online resp:', resp)
-        user_info = None
-        if filter_ineligible:
-            user_info = self.get_user_info()
-            # print('user_info', user_info)
 
         if resp['ret_code'] == 0:
             p2p = []

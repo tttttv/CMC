@@ -31,12 +31,14 @@ def update_p2pitems_task():
     payment_methods = [payment.payment_id for payment in BybitCurrency.all_payment_methods()]
     print('payment_methods', payment_methods)
     try:
+        user_info = bybit_session.get_user_info()  # if filter_ineligible
+
         items_sale = bybit_session.get_prices_list(token_id='USDT', currency_id='RUB',
                                                    payment_methods=payment_methods, side="1", filter_online=True,
-                                                   filter_ineligible=True)  # лоты на продажу
+                                                   filter_ineligible=True, user_info=user_info)  # лоты на продажу
         items_buy = bybit_session.get_prices_list(token_id='USDT', currency_id='RUB',  # todo другие валюты
                                                   payment_methods=payment_methods, side="0", filter_online=True,
-                                                  filter_ineligible=True)  # лоты на покупку
+                                                  filter_ineligible=True, user_info=user_info)  # лоты на покупку
     except (ProxyError, RequestException) as e:
         account.set_proxy_dead()
         print(e)
