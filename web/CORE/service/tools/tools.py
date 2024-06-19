@@ -67,6 +67,7 @@ class Trade:
             amount = payment_amount or withdraw_amount
             if trade_side == SIDE_BUY_CRYPTO:
                 chain_commission = self.get_chain_commission(method, chain)
+                print('chain_commission', chain_commission)
                 if self.is_direct:
                     return amount - chain_commission, 1
                 else:

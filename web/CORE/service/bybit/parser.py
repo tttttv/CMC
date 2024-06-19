@@ -1068,7 +1068,6 @@ class BybitSession:
     def get_unified_balance(self, token_name: str = 'USDT') -> float:
         r = self.session.post(f"https://api2.bybit.com/siteapi/unified/private/account-walletbalance")
         resp = r.json()
-
         if resp['retCode'] == 0:
             for token_balance in resp['result']['coinList']:
                 print('token_balance', token_balance)

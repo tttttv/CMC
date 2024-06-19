@@ -76,9 +76,12 @@ class BybitAPI:
             print(r)
             raise ValueError
 
-    def get_coin_balance(self, accountType="FUND"):
-        r = self.session.get_coins_balance(accountType=accountType)
-        print(r)
+    def get_coin_balance(self, accountType="FUND", token='USDT'):
+        resp = self.session.get_coin_balance(accountType=accountType, coin=token)
+        print(resp)
+        if resp['retCode'] == 0:
+            return resp['result']['balance']['transferBalance']
+        raise ValueError
 
     def transfer_to_trading(self, token, amount):
         try:
@@ -159,6 +162,12 @@ class BybitAPI:
         trade_rate = total_price / amount
         return trade_rate
 
+    def get_funding_balance(self, token: str = 'USDT') -> float:
+        return self.get_coin_balance('FUND', token)
+
+    def get_unified_balance(self, token: str = 'USDT') -> float:
+        return self.get_coin_balance('UNIFIED', token)
+
 
 if __name__ == '__main__':
     bybit_api = BybitAPI("lBRokZFJSDNcuQXpcL", "ZmoAS7JbkL4o4BFtKosoCn0e9A6ebcpZ14AE")
@@ -173,5 +182,9 @@ if __name__ == '__main__':
     #                                        side=BybitAPI.SIDE_BUY_CRYPTO)
     # print('market_order_id', market_order_id)
 
-    bybit_api.transfer_to_trading('USDT', 100)
-    bybit_api.transfer_to_funding('USDT', 100)
+    # bybit_api.transfer_to_trading('USDT', 100)
+    # bybit_api.transfer_to_funding('USDT', 100)
+
+    print(bybit_api.get_funding_balance('NEAR'))
+    print(bybit_api.get_unified_balance('NEAR'))
+
