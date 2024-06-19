@@ -7,7 +7,8 @@ from celery import current_app
 
 from CORE.models import OrderBuyToken
 
-LOCK_EXPIRE = 60 * 10  # Lock expires in 10 minutes
+LOCK_EXPIRE = 60 * 10  # Lock expires in 10 minutes  # TODO CONFIG
+
 
 @contextmanager
 def order_task_lock(order_id):

@@ -2,19 +2,21 @@ import base64
 import datetime
 import random
 import uuid
+import traceback
 
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.http import JsonResponse
-from rest_framework.response import Response
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
+from rest_framework.response import Response
 # Create your views here.
 from rest_framework.viewsets import GenericViewSet
 
 from API.mixins.decorators import widget_hash_required, order_hash_required
 from API.serializers import OrderCreateSerializer, OrderStateSerializer, GetPriceSerializer, WidgetCreateSerializer, PaymentCurrencySerializer
+from CORE.exceptions import DoesNotExist, AmountException
 from CORE.models import OrderBuyToken, BybitAccount, P2PItem, P2POrderMessage, Partner, Widget, \
     BybitCurrency, Currency
 from CORE.service.CONFIG import CREATED_TIMEOUT
@@ -240,7 +242,7 @@ class ExchangeVIewSet(GenericViewSet):
         widget_hash = request.query_params.get('widget', None)
         partner_commission = 0.0
         platform_commission = 0.02  # TODO CONFIG
-        trading_commission = 0.001
+        trading_commission = 0.0018
 
         if widget_hash:  # Если вдруг по виджету передана не та крипта
             widget = Widget.objects.get(hash=widget_hash)
@@ -259,33 +261,34 @@ class ExchangeVIewSet(GenericViewSet):
 
         except TypeError as ex:
             print('ex', ex)
-            # raise ex
+            traceback.print_exc()
             return JsonResponse({'message': 'Биржа не работает', 'code': 2}, status=403)
-        except ValueError as ex:
+
+        except (DoesNotExist, ValueError) as ex:
             print('ex', ex)
-            # raise ex
+            traceback.print_exc()
             return JsonResponse(
                 {'message': 'Ошибка получения цены. Попробуйте другую цену или другой способ пополнения.', 'code': 3},
                 status=403)
-
-        print('РАСЧИТАЛ')
+        except AmountException as ex:
+            return JsonResponse({'message': str(ex), 'code': ex.code}, status=403)
 
         if anchor == OrderBuyToken.ANCHOR_SELL:
             min_amount, max_amount = withdraw_method.withdraw_min_max(withdraw_chain)
-            if amount < min_amount:
+            if withdraw_amount < min_amount:
                 return JsonResponse({'message': f'Минимальное количество для вывода {min_amount}', 'code': 7}, status=403)
-            elif amount > max_amount:
+            elif withdraw_amount > max_amount:
                 return JsonResponse({'message': f'Максимально количество для вывода {max_amount}', 'code': 8}, status=403)
 
         elif anchor == OrderBuyToken.ANCHOR_BUY:
             min_amount, max_amount = payment_method.payment_min_max(payment_chain)
-            if amount < min_amount:
+            if payment_amount < min_amount:
                 return JsonResponse({'message': f'Минимальное количество для пополнения {min_amount}', 'code': 5}, status=403)
-            elif amount > max_amount:
+            elif payment_amount > max_amount:
                 return JsonResponse({'message': f'Максимально количество для пополнения {max_amount}', 'code': 6}, status=403)
 
         data = {
-            'price': "%.2f" % (payment_amount / withdraw_amount),
+            'price': "%.4f" % (payment_amount / withdraw_amount),
 
             'payment_amount': payment_amount,
             'withdraw_amount': withdraw_amount,
@@ -410,7 +413,7 @@ class OrderViewSet(GenericViewSet):
 
             order.payment_amount = payment_amount
             order.withdraw_amount = withdraw_amount
-            order.trading_commission = 0.001  # FIXME CONFIG
+            order.trading_commission = 0.0018  # FIXME CONFIG
 
             widget_hash = request.query_params.get('widget', None)
             if widget_hash:  # Если передан виджет
@@ -503,6 +506,10 @@ class OrderViewSet(GenericViewSet):
                     'time_left': (order.dt_created_sell - datetime.datetime.now() + datetime.timedelta(minutes=30)).seconds,
                     'commentary': "SEND ME CRYPTO BRO",
                 }
+
+        elif order.stage == OrderBuyToken.STAGE_PROCESS_WITHDRAW and order.state == OrderBuyToken.STATE_TRANSFERRED:  # Вывод на карту
+            state = 'TRADING'
+
         elif order.state == OrderBuyToken.STATE_TRANSFERRED:  # Пользователь пометил как отправленный - ждем подтверждение
             state = 'RECEIVING'
 
@@ -512,17 +519,21 @@ class OrderViewSet(GenericViewSet):
         elif order.state == OrderBuyToken.STATE_WAITING_TRANSACTION_PROCESSED:
             state = 'RECEIVING'  # FIXME TEST
 
+        elif order.stage == OrderBuyToken.STAGE_PROCESS_WITHDRAW and order.withdraw_currency.is_fiat and order.state == OrderBuyToken.STATE_RECEIVED:
+            state = 'TRADING'
+
         elif order.state == OrderBuyToken.STATE_RECEIVED:  # Продавец подтвердил получение денег
             state = 'BUYING'
 
-        elif order.state == OrderBuyToken.STATE_CHECK_BALANCE:
+        elif (order.state == OrderBuyToken.STATE_TRADING_CRYPTO or order.state == OrderBuyToken.STATE_TRADED_CRYPTO or
+              order.state == OrderBuyToken.STATE_CHECK_BALANCE or order.state == OrderBuyToken.STATE_RECEIVING_CRYPTO):
             state = 'BUYING'
 
-        elif order.state == OrderBuyToken.STATE_TRADING or order.state == OrderBuyToken.STATE_RECEIVING_CRYPTO:  # Меняем на бирже
+        elif order.state == OrderBuyToken.STATE_TRADING:  # Меняем на бирже
             state = 'TRADING'
 
         # Поменяли на бирже
-        elif order.state == OrderBuyToken.STATE_TRADED: #  or order.state == order.STAGE_PROCESS_WITHDRAW and order.state == OrderBuyToken.STATE_RECEIVED:
+        elif order.state == OrderBuyToken.STATE_TRADED:  #  or order.state == order.STAGE_PROCESS_WITHDRAW and order.state == OrderBuyToken.STATE_RECEIVED:
             state = 'TRADING'
 
         elif order.state == OrderBuyToken.STATE_WITHDRAWING:  # Выводим деньги
@@ -539,7 +550,7 @@ class OrderViewSet(GenericViewSet):
             state = 'TIMEOUT'
         elif order.state == OrderBuyToken.STATE_ERROR:  # Критическая ошибка, требующая связи через бота
             state = 'ERROR'
-        elif order.state == OrderBuyToken.STATE_P2P_APPEAL:
+        elif order.state == OrderBuyToken.STATE_P2P_APPEAL or order.state == OrderBuyToken.STATE_BUY_NOT_CONFIRMED:
             state = 'DISPUTE'
 
         elif order.state == OrderBuyToken.STATE_WAITING_CONFIRMATION:
@@ -588,18 +599,6 @@ class OrderViewSet(GenericViewSet):
             else:  # order.state == order.STAGE_PROCESS_WITHDRAW:
                 order.state = OrderBuyToken.STATE_RECEIVED
 
-            # try:
-            #     trade = Trade(order.payment_currency, order.withdraw_currency, order.payment_amount, order.withdraw_amount,
-            #                   order.withdraw_currency.chain, order.payment_currency.chain,
-            #                   order.trading_commission, order.partner_commission, order.platform_commission,
-            #                   is_direct=order.anchor == OrderBuyToken.ANCHOR_SELL)
-            #     payment_amount, withdraw_amount, usdt_amount, p2p_item_sell, p2p_item_buy, price_sell, price_buy, better_amount = trade.get_amount()
-            # except TypeError as ex:  # FIXME ValueError
-            #     return JsonResponse({'message': 'cant get new price', 'code': 2}, status=403)
-
-            # order.p2p_item_sell = p2p_item_sell
-            # order.p2p_item_buy = p2p_item_buy
-
             order.save()
 
             process_buy_order_task.apply_async(args=[order.id])
@@ -616,6 +615,7 @@ class OrderViewSet(GenericViewSet):
     def confirm_payment(self, request, pk, order):
         if order.state == OrderBuyToken.STATE_CREATED:  # FIXME доп. проверять
             order.state = OrderBuyToken.STATE_TRANSFERRED
+            order.dt_confirmed_sell = datetime.datetime.now()
             order.save()
             process_buy_order_task.apply_async(args=[order.id])
 
@@ -632,6 +632,7 @@ class OrderViewSet(GenericViewSet):
     def confirm_withdraw(self, request, pk, order):
         if order.state == OrderBuyToken.STATE_WAITING_CONFIRMATION:
             order.state = OrderBuyToken.STATE_BUY_CONFIRMED
+            order.dt_confirmed_buy = datetime.datetime.now()
             order.save()
             process_buy_order_task.apply_async(args=[order.id])
 

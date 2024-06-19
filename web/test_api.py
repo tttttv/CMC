@@ -153,8 +153,13 @@ from CORE.service.bybit.parser import BybitSession
 update_p2pitems_task()
 
 account = BybitAccount.objects.get(id=2)
-bybit_session = BybitSession(account)
 
+account = BybitAccount.objects.filter(is_active=True).last()
+bybit_session = BybitSession(account)
+bybit_api = account.get_api()
+
+
+deposit_data = bybit_session.get_deposit_address(token='USDT', chain='MANTLE')
 
 
 from CORE.models import *
@@ -163,17 +168,33 @@ from CORE.service.bybit.parser import BybitSession
 order = OrderBuyToken.objects.last()
 process_buy_order_task(order.id)
 
-
 order = OrderBuyToken.objects.last()
 order.find_new_items()
 order.save()
 
 
-from CORE.tasks import task_send_message, task_send_image
-task_send_message(116)
-task_send_image(117, 'application/pdf')
+order = OrderBuyToken.objects.last()
+bybit_session = BybitSession(order.account)
 
+bybit_session = BybitSession(account)
+bybit_session.get_available_balance('USDT')
+bybit_session.get_unified_balance('USDT')
+bybit_session.get_funding_balance('USDT')
+bybit_session.get_p2p_orders()
+
+bybit_session.get_unified_balance('NEAR')
+bybit_session.get_funding_balance('NEAR')
+
+from CORE.tasks import task_send_message, task_send_image
+task_send_message(408)
+
+from CORE.tasks import task_send_message, task_send_image
+task_send_image(419, 'application/pdf')
+task_send_image(384, 'image/jpeg')
 
 
 order.update_p2p_order_messages(side=P2PItem.SIDE_SELL)
 order.update_p2p_order_messages(side=P2PItem.SIDE_BUY)
+
+
+bybit_session.get_user_info()

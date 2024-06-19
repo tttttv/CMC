@@ -2,7 +2,12 @@ import json
 import time
 
 from pybit.unified_trading import HTTP
+from pybit.exceptions import (
+    InvalidRequestError
+)
 import uuid
+
+from CORE.exceptions import InsufficientBalance
 
 
 class ProxyHTTP(HTTP):
@@ -39,19 +44,25 @@ class BybitAPI:
         raise ValueError()
 
     def place_order(self, token_sell, token_buy, amount, side=SIDE_BUY_CRYPTO):
-        r = self.session.place_order(
-            category="spot",
-            symbol=token_sell + token_buy,
-            side=side,
-            orderType="Market",
-            qty=str(amount),
-            marketUnit='baseCoin',
-            isLeverage=0,
-            orderFilter="Order",
-        )
+        try:
+            r = self.session.place_order(
+                category="spot",
+                symbol=token_sell + token_buy,
+                side=side,
+                orderType="Market",
+                qty=str(amount),
+                marketUnit='baseCoin',
+                isLeverage=0,
+                orderFilter="Order",
+            )
 
-        if r['retCode'] == 0:
-            return r['result']['orderId']
+            if r['retCode'] == 0:
+                return r['result']['orderId']
+        except InvalidRequestError as exc:
+            print(exc)
+            print('status code', exc.status_code)
+            if exc.status_code == 170131:
+                raise InsufficientBalance()
 
     def get_order_status(self, order_id):
         r = self.session.get_open_orders(
@@ -70,30 +81,39 @@ class BybitAPI:
         print(r)
 
     def transfer_to_trading(self, token, amount):
-        truuid = uuid.uuid4()
-        r = self.session.create_internal_transfer(
-            transferId=str(truuid),
-            coin=token,
-            amount=str(amount),
-            fromAccountType="FUND",
-            toAccountType="UNIFIED",
-        )
-        print('transfer_to_trading resp:', r)
-        if r['retCode'] == 0:
-            print(r['result']['transferId'])
+        try:
+            truuid = uuid.uuid4()
+            r = self.session.create_internal_transfer(
+                transferId=str(truuid),
+                coin=token,
+                amount=str(amount),
+                fromAccountType="FUND",
+                toAccountType="UNIFIED",
+            )
+            print('transfer_to_trading resp:', r)
+            if r['retCode'] == 0:
+                print(r['result']['transferId'])
+
+        except InvalidRequestError as exc:
+            if exc.status_code == 131212:
+                raise InsufficientBalance()
 
     def transfer_to_funding(self, token, amount):
-        truuid = uuid.uuid4()
-        r = self.session.create_internal_transfer(
-            transferId=str(truuid),
-            coin=token,
-            amount=str(amount),
-            fromAccountType="UNIFIED",
-            toAccountType="FUND",
-        )
+        try:
+            truuid = uuid.uuid4()
+            r = self.session.create_internal_transfer(
+                transferId=str(truuid),
+                coin=token,
+                amount=str(amount),
+                fromAccountType="UNIFIED",
+                toAccountType="FUND",
+            )
 
-        if r['retCode'] == 0:
-            print(r['result']['transferId'])
+            if r['retCode'] == 0:
+                print(r['result']['transferId'])
+        except InvalidRequestError as exc:
+            if exc.status_code == 131212:
+                raise InsufficientBalance()
 
     def withdraw(self, token, chain, address, amount):
         r = self.session.withdraw(
@@ -141,21 +161,17 @@ class BybitAPI:
 
 
 if __name__ == '__main__':
-    api = BybitAPI("lBRokZFJSDNcuQXpcL", "ZmoAS7JbkL4o4BFtKosoCn0e9A6ebcpZ14AE")
+    bybit_api = BybitAPI("lBRokZFJSDNcuQXpcL", "ZmoAS7JbkL4o4BFtKosoCn0e9A6ebcpZ14AE")
 
-    trading_quantity = 1
-    total_price = api.get_price_for_amount('NEAR', 'USDT', trading_quantity, side=BybitAPI.SIDE_BUY_FIAT)
+    trading_quantity = 30
+    total_price = bybit_api.get_price_for_amount('NEAR', 'USDT', trading_quantity, side=BybitAPI.SIDE_BUY_FIAT)
     print('bins total_price', total_price)
     trade_rate = total_price / trading_quantity
     print('bins trade_rate', trade_rate)
 
-    # rate = api.get_trading_rate('NEAR', 'USDT')
-    # print('last rate', rate, ' last price:', rate * trading_quantity)
+    # market_order_id = bybit_api.place_order('NEAR', 'USDT', trading_quantity,
+    #                                        side=BybitAPI.SIDE_BUY_CRYPTO)
+    # print('market_order_id', market_order_id)
 
-    # tr_id = print(api.place_order('NEAR', 'USDT', 5)
-    # order_id = api.transfer_to_trade('USDT', 5)
-    # status = api.get_order(1633785335043596032)
-    # api.withdraw('USDT', 'MANTLE', '0xcb689021987ee9a838081fb27f9dee02098566ee', 3)
-    # api.withdraw('NEAR', 'NEAR', '9bfbc37407cbe64cd7b56fc6ef7fa2dfb07210ad6a4c497c831d8ddfc331ca6b', 0.5)
-    # api.withdraw('NEAR', 'NEAR', 'b8c72480a7d962f389ff2954386e3f529770991df04d6c750923a1b3625bbf9d', 0.5)
-    # api.withdraw('USDT', 'TRX', 'TAibabMu5sWJBunQQHKj5QLQ4k4rDMLSeB', 3)
+    bybit_api.transfer_to_trading('USDT', 100)
+    bybit_api.transfer_to_funding('USDT', 100)

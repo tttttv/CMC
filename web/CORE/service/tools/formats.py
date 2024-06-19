@@ -31,7 +31,7 @@ def file_as_base64(file_path):
         '.pdf': 'application/pdf'
     }
     file_extension = os.path.splitext(file_path)[1]
-    print('file_extension', file_extension)
+    # print('file_extension', file_extension)
     if file_extension not in mime_types:
         raise ValueError("Unsupported file type. Only PNG, JPG, MP4, and PDF are allowed.")
 
