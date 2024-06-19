@@ -546,7 +546,7 @@ class BybitAccount(models.Model):
     @classmethod
     def get_random_account(cls):
         account = BybitAccount.objects.filter(is_active=True).all()
-        if account is None:
+        if not account:
             raise TypeError
         return random.choice(account)
 
