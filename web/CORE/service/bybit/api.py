@@ -80,7 +80,8 @@ class BybitAPI:
         resp = self.session.get_coin_balance(accountType=accountType, coin=token)
         print(resp)
         if resp['retCode'] == 0:
-            return resp['result']['balance']['transferBalance']
+            balance = resp['result']['balance']['transferBalance']
+            return float(balance) if balance else 0.0
         raise ValueError
 
     def transfer_to_trading(self, token, amount):
