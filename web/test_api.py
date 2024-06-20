@@ -189,7 +189,7 @@ from CORE.tasks import task_send_message, task_send_image
 task_send_message(408)
 
 from CORE.tasks import task_send_message, task_send_image
-task_send_image(419, 'application/pdf')
+task_send_image(430, 'application/pdf')
 task_send_image(384, 'image/jpeg')
 
 
@@ -198,3 +198,5 @@ order.update_p2p_order_messages(side=P2PItem.SIDE_BUY)
 
 
 bybit_session.get_user_info()
+
+bybit_api.place_order('NEAR', 'USDT', 1.0123456, side=BybitAPI.SIDE_BUY_CRYPTO)

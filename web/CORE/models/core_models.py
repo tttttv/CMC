@@ -545,7 +545,10 @@ class BybitAccount(models.Model):
 
     @classmethod
     def get_random_account(cls):
-        return random.choice(BybitAccount.objects.filter(is_active=True).all())
+        account = BybitAccount.objects.filter(is_active=True).all()
+        if not account:
+            raise TypeError
+        return random.choice(account)
 
     def set_banned(self):  # FIXME UNUSED
         self.is_active = False
