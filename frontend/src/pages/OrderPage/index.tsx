@@ -40,8 +40,8 @@ export const OrderPage = () => {
     setWithdrawType(data?.order.withdraw.type);
 
     if (state === "PENDING" || state === "INITIATED") {
-      setTime(data?.state_data.time_left || 0);
-    } else setTime(data?.order.time_left || 0);
+      setTime(data?.state_data.time_left || 9999);
+    } else setTime(data?.order.time_left || 9999);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
@@ -54,7 +54,7 @@ export const OrderPage = () => {
     return <LoadingScreen>Создаем заказ</LoadingScreen>;
   }
 
-  if (state === "PENDING" || state === "WRONG") {
+  if (state === "PENDING" || state === "WRONG" || 1 + 1 === 2) {
     return <WaitingPage state={state} isLoading={isLoading} />;
   }
 
@@ -78,23 +78,23 @@ export const OrderPage = () => {
       },
     });
   }
-
-  return (
-    <>
-      Необработанный статус: <b>{state || "статус отсутствует"}</b>
-      <button
-        onClick={() => {
-          clearOrderHash();
-          navigate({
-            to: "/$widgetId",
-            params: {
-              widgetId: JSON.stringify(localStorage.getItem("widgetId")),
-            },
-          });
-        }}
-      >
-        вернуться
-      </button>
-    </>
-  );
+  return <LoadingScreen></LoadingScreen>;
+  // return (
+  //   <>
+  //     Необработанный статус: <b>{state || "статус отсутствует"}</b>
+  //     <button
+  //       onClick={() => {
+  //         clearOrderHash();
+  //         navigate({
+  //           to: "/$widgetId",
+  //           params: {
+  //             widgetId: JSON.stringify(localStorage.getItem("widgetId")),
+  //           },
+  //         });
+  //       }}
+  //     >
+  //       вернуться
+  //     </button>
+  //   </>
+  // );
 };
