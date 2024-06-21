@@ -54,7 +54,7 @@ export const OrderPage = () => {
     return <LoadingScreen>Создаем заказ</LoadingScreen>;
   }
 
-  if (state === "PENDING" || state === "WRONG" || 1 + 1 === 2) {
+  if (state === "PENDING" || state === "WRONG") {
     return <WaitingPage state={state} isLoading={isLoading} />;
   }
 
