@@ -7,7 +7,9 @@ import LoadingScreen from "$/shared/ui/global/LoadingScreen";
 import { useStagesStore } from "$/widgets/Stages";
 import { WaitingPage } from "./ui/WaitingPage";
 import { clearOrderHash } from "$/shared/helpers/orderHash/clear";
-import { useOrder } from "$/shared/hooks/useOrder";
+
+import { useQuery } from "@tanstack/react-query";
+import { orderAPI } from "$/shared/api/order";
 
 export const OrderPage = () => {
   const navigate = useNavigate();
@@ -17,10 +19,17 @@ export const OrderPage = () => {
     setCurrency,
     setNewAmount,
     setWithdrawType,
+    setQData,
     setStage,
   } = useStagesStore();
 
-  const { data, isLoading } = useOrder();
+  const { data, isLoading } = useQuery({
+    queryKey: ["order"],
+    queryFn: orderAPI.getOrderState,
+    select: (data) => data.data,
+    retry: false,
+    refetchInterval: 10000,
+  });
   const state = data?.state;
   useEffect(() => {
     setState(state || "");
@@ -28,6 +37,7 @@ export const OrderPage = () => {
     setNewAmount(data?.state_data.withdraw_amount ?? 0);
     setStage((data?.order.stage ?? -1) as -1 | 1 | 2);
     setWithdrawType(data?.order.withdraw.type);
+    setQData(data ?? null);
 
     if (state === "PENDING" || state === "INITIATED") {
       setTime(data?.state_data.time_left || 0);

@@ -5,6 +5,7 @@ import { TitledBlock } from "$/shared/ui/global/TitledBlock";
 import { CurrencyIcon } from "$/shared/ui/other/CurrencyIcon";
 import styles from "./ExchangeDetails.module.scss";
 import { Arrow } from "./images/Arrow";
+import { Course } from "$/shared/ui/other/Course";
 
 export const ExchangeDetails = () => {
   const { data } = useQuery({
@@ -63,7 +64,11 @@ export const ExchangeDetails = () => {
             <span className={styles.exchangeRateText}>Курс обмена</span>
             {data?.order.rate && from?.name && to?.name ? (
               <span className={styles.exchangeRateValue} data-color="green">
-                {data?.order.rate.toFixed(3)} {from?.name} = 1 {to?.name}
+                <Course
+                  rate={+data?.order.rate ?? 0}
+                  paymentName={from?.name ?? "unknown"}
+                  withdrawName={to?.name ?? "unknown"}
+                />
               </span>
             ) : (
               <>---</>
