@@ -86,6 +86,12 @@ interface StateData {
   payment_amount: number;
   commentary: string;
   address?: string;
+
+  // withdraw crypto
+  created_time: number;
+  transaction_url: string;
+  address_transaction_url: string;
+  status: "blockchain confirmed" | "creating" | "check" | "pending";
 }
 
 interface Terms {

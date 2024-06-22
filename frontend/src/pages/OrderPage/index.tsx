@@ -1,16 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { StateOrderPage } from "./ui/StateOrderPage";
 
-import { orderAPI } from "$/shared/api/order";
 import LoadingScreen from "$/shared/ui/global/LoadingScreen";
 import { useStagesStore } from "$/widgets/Stages";
 import { WaitingPage } from "./ui/WaitingPage";
 import { clearOrderHash } from "$/shared/helpers/orderHash/clear";
+import { useOrder } from "$/shared/hooks/useOrder";
 
-const REFETCH_DELAY = 10000;
 export const OrderPage = () => {
   const navigate = useNavigate();
   const {
@@ -22,15 +20,7 @@ export const OrderPage = () => {
     setStage,
   } = useStagesStore();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["order"],
-    queryFn: orderAPI.getOrderState,
-    select: (data) => data.data,
-    retry: 0,
-    refetchInterval: REFETCH_DELAY,
-    refetchOnWindowFocus: false,
-  });
-
+  const { data, isLoading } = useOrder();
   const state = data?.state;
   useEffect(() => {
     setState(state || "");
@@ -40,8 +30,8 @@ export const OrderPage = () => {
     setWithdrawType(data?.order.withdraw.type);
 
     if (state === "PENDING" || state === "INITIATED") {
-      setTime(data?.state_data.time_left || 9999);
-    } else setTime(data?.order.time_left || 9999);
+      setTime(data?.state_data.time_left || 0);
+    } else setTime(data?.order.time_left || 0);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
