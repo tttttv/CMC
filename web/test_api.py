@@ -158,6 +158,7 @@ account = BybitAccount.objects.filter(is_active=True).last()
 bybit_session = BybitSession(account)
 bybit_api = account.get_api()
 
+bybit_api = order.account.get_api()
 
 deposit_data = bybit_session.get_deposit_address(token='USDT', chain='MANTLE')
 
@@ -166,7 +167,10 @@ from CORE.models import *
 from CORE.tasks import process_buy_order_task, update_p2pitems_task
 from CORE.service.bybit.parser import BybitSession
 order = OrderBuyToken.objects.last()
+bybit_session = BybitSession(order.account)
+bybit_api = order.account.get_api()
 process_buy_order_task(order.id)
+
 
 order = OrderBuyToken.objects.last()
 order.find_new_items()
@@ -175,21 +179,23 @@ order.save()
 
 order = OrderBuyToken.objects.last()
 bybit_session = BybitSession(order.account)
+bybit_api = order.account.get_api()
 
 bybit_session = BybitSession(account)
-bybit_session.get_available_balance('USDT')
-bybit_session.get_unified_balance('USDT')
-bybit_session.get_funding_balance('USDT')
+bybit_api.get_available_balance('USDT')
+
+bybit_api.get_unified_balance('USDT')
+bybit_api.get_funding_balance('USDT')
 bybit_session.get_p2p_orders()
 
-bybit_session.get_unified_balance('NEAR')
-bybit_session.get_funding_balance('NEAR')
+bybit_api.get_unified_balance('NEAR')
+bybit_api.get_funding_balance('NEAR')
 
 from CORE.tasks import task_send_message, task_send_image
-task_send_message(408)
+task_send_message(169)
 
 from CORE.tasks import task_send_message, task_send_image
-task_send_image(430, 'application/pdf')
+task_send_image(175, 'application/pdf')
 task_send_image(384, 'image/jpeg')
 
 
@@ -200,3 +206,11 @@ order.update_p2p_order_messages(side=P2PItem.SIDE_BUY)
 bybit_session.get_user_info()
 
 bybit_api.place_order('NEAR', 'USDT', 1.0123456, side=BybitAPI.SIDE_BUY_CRYPTO)
+
+
+bybit_api.get_trading_rate('NEAR', 'USDT')
+bybit_api.get_unified_balance('USDT')
+bybit_api.place_order('NEAR', 'USDT', 1.09, side=BybitAPI.SIDE_BUY_CRYPTO)
+
+bybit_api.transfer_to_trading('USDT', 4.405)
+bybit_api.transfer_to_funding('USDT', 4.81)

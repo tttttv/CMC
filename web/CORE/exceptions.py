@@ -40,3 +40,7 @@ class DoesNotExist(Exception):
 
 class InsufficientBalance(Exception):
     pass
+
+
+class DuplicateWithdraw(Exception):
+    pass

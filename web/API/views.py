@@ -441,12 +441,17 @@ class OrderViewSet(GenericViewSet):
             order.save()
             account.save()
 
-        process_buy_order_task.apply_async(args=[order.id])
+            try:
+                process_buy_order_task.apply_async(args=[order.id])
+            except Exception as _:
+                traceback.print_exc()
 
-        data = {
-            'order_hash': str(order.hash)
-        }
-        return JsonResponse(data)
+            data = {
+                'order_hash': str(order.hash)
+            }
+            return JsonResponse(data)
+        return JsonResponse({}, status=500)
+
 
     @action(methods=['get'], detail=False)
     @swagger_auto_schema(
@@ -518,6 +523,8 @@ class OrderViewSet(GenericViewSet):
 
         elif order.state == OrderBuyToken.STATE_WAITING_TRANSACTION_PROCESSED:
             state = 'RECEIVING'  # FIXME TEST
+            if order.incoming_payment:
+                state_data = order.incoming_payment.to_json()
 
         elif order.stage == OrderBuyToken.STAGE_PROCESS_WITHDRAW and order.withdraw_currency.is_fiat and order.state == OrderBuyToken.STATE_RECEIVED:
             state = 'TRADING'
@@ -526,7 +533,7 @@ class OrderViewSet(GenericViewSet):
             state = 'BUYING'
 
         elif (order.state == OrderBuyToken.STATE_TRADING_CRYPTO or order.state == OrderBuyToken.STATE_TRADED_CRYPTO or
-              order.state == OrderBuyToken.STATE_CHECK_BALANCE or order.state == OrderBuyToken.STATE_RECEIVING_CRYPTO):
+              order.state == OrderBuyToken.STATE_CHECK_BALANCE or order.state == OrderBuyToken.STATE_RECEIVED_CRYPTO):
             state = 'BUYING'
 
         elif order.state == OrderBuyToken.STATE_TRADING:  # Меняем на бирже
@@ -539,8 +546,11 @@ class OrderViewSet(GenericViewSet):
         elif order.state == OrderBuyToken.STATE_WITHDRAWING:  # Выводим деньги
             state = 'WITHDRAWING'
 
-        elif order.state == OrderBuyToken.STATE_WAITING_VERIFICATION:  # Подтверждаем вывод
+        elif order.state == OrderBuyToken.STATE_WAITING_VERIFICATION:  # Подтверждаем вывод  WITHDRAW crypto
             state = 'WITHDRAWING'
+            if order.withdraw_payment:
+                state_data = order.withdraw_payment.to_json()
+
         elif order.state == OrderBuyToken.STATE_WITHDRAWN or order.state == OrderBuyToken.STATE_BUY_CONFIRMED:  # Успешно
             state = 'SUCCESS'
             state_data = {
@@ -561,7 +571,6 @@ class OrderViewSet(GenericViewSet):
                     'terms': order.terms,
                     'time_left': (order.dt_created_buy - datetime.datetime.now() + datetime.timedelta(minutes=20)).seconds,
                     'commentary': "Средства были переведены. Необходимо подтвердить получение за указанное время или начать спор"
-
                 }
 
         data = {
@@ -600,8 +609,10 @@ class OrderViewSet(GenericViewSet):
                 order.state = OrderBuyToken.STATE_RECEIVED
 
             order.save()
-
-            process_buy_order_task.apply_async(args=[order.id])
+            try:
+                process_buy_order_task.apply_async(args=[order.id])
+            except Exception as _:
+                traceback.print_exc()
             return JsonResponse({})
         else:
             return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)
@@ -617,8 +628,10 @@ class OrderViewSet(GenericViewSet):
             order.state = OrderBuyToken.STATE_TRANSFERRED
             order.dt_confirmed_sell = datetime.datetime.now()
             order.save()
-            process_buy_order_task.apply_async(args=[order.id])
-
+            try:
+                process_buy_order_task.apply_async(args=[order.id])
+            except Exception as _:
+                traceback.print_exc()
             return JsonResponse({})
         else:
             return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)
@@ -634,8 +647,10 @@ class OrderViewSet(GenericViewSet):
             order.state = OrderBuyToken.STATE_BUY_CONFIRMED
             order.dt_confirmed_buy = datetime.datetime.now()
             order.save()
-            process_buy_order_task.apply_async(args=[order.id])
-
+            try:
+                process_buy_order_task.apply_async(args=[order.id])
+            except Exception as _:
+                traceback.print_exc()
             return JsonResponse({})
         else:
             return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)

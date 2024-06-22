@@ -61,6 +61,103 @@ def expire_day_default():
 #     expire_dt = models.DateTimeField(default=expire_day_default)
 
 
+class BybitWithdrawPayment(models.Model):
+    hash = models.CharField(unique=True, max_length=32)
+    withdraw_id = models.CharField(unique=True)
+
+    tx_id = models.CharField(max_length=120, null=True, default=None, blank=True)
+
+    address = models.CharField(max_length=120)
+    chain = models.CharField(max_length=120)
+    token = models.CharField(max_length=120)
+
+    created_time = models.DateTimeField(default=datetime.datetime.now)
+    updateTime = models.DateTimeField(default=datetime.datetime.now)
+
+    status = models.CharField(max_length=120)
+
+    amount = models.FloatField()
+
+    # transaction_url = models.URLField(default=None, null=True, blank=True)
+    # address_transaction_url = models.URLField(default=None, null=True, blank=True)
+
+    fee = models.CharField(default=None, null=True, blank=True)
+
+    STATUS_CREATING = 'creating'
+    STATUS_SUCCESS = 'success'
+    STATUS_REJECTED = {'cancel', 'reject', 'fail', 'more info required'}
+    status_dict = {
+        'SecurityCheck': 'check',
+        'Pending': 'pending',
+        'CancelByUser': 'cancel',
+        'Reject': 'reject',
+        'Fail': 'fail',
+        'BlockchainConfirmed': 'blockchain confirmed',
+        'MoreInformationRequired': 'more info required',
+        'Unknown': 'unknown',
+        'success': STATUS_SUCCESS,
+    }
+
+    @property
+    def transaction_url(self) -> str:  # TODO CONFIG
+        if self.tx_id:
+            if self.token == 'NEAR' and self.chain == 'NEAR':
+                return f'https://nearblocks.io/txns/{self.tx_id}'
+
+            elif self.token == 'USDT' and self.chain == 'BSC':
+                return f'https://bscscan.net/tx/{self.tx_id}'
+
+            elif self.token == 'USDT' and self.chain == 'TRX':
+                return f'https://tronscan.org/#/transaction/{self.tx_id}'
+
+            elif self.token == 'USDT' and self.chain == 'MANTLE':
+                return f'https://explorer.mantle.xyz/tx/{self.tx_id}'
+        return ''
+
+    @property
+    def address_transaction_url(self) -> str:
+        if self.tx_id and self.address:
+            if self.token == 'NEAR' and self.chain == 'NEAR':
+                return f'https://nearblocks.io/address/{self.address}'
+
+            elif self.token == 'USDT' and self.chain == 'BSC':
+                return f'https://bscscan.com/address/{self.address}'
+
+            elif self.token == 'USDT' and self.chain == 'TRX':
+                return f'https://tronscan.org/#/address/{self.address}'
+
+            elif self.token == 'USDT' and self.chain == 'MANTLE':
+                return f'https://explorer.mantle.xyz/address/{self.address}'
+        return ''
+
+    def from_json(self, incoming_data):
+        self.created_time = datetime.datetime.fromtimestamp(int(incoming_data['createTime']) / 1000)
+        self.updateTime = datetime.datetime.fromtimestamp(int(incoming_data['updateTime']) / 1000)
+        self.tx_id = incoming_data['txID']
+        self.address = incoming_data['toAddress']
+        self.chain = incoming_data['chain']
+        self.token = incoming_data['coin']
+        self.amount = float(incoming_data['amount'])
+        self.fee = float(incoming_data['withdrawFee']) if incoming_data['withdrawFee'] else 0.0
+
+        status = str(incoming_data['status'])
+        self.status = status.lower() if status not in self.status_dict else self.status_dict[status]
+        self.save()
+
+    @property
+    def confirmed(self):
+        return self.status == self.STATUS_SUCCESS
+
+    @property
+    def rejected(self):
+        return self.status in self.STATUS_REJECTED
+
+    def to_json(self):
+        return {'created_time': int(self.created_time.timestamp()), 'amount': self.amount, 'confirmed': self.confirmed,
+                'address': self.address, 'chain': self.chain, 'token': self.token, 'transaction_url': self.transaction_url,
+                'address_transaction_url': self.address_transaction_url, 'status': self.status}
+
+
 class BybitIncomingPayment(models.Model):
     item_id = models.IntegerField(unique=True)
     account = models.ForeignKey('BybitAccount', on_delete=models.CASCADE)
@@ -116,9 +213,9 @@ class BybitIncomingPayment(models.Model):
         return self.confirmations > self.blockConfirmNumber
 
     def to_json(self):
-        return {'id': self.id, 'created_time': self.created_time, 'amount': self.amount, 'confirmed': self.confirmed,
-                'address': self.address, 'chain': self.chain, 'token': self.token, 'transaction_url': self.transaction_url,
-                'address_transaction_url': self.address_transaction_url}
+        return {'created_time': self.created_time, 'confirmed': self.confirmed,  # TODO stage 0 / 100 or 1 / 5
+                'transaction_url': self.transaction_url,
+                'address_transaction_url': self.address_transaction_url, 'status': self.status}
 
 
 class AbstractCurrency(models.Model):
@@ -286,8 +383,13 @@ class Currency(AbstractCurrency):
     address = models.CharField(default=None, blank=True, null=True)  # Адрес/номер карты для ввода или вывода
     currency = models.ForeignKey(BybitCurrency, on_delete=models.CASCADE)
 
-    def get_chain_commission(self):
-        return float(self.get_chain(self.chain)['withdraw_commission'])
+    def get_chain_commission(self) -> Optional[float]:
+        withdraw_commission = self.get_chain(self.chain).get('withdraw_commission', '')
+        return float(withdraw_commission) if withdraw_commission else None
+
+    def get_price_digits(self) -> Optional[float]:
+        price_digits = self.get_chain(self.chain).get('price_digits', '')
+        return float(price_digits) if price_digits else None
 
     def validate_payment_amount(self, amount, *_, **__) -> bool:
         return super().validate_payment_amount(amount, self.chain)
@@ -591,7 +693,7 @@ class InternalCryptoAddress(models.Model):
                                         'chain': data['chain'], 'need_confirm': data['needConfirm'], 'qrcode': data['qrcode']}, account=account)
 
     def to_json(self) -> dict:
-        return {'id': self.id, 'account_no': self.address, 'chain': self.chain, 'chain_name': self.chain_name, 'qrcode': self.qrcode}
+        return {'account_no': self.address, 'chain': self.chain, 'chain_name': self.chain_name, 'qrcode': self.qrcode}
 
     def __str__(self):
         return f"InternalAddress {self.id}, {self.chain}: {self.address}"
@@ -644,7 +746,7 @@ class OrderBuyToken(models.Model):
 
     STATE_PAID = 'PAID'  # Ждет подтверждения продавца *
 
-    STATE_RECEIVING_CRYPTO = 'RECEIVING_CRYPTO'  # Ожидаем поступления крипты
+    STATE_RECEIVED_CRYPTO = 'RECEIVED_CRYPTO'  # Ожидаем поступления крипты
     STATE_TRADING_CRYPTO = 'STATE_TRADING_CRYPTO'  # Покупка USDT на бирже за крипту
     STATE_TRADED_CRYPTO = 'STATE_TRADED_CRYPTO'  # Подтверждение обмена / Вывод на Funding
     STATE_CHECK_BALANCE = 'CHECK_BALANCE'  # Проверка поступления денег на Funding  *
@@ -703,7 +805,7 @@ class OrderBuyToken(models.Model):
         (STATE_BUY_CONFIRMED, 'Пользователь подтвердил получение средств'),
         (STATE_BUY_NOT_CONFIRMED, 'НЕ ПОДТВЕРДИЛИ'),
 
-        (STATE_RECEIVING_CRYPTO, 'Ожидаем поступления криптовалюты'),
+        (STATE_RECEIVED_CRYPTO, 'Криптовалюта поступила'),
         (STATE_TRADING_CRYPTO, 'Покупка на бирже USDT'),
         (STATE_TRADED_CRYPTO, 'Подтверждение покупки на бирже USDT'),
         (STATE_CHECK_BALANCE, 'Проверка баланса'),
@@ -756,6 +858,7 @@ class OrderBuyToken(models.Model):
                                           related_name='order_withdraw')
     internal_address = models.ForeignKey(InternalCryptoAddress, on_delete=models.CASCADE, blank=True, null=True)
     incoming_payment = models.OneToOneField(BybitIncomingPayment, on_delete=models.CASCADE, blank=True, null=True)
+    withdraw_payment = models.OneToOneField(BybitWithdrawPayment, on_delete=models.CASCADE, blank=True, null=True)
 
     payment_term = models.ForeignKey('PaymentTerm', on_delete=models.CASCADE, blank=True, null=True)
 
@@ -814,6 +917,8 @@ class OrderBuyToken(models.Model):
     error_message = models.TextField(blank=True, null=True)
     messages_log = models.JSONField(default=list)
 
+    # withdraw_id = models.CharField(default=None, blank=True, null=True)
+
     def add_message(self, message, **kwarg):
         message = {'dt': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'message': message, 'stage': self.stage, 'state': self.state}
         message.update(kwarg)
@@ -837,6 +942,20 @@ class OrderBuyToken(models.Model):
 
     def risk_get_email_code(self):
         return self.account.risk_get_email_code(self.withdraw_currency.address, self.withdraw_amount)
+
+    def set_error_state(self, save=True):
+        bybit_api = self.account.get_api()
+        unified_balance = bybit_api.get_unified_balance(self.withdraw_currency.token)
+        unified_balance_usdt = bybit_api.get_unified_balance('USDT')
+
+        fund_balance = bybit_api.get_funding_balance(self.withdraw_currency.token)
+        fund_balance_usdt = bybit_api.get_funding_balance('USDT')
+
+        self.add_message(message='SET ERROR state', unified_balance={'USDT': unified_balance_usdt, self.withdraw_currency.token: unified_balance},
+                         fund_balance={'USDT': fund_balance_usdt, self.withdraw_currency.token: fund_balance}, state=self.state)
+        if save:
+            self.save()
+        BybitAccount.release_order(self.account_id)
 
     def add_account(self):
         with transaction.atomic():
@@ -927,7 +1046,7 @@ class OrderBuyToken(models.Model):
         prev = {'item_buy': self.p2p_item_buy.to_json() if self.p2p_item_buy else None, 'price_buy': self.price_buy}
         new = {'item_buy': p2p_item_buy.to_json() if p2p_item_buy else None, 'price_buy': price_buy}
 
-        if self.state == self.STAGE_PROCESS_PAYMENT and self.p2p_item_sell != p2p_item_sell:
+        if self.state == self.STAGE_PROCESS_PAYMENT:
             prev.update({'item_sell': self.p2p_item_sell.to_json() if self.p2p_item_sell else None, 'price_sell': self.price_sell})
             new.update({'item_sell': p2p_item_sell.to_json() if p2p_item_sell else None, 'price_sell': price_sell})
 
