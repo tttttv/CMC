@@ -1,11 +1,11 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
 import OperationCancel from "../ModalWindows/OperationCancel";
 
 import { orderAPI } from "$/shared/api/order";
-import getCookieValue from "$/shared/helpers/getCookie";
+
 import Button from "$/shared/ui/kit/Button/Button";
 import ButtonCancel from "$/shared/ui/kit/ButtonCancel/CancelButton";
 import Modal from "$/shared/ui/modals/Modal";
@@ -25,6 +25,9 @@ import { ChainIcon } from "./icons/ChainIcon";
 import { queryClient } from "$/pages/Root/ui/Wrapper";
 import copy from "copy-to-clipboard";
 
+import { useCurrency } from "$/shared/hooks/useCurrency";
+import { useStagesStore } from "../Stages";
+
 const COPY_MESSAGE_DISAPPEAR_DELAY = 1500;
 
 const MoneyWaiting = () => {
@@ -32,14 +35,7 @@ const MoneyWaiting = () => {
   const [isCopied, setCopied] = useState(false);
   const [isConfirmModal, setConfirmModal] = useState(false);
 
-  const hash = getCookieValue("order_hash");
-
-  const { data } = useQuery({
-    queryKey: ["order", hash],
-    queryFn: orderAPI.getOrderState,
-    retry: 0,
-    select: (data) => data.data,
-  });
+  const { qData: data } = useStagesStore();
 
   const order = data?.order;
   const from = order?.payment;
@@ -54,6 +50,11 @@ const MoneyWaiting = () => {
   const isTransferToCrypto = transferObj?.type === "crypto";
 
   const [isButtonDisabled, setButtonDisabled] = useState(false);
+  const { to: toCurrency } = useCurrency();
+
+  const chain = toCurrency.data?.crypto
+    .find((cr) => cr.chains.some((chain) => chain.id === transferObj?.chain))
+    ?.chains?.find((chain) => chain.id === transferObj?.chain)?.name;
 
   const { mutate: cancelPay } = useMutation({
     mutationKey: ["cancelPay"],
@@ -164,9 +165,7 @@ const MoneyWaiting = () => {
               <h3 className={styles.infoBlockText}>Chain</h3>
             </div>
             <div className={styles.infoBlockValueContainer}>
-              <div className={styles.infoBlockValue}>
-                {transferObj?.chain || "---"}
-              </div>
+              <div className={styles.infoBlockValue}>{chain || "---"}</div>
             </div>
           </div>
         )}
