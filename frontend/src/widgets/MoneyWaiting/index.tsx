@@ -23,6 +23,7 @@ import { CryptoIcon } from "./icons/CryptoIcon";
 import { CryptoWalletIcon } from "./icons/CryptoWalletIcon";
 import { ChainIcon } from "./icons/ChainIcon";
 import { queryClient } from "$/pages/Root/ui/Wrapper";
+import copy from "copy-to-clipboard";
 
 const COPY_MESSAGE_DISAPPEAR_DELAY = 1500;
 
@@ -93,12 +94,11 @@ const MoneyWaiting = () => {
 
   const copyAddresToClipboard = () => {
     const cardNumber = data?.state_data.terms?.account_no || "";
-    navigator.clipboard.writeText(cardNumber).then(() => {
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, COPY_MESSAGE_DISAPPEAR_DELAY);
-    });
+    copy(cardNumber);
+    setCopied(true);
+    setTimeout(() => {
+      setCopied(false);
+    }, COPY_MESSAGE_DISAPPEAR_DELAY);
   };
 
   return (

@@ -81,7 +81,6 @@ export const UserForm = () => {
   });
 
   const { isPending: isOrderCreating, mutate: createOrder } = useMutation({
-    mutationKey: ["order"],
     mutationFn: orderAPI.createOrder,
     onSuccess: (data) => {
       const { order_hash } = data.data;
