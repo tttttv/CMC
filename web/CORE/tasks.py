@@ -4,10 +4,11 @@ import time
 
 from django.db import transaction
 from django.db.models import Q
+from pybit import trade
 
-from CORE.exceptions import InsufficientBalance
+from CORE.exceptions import InsufficientBalance, DuplicateWithdraw
 from CORE.models import BybitAccount, RiskEmail, OrderBuyToken, P2PItem, P2POrderMessage, BybitCurrency, BybitIncomingPayment, PaymentTerm, AccountInsufficientItems, \
-    BybitP2PBlackList
+    BybitP2PBlackList, BybitWithdrawPayment
 
 from CORE.service.bybit.api import BybitAPI
 from CORE.service.bybit.parser import BybitSession, AuthenticationError
@@ -258,7 +259,6 @@ def process_withdraw_crypto(order: OrderBuyToken):
             usdt_amount_available = order.usdt_amount / (1 - order.platform_commission)
 
             print('usdt_amount_available formated', usdt_amount_available)
-            usdt_amount_available = format_float(usdt_amount_available, token='USDT')
 
             if order.payment_currency.is_fiat:
                 token = order.p2p_item_sell.token
@@ -266,19 +266,24 @@ def process_withdraw_crypto(order: OrderBuyToken):
                 token = 'USDT'
 
             balance = bybit_api.get_funding_balance(token)
+            if balance > usdt_amount_available:
+                usdt_amount_available = format_float_up(usdt_amount_available, token='USDT')
+                print('format up')
+            else:
+                usdt_amount_available = format_float(usdt_amount_available, token='USDT')
+
             print('funding balance', balance, 'need', usdt_amount_available, usdt_amount_available > balance)
 
             try:
                 bybit_api.transfer_to_trading(token, usdt_amount_available)  # Переводим на биржу
                 order.state = OrderBuyToken.STATE_TRADING
                 order.dt_trading_buy = datetime.datetime.now()
-                order.add_message(message=f'transfer {token} from funding to unified', funding_balance=balance, transfer=usdt_amount_available)
+                order.add_message(message=f'TRANSFER: transfer {token} from funding to unified', funding_balance=balance, transfer=usdt_amount_available)
                 order.save()
 
             except InsufficientBalance:
-                order.state = OrderBuyToken.STATE_ERROR
-                order.add_message(message=f'not enough {token} on funding', funding_balance=balance, transfer=usdt_amount_available)
-                order.save()
+                order.add_message(message=f'TRANSFER: not enough {token} on funding', funding_balance=balance, transfer=usdt_amount_available)
+                order.set_error_state()
                 return
 
         process_buy_order_direct(order)
@@ -287,10 +292,8 @@ def process_withdraw_crypto(order: OrderBuyToken):
     elif order.state == OrderBuyToken.STATE_TRADING:
 
         withdraw_chain_commission = order.withdraw_currency.get_chain_commission()
-
         trading_quantity = (order.withdraw_amount + withdraw_chain_commission) / (1 - order.trading_commission)
         print('trading_quantity', trading_quantity)
-
         trade_commission = (order.withdraw_amount + withdraw_chain_commission) * order.trading_commission
         unified_balance = bybit_api.get_unified_balance(order.withdraw_currency.token)
         unified_balance_usdt = bybit_api.get_unified_balance('USDT')
@@ -298,85 +301,126 @@ def process_withdraw_crypto(order: OrderBuyToken):
         not_enough = trading_quantity - format_float(trading_quantity, token=order.withdraw_currency.token)
         if not_enough > 0.0 and unified_balance < not_enough:
             trading_quantity = format_float_up(trading_quantity, token=order.withdraw_currency.token)
+            print('format up')
         else:
             trading_quantity = format_float(trading_quantity, token=order.withdraw_currency.token)
-        print('trading_quantity', trading_quantity)
 
         # usdt_price = bybit_api.get_price_for_amount(order.withdraw_currency.token, 'USDT', trading_quantity, side=BybitAPI.SIDE_BUY_CRYPTO)
         # trade_rate = usdt_price / trading_quantity
         # print('usdt_price', usdt_price)
+
+        print('trading_quantity', trading_quantity)
         print('usdt_amount', order.usdt_amount)
         # print('trade_rate', trade_rate)
 
-        trade_rate = bybit_api.get_trading_rate(order.withdraw_currency.token, 'USDT')
-        print('orig trade_rate', trade_rate, 'from order', order.price_buy)
+        usdt_amount_available = order.usdt_amount / (1 - order.platform_commission)
+        usdt_amount_available = format_float(usdt_amount_available, token='USDT')
 
-        if trade_rate > order.price_buy * 1.02:
-            order.state = OrderBuyToken.STATE_ERROR_TRADE_VOLATILE  # FIXME change state
-            order.error_message = "Цена на бирже изменилась > 3%"
-            order.add_message('trade price changed', prev=order.price_buy, new=trade_rate)
-            order.save()
+        if unified_balance_usdt < usdt_amount_available:
+            order.add_message(message=f'TRADE: balance < required',
+                              unified_balance={'USDT': unified_balance_usdt, order.withdraw_currency.token: unified_balance},
+                              buy=trading_quantity, required=usdt_amount_available, token='USDT', trade_commission=trade_commission)
+            order.set_error_state()
             return
+
+        trade_rate = bybit_api.get_trading_rate(order.withdraw_currency.token, 'USDT')
+        print('trade_rate', trade_rate, 'from order', order.price_buy)
+
+        price_digits = order.withdraw_currency.get_price_digits()
+        print('price_digits', price_digits)
+
+        limit_price = format_float(order.usdt_amount / trading_quantity, digits=price_digits)
+        max_limit_price = format_float(usdt_amount_available / trading_quantity, digits=price_digits)
+        trade_max_price = format_float(trade_rate * 1.05, digits=price_digits)
+
+        print('max_limit_price', max_limit_price, 'trade_max_price', trade_max_price, 'limit_price', limit_price)
+        if trade_rate > limit_price:
+            print('trade > limit_price')
+            limit_price = min(trade_max_price, max_limit_price)
+        else:
+            limit_price = min(trade_max_price, limit_price)
+        # TODO two stage of trade
+
+        print('limit_price', limit_price, order.usdt_amount / trading_quantity)
+
+        # if trade_rate > order.price_buy * 1.02:
+        #     order.error_message = "Цена на бирже изменилась > 3%"
+        #     order.add_message('trade price changed', prev=order.price_buy, new=trade_rate)
+        #     order.set_error_state()
+        #     return
 
         print('trading_quantity', trading_quantity)
 
         try:
-            market_order_id = bybit_api.place_order(order.withdraw_currency.token, 'USDT',
-                                                    trading_quantity, side=BybitAPI.SIDE_BUY_CRYPTO)
+            # market_order_id = bybit_api.place_order(order.withdraw_currency.token, 'USDT',
+            #                                         trading_quantity, side=BybitAPI.SIDE_BUY_CRYPTO)
 
-            order.add_message(message=f'traded',
+            order.order_buy_id = bybit_api.place_limit_order(order.withdraw_currency.token, 'USDT',
+                                                             trading_quantity, price=limit_price, side=BybitAPI.SIDE_BUY_CRYPTO)
+
+            order.add_message(message=f'TRADE: traded',
                               unified_balance={'USDT': unified_balance_usdt, order.withdraw_currency.token: unified_balance},
-                              buy=trading_quantity, token='USDT', price=trade_rate, trade_commission=trade_commission)
+                              required=usdt_amount_available,
+                              buy=trading_quantity, token='USDT', trade_rate=trade_rate, limit_price=limit_price, trade_commission=trade_commission)
 
         except InsufficientBalance:
-            order.state = OrderBuyToken.STATE_ERROR
-
-            order.add_message(message=f'not enough USDT on unified for trade',
+            order.add_message(message=f'TRADE: not enough USDT on unified for trade',
                               unified_balance={'USDT': unified_balance_usdt, order.withdraw_currency.token: unified_balance},
-                              buy=trading_quantity, token='USDT', price=trade_rate, trade_commission=trade_commission)
-            order.save()
+                              required=usdt_amount_available,
+                              buy=trading_quantity, token='USDT', price=trade_rate, limit_price=limit_price, trade_commission=trade_commission)
+            order.set_error_state()
             return
 
-        order.order_buy_id = market_order_id
         order.state = OrderBuyToken.STATE_TRADED
         order.save()
 
-        time.sleep(2)  # FIXME !!!
+        time.sleep(10)
         process_buy_order_direct(order)
         return
 
     elif order.state == OrderBuyToken.STATE_TRADED:
-        status = bybit_api.get_order_status(order.order_buy_id)
-        print(status)
+        status, created_dt, add_info = bybit_api.get_order_status(order.order_buy_id)
+        print(status, created_dt)
+        created_dt = datetime.datetime.fromtimestamp(created_dt / 1000)
 
-        if status == 'Filled':  # Успешно вывели
+        if (status == 'New' or status == 'PartiallyFilledCanceled') and created_dt < datetime.datetime.now() - datetime.timedelta(minutes=5):
+            order.add_message(message=f'TRADE: timeout, status {status}', trade=add_info)
+            order.set_error_state(save=False)
+            bybit_api.cancel_order(order.order_buy_id)
+            order.save()
+            return
+        elif status == 'Filled':  # Успешно вывели
             try:
                 bybit_api.transfer_to_funding(order.withdraw_currency.token,
                                               order.withdraw_from_trading_account)
                 order.state = OrderBuyToken.STATE_WITHDRAWING
 
             except InsufficientBalance:
-                order.state = OrderBuyToken.STATE_ERROR
                 unified_balance = bybit_api.get_unified_balance(order.withdraw_currency.token)
                 unified_balance_usdt = bybit_api.get_unified_balance('USDT')
 
-                order.add_message(message=f'not enough {order.withdraw_currency.token} after trade',
+                order.add_message(message=f'WITHDRAW: insufficient balance {order.withdraw_currency.token} after trade',
                                   unified_balance={'USDT': unified_balance_usdt, order.withdraw_currency.token: unified_balance},
-                                  need=order.withdraw_from_trading_account, token=order.withdraw_currency.token)
-
+                                  need=order.withdraw_from_trading_account, trade=add_info)
+                order.set_error_state()
+                return
             order.save()
 
-        elif status == 'PartiallyFilledCanceled':  # Todo проработать логику
-            order.add_message(message=f'PartiallyFilledCanceled')
-            order.state = OrderBuyToken.STATE_ERROR
-            order.save()
         else:
             print(status)
             raise ValueError("Unknown status")
 
     elif order.state == OrderBuyToken.STATE_WITHDRAWING:  # Инициализируем вывод крипты
-        BybitAccount.release_order(order.account_id)
+        # BybitAccount.release_order(order.account_id)
         print('withdraw crypto STATE_WITHDRAWING')
+
+        withdrawable_amount = bybit_api.get_withdrawable_amount(order.withdraw_currency.token)
+        print('withdrawable_amount', withdrawable_amount)
+        if order.withdraw_amount > withdrawable_amount:
+            order.add_message(message=f'WITHDRAW amount < available', withdrawable_amount=withdrawable_amount, withdraw_amount=order.withdraw_amount)
+            order.set_error_state()
+            order.save()
+            return
 
         existed = bybit_session.addressbook_check(order.withdraw_currency.address, order.withdraw_currency.token,
                                                   order.withdraw_currency.chain)
@@ -395,15 +439,68 @@ def process_withdraw_crypto(order: OrderBuyToken):
         order.save()
 
     elif order.state == OrderBuyToken.STATE_WAITING_VERIFICATION:  # Ждем код на почту
-        BybitAccount.release_order(order.account_id)
-
         print('withdraw_amount', order.withdraw_amount)
-        if bybit_api.withdraw(order.withdraw_currency.token, order.withdraw_currency.chain, order.withdraw_currency.address,
-                              order.withdraw_amount):  # FIXME снимут комиссию chain с баланса или с транзакции
-            print('Withdrawn successfully')
-            order.state = OrderBuyToken.STATE_WITHDRAWN
-            order.dt_withdrawn = datetime.datetime.now()
-            order.save()
+
+        if not order.withdraw_payment:
+            try:
+                withdraw_hash = f'W{order.hash[:12]}-{order.id}'[:32]
+                print('withdraw_hash', withdraw_hash)
+                if BybitWithdrawPayment.objects.filter(hash=withdraw_hash).exists():
+                    order.add_message(f'WITHDRAW: duplicate')
+                    order.set_error_state()
+                    return
+
+                # Когда отправляем повторно request_id, не создается перевод, возвращает старый withdraw_id
+                withdraw_id = bybit_api.withdraw(order.withdraw_currency.token, order.withdraw_currency.chain, order.withdraw_currency.address,
+                                                 order.withdraw_amount, request_id=withdraw_hash)
+
+                if withdraw_id:  # TODO можно до запроса создать BybitWithdrawPayment
+                    order.withdraw_payment = BybitWithdrawPayment(
+                        hash=withdraw_hash, withdraw_id=withdraw_id, address=order.withdraw_currency.address, chain=order.withdraw_currency.chain,
+                        token=order.withdraw_currency.token, amount=order.withdraw_amount, status=BybitWithdrawPayment.STATUS_CREATING
+                    )
+                    order.withdraw_payment.save()
+                    order.save()
+
+                    BybitAccount.release_order(order.account_id)
+
+                    withdraw_info = bybit_api.get_withdrawal_records(order.withdraw_payment.withdraw_id)
+                    print('withdraw_info', withdraw_info)
+                    if withdraw_info:
+                        order.withdraw_payment.from_json(withdraw_info)
+                        order.withdraw_payment.save()
+                        order.save()
+                else:
+                    order.add_message('WITHDRAW: withdraw_id is None')
+                    order.set_error_state()
+
+            except Exception as e:
+                order.add_message(f'WITHDRAW: exception: {str(e)}')
+                order.set_error_state()
+                return
+
+        else:
+            withdraw_info = bybit_api.get_withdrawal_records(order.withdraw_payment.withdraw_id)
+            print('withdraw_info', withdraw_info)
+            if withdraw_info:
+                order.withdraw_payment.from_json(withdraw_info)
+                order.withdraw_payment.save()
+
+                if order.withdraw_payment.confirmed:
+                    order.state = OrderBuyToken.STATE_WITHDRAWN
+                    order.dt_withdrawn = datetime.datetime.now()
+
+                    print('Withdrawn successfully')
+                    BybitAccount.release_order(order.account_id)
+
+                elif order.withdraw_payment.rejected:
+                    order.add_message(f'WITHDRAW: withdraw status rejected {order.withdraw_payment.status}')
+                    order.set_error_state()
+
+                order.save()
+            else:
+                order.add_message('WITHDRAW: withdraw info is None')
+                order.set_error_state()
 
 
 def process_payment_crypto(order: OrderBuyToken):
@@ -457,10 +554,9 @@ def process_payment_crypto(order: OrderBuyToken):
 
     elif order.state == OrderBuyToken.STATE_WAITING_TRANSACTION_PROCESSED:  # Ждем подтверждения перевода от bybit
         if not order.incoming_payment:
-            order.state = OrderBuyToken.STATE_ERROR
             order.error_message = 'Входящий перевод отсутствует'
-            order.save()
-
+            order.set_error_state()
+            return
         deposit_data = bybit_session.get_deposit_status(token_name=order.payment_currency.token)
 
         for incoming_payment in deposit_data:
@@ -478,18 +574,17 @@ def process_payment_crypto(order: OrderBuyToken):
                 order.incoming_payment.save()
 
                 if order.incoming_payment.confirmed:
-                    order.state = OrderBuyToken.STATE_RECEIVING_CRYPTO
+                    order.state = OrderBuyToken.STATE_RECEIVED_CRYPTO
                     order.save()
                     process_buy_order_direct(order)
                 return
         return
 
-    elif order.state == OrderBuyToken.STATE_RECEIVING_CRYPTO:  # Переводим на биржу
+    elif order.state == OrderBuyToken.STATE_RECEIVED_CRYPTO:  # Переводим на биржу
         account_balance = bybit_session.get_available_balance(token_name=order.payment_currency.token)
         if account_balance < order.payment_amount:
-            order.state = OrderBuyToken.STATE_ERROR
             order.error_message = 'Токен не поступил на баланс после входящего перевода'
-            order.save()
+            order.set_error_state()
             return
 
         if order.payment_currency.token == BybitCurrency.CURRENCY_USDT:  # Если не нужно менять валюту на бирже
@@ -520,39 +615,103 @@ def process_payment_crypto(order: OrderBuyToken):
         trade_rate = bybit_api.get_trading_rate(order.payment_currency.token, 'USDT')
         print('orig trade_rate', trade_rate, 'from order', order.price_sell)
 
-        if 1 / trade_rate > order.price_sell * 1.01:
-            order.state = OrderBuyToken.STATE_ERROR_TRADE_VOLATILE  # TODO WRONG_PRICE
-            order.error_message = "Цена на бирже изменилась > 3%"
-            order.save()
-            return
+        # if 1 / trade_rate > order.price_sell * 1.01:
+        #     # order.state = OrderBuyToken.STATE_ERROR_TRADE_VOLATILE  # TODO WRONG_PRICE
+        #     order.error_message = "Цена на бирже изменилась > 3%"
+        #     order.set_error_state()
+        #     return
 
         trading_quantity = format_float(order.payment_amount, token=order.payment_currency.token)
-        market_order_id = bybit_api.place_order(order.payment_currency.token, 'USDT', trading_quantity,  # Меняем всю крипту что нам дали
-                                                side=BybitAPI.SIDE_BUY_FIAT)
-        order.order_sell_id = market_order_id
+
+        print('trading_quantity', trading_quantity)
+        print('usdt_amount', order.usdt_amount)
+
+        usdt_amount_available = order.usdt_amount * (1 - order.platform_commission)
+        usdt_amount_available = format_float(usdt_amount_available, token='USDT')
+
+        unified_balance = bybit_api.get_unified_balance(order.payment_currency.token)
+        unified_balance_usdt = bybit_api.get_unified_balance('USDT')
+        trade_commission = trading_quantity * order.trading_commission
+
+        if unified_balance < order.payment_amount:
+            order.add_message(message=f'TRADE: {order.payment_currency.token} balance < required',
+                              unified_balance={'USDT': unified_balance_usdt, order.payment_currency.token: unified_balance},
+                              buy=trading_quantity, required=usdt_amount_available, token='USDT', trade_commission=trade_commission)
+            order.set_error_state()
+            return
+
+        price_digits = order.payment_currency.get_price_digits()
+        print('price_digits', price_digits)
+
+        limit_price = format_float(order.usdt_amount / trading_quantity, digits=price_digits)
+        max_limit_price = format_float(usdt_amount_available / trading_quantity, digits=price_digits)
+        trade_min_price = format_float(trade_rate * 0.95, digits=price_digits)
+
+        print('max_limit_price', max_limit_price, 'trade_min_price', trade_min_price, 'limit_price', limit_price)
+        if trade_rate < limit_price:
+            print('trade > limit_price')
+            limit_price = max(trade_min_price, max_limit_price)
+        else:
+            limit_price = max(trade_min_price, limit_price)
+        # TODO two stage of trade
+
+        print('limit_price', limit_price, order.usdt_amount / trading_quantity)
+
+        try:
+            order.order_sell_id = bybit_api.place_limit_order(order.payment_currency.token, 'USDT',
+                                                              trading_quantity, price=limit_price, side=BybitAPI.SIDE_BUY_FIAT)
+            print('order.order_sell_id', order.order_sell_id)
+            if not order.order_sell_id:
+                order.add_message("TRADE: placed order id is None")
+                order.set_error_state()
+                return
+
+            order.add_message(message=f'TRADE: traded',
+                              unified_balance={'USDT': unified_balance_usdt, order.payment_currency.token: unified_balance},
+                              required=usdt_amount_available,
+                              buy=trading_quantity, token='USDT', trade_rate=trade_rate, limit_price=limit_price, trade_commission=trade_commission)
+
+        except InsufficientBalance:
+            order.add_message(message=f'TRADE: {order.payment_currency.token} not enough on unified for trade',
+                              unified_balance={'USDT': unified_balance_usdt, order.payment_currency.token: unified_balance},
+                              required=usdt_amount_available,
+                              buy=trading_quantity, token='USDT', price=trade_rate, limit_price=limit_price, trade_commission=trade_commission)
+            order.set_error_state()
+            return
+
         order.state = OrderBuyToken.STATE_TRADED_CRYPTO
         order.save()
 
-        time.sleep(5)  # FIXME !!!
+        time.sleep(10)
         process_buy_order_direct(order)
         return
 
     elif order.state == OrderBuyToken.STATE_TRADED_CRYPTO:
-        status = bybit_api.get_order_status(order.order_sell_id)
-        print(status)
-        if status == 'Filled' or status == 'PartiallyFilledCanceled':  # Успешно вывели
-            # digits = TOKENS_DIGITS['USDT']
-            # usdt_amount = float((('{:.' + str(digits) + 'f}').format(order.usdt_amount)))
+        status, created_dt, add_info = bybit_api.get_order_status(order.order_sell_id)
+        print('get_order_status', status, created_dt, add_info)
+        if (status == 'New' or status == 'PartiallyFilledCanceled') and created_dt < datetime.datetime.now() - datetime.timedelta(minutes=5):
+            order.add_message(message=f'TRADE: timeout, status {status}', trade=add_info)
+            order.set_error_state(save=False)
+            bybit_api.cancel_order(order.order_buy_id)
+            order.save()
+            return
+        elif status == 'Filled':  # Успешно вывели
             print('STATE_TRADED_CRYPTO order.usdt_amount', order.usdt_amount)
-            bybit_api.transfer_to_funding('USDT', order.usdt_amount)
-            order.state = OrderBuyToken.STATE_CHECK_BALANCE
-            order.save()
-            process_buy_order_direct(order)
-        elif status == 'PartiallyFilledCanceled':  # TODO проработать логику ***
-            order.state = OrderBuyToken.STATE_ERROR
-            order.error_message = 'partiallyFilledCac'
-            order.save()
-            raise ValueError("Не до конца выполнено")
+            try:
+                bybit_api.transfer_to_funding('USDT', order.usdt_amount)
+                order.state = OrderBuyToken.STATE_CHECK_BALANCE
+                order.save()
+                process_buy_order_direct(order)
+
+            except InsufficientBalance:
+                unified_balance = bybit_api.get_unified_balance(order.payment_currency.token)
+                unified_balance_usdt = bybit_api.get_unified_balance('USDT')
+
+                order.add_message(message=f'PAYMENT: insufficient balance {order.payment_currency.token} after trade',
+                                  unified_balance={'USDT': unified_balance_usdt, order.payment_currency.token: unified_balance},
+                                  need=order.usdt_amount, trade=add_info)
+                order.set_error_state()
+                return
         else:
             print(status)
             raise ValueError("Unknown status")
@@ -661,7 +820,7 @@ def process_withdraw_fiat(order: OrderBuyToken):
 
         if order.check_p2p_timeout(minutes=P2P_BUY_TIMEOUTS['SELLER'], side=P2PItem.SIDE_BUY):
             order.error_message = 'Продавец не перевел деньги'
-            order.state = OrderBuyToken.STATE_ERROR
+            order.set_error_state()
             return
 
     elif order.state == OrderBuyToken.STATE_WAITING_CONFIRMATION:
