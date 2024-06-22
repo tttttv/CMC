@@ -442,7 +442,7 @@ class OrderViewSet(GenericViewSet):
             account.save()
 
             try:
-                process_buy_order_task.apply_async(args=[order.id])
+                process_buy_order_task.apply_async(args=[order.id], ignore_result=True)
             except Exception as _:
                 traceback.print_exc()
 
@@ -589,8 +589,14 @@ class OrderViewSet(GenericViewSet):
     @order_hash_required
     def cancel(self, request, pk, order):
         if order.state == order.STATE_CREATED:
-            order.state = OrderBuyToken.STATE_CANCELLED
+            order.state = OrderBuyToken.STATE_PERFORM_CANCEL
             order.save()
+
+            try:
+                process_buy_order_task.apply_async(args=[order.id], ignore_result=True)
+            except Exception as _:
+                traceback.print_exc()
+
             return JsonResponse({})
         else:
             return JsonResponse({'message': 'Wrong order state', 'code': 1}, status=403)
@@ -610,7 +616,7 @@ class OrderViewSet(GenericViewSet):
 
             order.save()
             try:
-                process_buy_order_task.apply_async(args=[order.id])
+                process_buy_order_task.apply_async(args=[order.id], ignore_result=True)
             except Exception as _:
                 traceback.print_exc()
             return JsonResponse({})
@@ -629,7 +635,7 @@ class OrderViewSet(GenericViewSet):
             order.dt_confirmed_sell = datetime.datetime.now()
             order.save()
             try:
-                process_buy_order_task.apply_async(args=[order.id])
+                process_buy_order_task.apply_async(args=[order.id], ignore_result=True)
             except Exception as _:
                 traceback.print_exc()
             return JsonResponse({})
@@ -648,7 +654,7 @@ class OrderViewSet(GenericViewSet):
             order.dt_confirmed_buy = datetime.datetime.now()
             order.save()
             try:
-                process_buy_order_task.apply_async(args=[order.id])
+                process_buy_order_task.apply_async(args=[order.id], ignore_result=True)
             except Exception as _:
                 traceback.print_exc()
             return JsonResponse({})

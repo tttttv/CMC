@@ -69,6 +69,13 @@ def update_p2pitems_task():
 @shared_task
 def task_remove_insufficient_items():
     now = datetime.datetime.now()
+    bad_sellers = BybitP2PBlackList.objects.filter((Q(expire_dt__isnull=False) & Q(expire_dt__lt=now)))
+    bad_sellers.update(is_active=False)
+
+
+@shared_task
+def task_remove_blacklist_accounts():
+    now = datetime.datetime.now()
     expired_purchases = AccountInsufficientItems.objects.filter(expire_dt__lt=now)
     expired_purchases.delete()
 
@@ -352,9 +359,6 @@ def process_withdraw_crypto(order: OrderBuyToken):
         print('trading_quantity', trading_quantity)
 
         try:
-            # market_order_id = bybit_api.place_order(order.withdraw_currency.token, 'USDT',
-            #                                         trading_quantity, side=BybitAPI.SIDE_BUY_CRYPTO)
-
             order.order_buy_id = bybit_api.place_limit_order(order.withdraw_currency.token, 'USDT',
                                                              trading_quantity, price=limit_price, side=BybitAPI.SIDE_BUY_CRYPTO)
 
@@ -616,7 +620,7 @@ def process_payment_crypto(order: OrderBuyToken):
         print('orig trade_rate', trade_rate, 'from order', order.price_sell)
 
         # if 1 / trade_rate > order.price_sell * 1.01:
-        #     # order.state = OrderBuyToken.STATE_ERROR_TRADE_VOLATILE  # TODO WRONG_PRICE
+        #     # order.state = OrderBuyToken.STATE_ERROR_TRADE_VOLATILE
         #     order.error_message = "Цена на бирже изменилась > 3%"
         #     order.set_error_state()
         #     return
@@ -860,7 +864,10 @@ def process_withdraw_fiat(order: OrderBuyToken):
 
 def process_buy_order_direct(order: OrderBuyToken):
     print(f'PROCESS Order {order} DIRECT, {order.state}, stage {order.stage}')
-    if order.stage == order.STAGE_PROCESS_PAYMENT:
+    if order.state == OrderBuyToken.STATE_PERFORM_CANCEL:
+        order.perform_cancel()
+
+    elif order.stage == order.STAGE_PROCESS_PAYMENT:
         if order.payment_currency.is_crypto:
             process_payment_crypto(order)
         elif order.payment_currency.is_fiat:
@@ -877,7 +884,10 @@ def process_buy_order_task(order_id):
     order: OrderBuyToken = OrderBuyToken.objects.get(id=order_id)
     with order_task_lock(order.id):
         print(f'PROCESS Order {order}, {order.state}, stage {order.stage}')
-        if order.stage == order.STAGE_PROCESS_PAYMENT:
+        if order.state == OrderBuyToken.STATE_PERFORM_CANCEL:
+            order.perform_cancel()
+
+        elif order.stage == order.STAGE_PROCESS_PAYMENT:
             if order.payment_currency.is_crypto:
                 process_payment_crypto(order)
             elif order.payment_currency.is_fiat:

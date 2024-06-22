@@ -33,12 +33,20 @@ class AuthenticationError(Exception):
         self.message = message
 
 
+class AccountBanError(Exception):
+    pass
+
+
 class InsufficientError(Exception):
     def __init__(self, message="Insufficient ad inventory"):
         self.message = message
 
 
 class InsufficientErrorSell(InsufficientError):
+    pass
+
+
+class InsufficientErrorBuy(InsufficientError):
     pass
 
 
@@ -72,6 +80,7 @@ class BybitSession:
         }
         self.session.headers.update(self.headers)
         print('COOKIES SUCCESSFULLY SET')
+
 
     def get_prices_list(self, token_id='USDT', currency_id='RUB', payment_methods=("379",),
                         items: Optional[list] = None, amount="", side="1", filter_online: bool = True,
@@ -136,6 +145,40 @@ class BybitSession:
             print(resp)
             raise ValueError
 
+    @staticmethod
+    def check_create_order_code(ret_code: int):
+        print('check_create_order_code', ret_code)
+
+        if ret_code == 912120110:  # FIXME
+            return None
+
+        elif ret_code == 10007:
+            raise AuthenticationError()
+
+        elif ret_code == 912000005:
+            raise AccountBanError("Your account has been detected as abnormal risk, please contact our customer service")
+
+        elif ret_code == 912100027:
+            raise AdStatusChanged('Ad status changed')
+
+        elif ret_code == 912100052:  # Не попали в range по amount
+            raise InsufficientError("Amount limit")
+
+        elif ret_code == 41100:
+            raise AdStatusChanged('Ad removed')
+
+        elif ret_code == 40001:  # FIXME Request parameter verification error
+            raise ValueError('Ad price changed')  # В основном наша цена устарела Пусть обновит все items
+
+        elif ret_code == 912120048:
+            raise InsufficientError('Your 30-day order completion rate is below {0}, please take a look at other Ads.')
+
+        elif ret_code == 912120030:
+            raise AdStatusChanged('The price has been changed')
+
+        else:
+            raise ValueError
+
     def get_item_price(self, item_id):
         """Уточняет цену по айтему перед сделкой"""
         data = {
@@ -158,7 +201,7 @@ class BybitSession:
             }
         elif resp['ret_code'] == 912300001:
             raise InsufficientError()
-        elif resp['ret_code'] == 10007:  # FIXME TEST
+        elif resp['ret_code'] == 10007:  
             raise AuthenticationError()
         else:
             print(resp)
@@ -187,23 +230,7 @@ class BybitSession:
             return resp['result']['orderId']
         else:
             print(resp)
-            if resp['ret_code'] == 912120110:
-                return None
-
-            elif resp['ret_code'] == 912100027:
-                raise AdStatusChanged('Ad status changed')
-
-            elif resp['ret_code'] == 912100052:  # Не попали в range по amount
-                raise AdStatusChanged("LIMIT")
-
-            elif resp['ret_code'] == 41100:
-                raise AdStatusChanged('Ad removed')
-
-            elif resp['ret_code'] == 40001:  # FIXME Request parameter verification error В основном наша цена устарела
-                raise ValueError('Ad price changed')
-                # raise AdStatusChanged('Ad price changed')
-            else:
-                raise ValueError
+            return self.check_create_order_code(int(resp['ret_code']))
 
     def create_order_sell(self, item_id, quantity, amount, cur_price, payment_type, payment_id, token_id="USDT",
                           currency_id="RUB", risk_token=''):
@@ -231,24 +258,31 @@ class BybitSession:
         resp = r.json()
         if resp['ret_code'] == 0:
             result = resp['result']
-            return result['orderId'], result['securityRiskToken']  # order, risk_token
+            return result['orderId']  # , result['securityRiskToken']  # order, risk_token
         else:
-            print(resp)
-            if resp['ret_code'] == 912120030:
-                # raise TypeError('The price has been changed')
-                raise AdStatusChanged('The price has been changed')
+            return self.check_create_order_code(int(resp['ret_code']))
 
-            elif resp['ret_code'] == 912100027:
-                raise AdStatusChanged('Ad status changed')
+    def cancel_order(self, order_id):
+        data = {
+            "orderId": str(order_id),
+            "cancelCode": "cancelReason_DontWant",
+            "cancelRemark": "",
+            "voucherPictures": ""
+        }  # TODO BUY REASON CANCEL
 
-            elif resp['ret_code'] == 912100052:  # Не попали в range по amount
-                raise AdStatusChanged("LIMIT")
+        # DONTWANT: "cancelReason_DontWant",
+        # TRANSFERFAILED: "cancelReason_transferFailed",
+        # EXTRACOSTS: "cancelReason_extraCosts",
+        # NOTMEETINGTRANSACTIONREQUIREMENTS: "cancelReason_notMeetingTransactionRequirements",
+        # HOWTOTRANSFER: "cancelReason_howToTransfer",
+        # OTHER: "cancelReason_other"
 
-            elif resp['ret_code'] == 41100:
-                raise AdStatusChanged('Ad removed')
-            else:
-                print(resp)
-                raise ValueError
+        r = self.session.post("https://api2.bybit.com/fiat/otc/order/cancel", json=data)
+        resp = r.json()
+        print('resp', resp)
+        if resp['ret_code'] == 0:
+            return True
+        return False
 
     def get_order_info(self, order_id, payment_type: Optional[int] = None):
         data = {

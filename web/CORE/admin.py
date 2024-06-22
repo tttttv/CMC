@@ -48,4 +48,5 @@ admin.site.register(PaymentTerm)
 admin.site.register(BybitP2PBlackList)
 
 admin.site.register(BybitWithdrawPayment)
+admin.site.register(AccountInsufficientItems)
 
