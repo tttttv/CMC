@@ -737,6 +737,66 @@ def default_order_hash():
     return secrets.token_urlsafe(128)[:128]
 
 
+def retry_on_exception(max_count):
+    def decorator(func):
+        def wrapper(self, *args, **kwargs):
+            attempts = 0
+            find_new_items = False
+
+            while attempts < max_count:
+                print(f'retry_on_exception Find new item: {find_new_items}')
+                kwargs['find_new_items'] = find_new_items
+
+                try:
+                    return func(self, *args, **kwargs)
+
+                except AccountBanError:
+                    self.account.set_banned()
+                    self.set_error_state()
+                    return False
+
+                except AuthenticationError:
+                    print('AuthenticationError')
+                    self.account.set_cookie_die()
+                    self.set_error_state()
+                    return False
+
+                except InsufficientError as e:
+                    print('InsufficientError')
+
+                    if isinstance(e, InsufficientErrorSell):
+                        print(InsufficientErrorSell)
+                        if self.stage == self.STAGE_PROCESS_PAYMENT and self.p2p_item_sell:
+                            self.add_message('P2P Sell Insufficient', item=self.p2p_item_sell, attempt=attempts)
+                            self.account.add_insufficient(self.p2p_item_sell)
+
+                    elif self.p2p_item_buy:
+                        self.add_message('P2P Buy Insufficient', item=self.p2p_item_buy, attempt=attempts)
+                        self.account.add_insufficient(self.p2p_item_buy)
+
+                    attempts += 1
+                    find_new_items = True
+
+                except (AmountException, DoesNotExist, ValueError) as ex:  # TODO AmountException Обработать как STATE_WRONG_PRICE
+                    print(f'AmountException/DoesNotExist: {str(ex)}')
+                    self.error_message = 'p2p item not exist'
+                    self.set_error_state()
+                    self.save()
+                    return False
+
+                except AdStatusChanged:
+                    print('AdStatusChanged')
+
+                    attempts += 1
+                    find_new_items = True
+                    self.add_message('P2P: AdStatusChanged', item=self.p2p_item_buy)
+
+            print(f"Failed after {max_count} attempts")
+            return False
+        return wrapper
+    return decorator
+
+
 class OrderBuyToken(models.Model):
     # STAGE 1
     STATE_INITIATED = 'INITIATED'  # *
@@ -987,60 +1047,6 @@ class OrderBuyToken(models.Model):
             account.save()
             return True
 
-    @staticmethod
-    def retry_on_exception(max_count):
-        def decorator(func):
-            def wrapper(self, *args, **kwargs):
-                attempts = 0
-                find_new_items = False
-
-                while attempts < max_count:
-                    kwargs['find_new_items'] = find_new_items
-
-                    try:
-                        return func(self, *args, **kwargs)
-
-                    except AccountBanError:
-                        self.account.set_banned()
-                        self.set_error_state()
-                        return False
-
-                    except AuthenticationError:
-                        print('AuthenticationError')
-                        self.account.set_cookie_die()
-                        self.set_error_state()
-                        return False
-
-                    except InsufficientError as e:
-                        print('InsufficientError')
-
-                        if isinstance(e, InsufficientErrorSell):
-                            print(InsufficientErrorSell)
-                            if self.stage == self.STAGE_PROCESS_PAYMENT and self.p2p_item_sell:
-                                self.account.add_insufficient(self.p2p_item_sell)
-                        elif self.p2p_item_buy:
-                            self.account.add_insufficient(self.p2p_item_buy)
-
-                        attempts += 1
-                        find_new_items = True
-
-                    except (AmountException, DoesNotExist, ValueError) as ex:  # TODO AmountException Обработать как STATE_WRONG_PRICE
-                        print(f'AmountException/DoesNotExist: {str(ex)}')
-                        self.error_message = 'p2p item not exist'
-                        self.set_error_state()
-                        return False
-
-                    except AdStatusChanged:
-                        print('AdStatusChanged')
-
-                        attempts += 1
-                        find_new_items = True
-
-                print(f"Failed after {max_count} attempts")
-                return None
-            return wrapper
-        return decorator
-
     def update_items_price(self, bybit_session: BybitSession):
         print('VERIF STAGE 1')
         try:
@@ -1220,7 +1226,12 @@ class OrderBuyToken(models.Model):
 
         bybit_session = BybitSession(self.account)
 
-        if not self.verify_order(find_new_items=find_new_items):  # FIXME !!! Для вывода фиата разница > 3%
+        if not self.verify_order(find_new_items=find_new_items):
+            return False
+
+        if bybit_session.have_active_order():
+            self.add_message('CREATE P2P ERROR: have active order')
+            self.set_error_state()
             return False
 
         if side == P2PItem.SIDE_SELL:  # Только Ввод

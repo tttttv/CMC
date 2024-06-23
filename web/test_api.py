@@ -213,4 +213,6 @@ bybit_api.get_unified_balance('USDT')
 bybit_api.place_order('NEAR', 'USDT', 1.09, side=BybitAPI.SIDE_BUY_CRYPTO)
 
 bybit_api.transfer_to_trading('USDT', 4.405)
-bybit_api.transfer_to_funding('USDT', 4.81)
+
+bybit_api.transfer_to_funding('USDT', 0.3365)
+bybit_api.transfer_to_funding('NEAR', 0.016418)

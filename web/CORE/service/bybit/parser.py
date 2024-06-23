@@ -81,7 +81,6 @@ class BybitSession:
         self.session.headers.update(self.headers)
         print('COOKIES SUCCESSFULLY SET')
 
-
     def get_prices_list(self, token_id='USDT', currency_id='RUB', payment_methods=("379",),
                         items: Optional[list] = None, amount="", side="1", filter_online: bool = True,
                         filter_ineligible: bool = True, user_info: Optional[dict] = None):
@@ -201,11 +200,22 @@ class BybitSession:
             }
         elif resp['ret_code'] == 912300001:
             raise InsufficientError()
-        elif resp['ret_code'] == 10007:  
+        elif resp['ret_code'] == 10007:
             raise AuthenticationError()
         else:
             print(resp)
             raise ValueError
+
+    def have_active_order(self) -> bool:
+        data = {"page": 1, "size": 10}
+        r = self.session.post("https://api2.bybit.com/fiat/otc/order/pending/simplifyList", json=data)
+        resp = r.json()
+        if resp['ret_code'] == 0:
+            count = resp['result']['count']
+            return count > 0
+        else:
+            self.check_create_order_code(int(resp['ret_code']))
+        raise ValueError
 
     def create_order_buy(self, item_id, quantity, amount, cur_price, token_id="USDT", currency_id="RUB"):
         """Создает ордер на обмен валюты"""
@@ -1106,7 +1116,7 @@ class BybitSession:
             for token_balance in resp['result']['coinList']:
                 print('token_balance', token_balance)
                 if token_balance['coin'] == token_name:
-                    balance = token_balance['wb'] #
+                    balance = token_balance['wb']  #
                     return float(balance) if balance else 0.0
         else:
             print(resp)
@@ -1138,7 +1148,7 @@ class BybitSession:
             items = resp['result']['items']
             for item in items:
                 print('item', item['id'], item['side'], item['amount'], item['currencyId'], item['price'], item['notifyTokenId'],
-                    item['notifyTokenQuantity'], item['status'])
+                      item['notifyTokenQuantity'], item['status'])
             return items
         else:
             print(resp)

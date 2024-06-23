@@ -45,7 +45,7 @@ def order_hash_required(view_func):
         if not order_hash:
             return Response({'message': 'order_hash required'}, 403)
 
-        order = OrderBuyToken.objects.get(hash=order_hash)
+        order = OrderBuyToken.objects.get(hash=order_hash)  # TODO DoesNotExist
         if not order:
             return Response({'message': 'invalid'}, 403)
 

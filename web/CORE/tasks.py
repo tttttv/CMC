@@ -830,9 +830,11 @@ def process_withdraw_fiat(order: OrderBuyToken):
     elif order.state == OrderBuyToken.STATE_WAITING_CONFIRMATION:
         # if order.check_p2p_timeout(minutes=P2P_BUY_TIMEOUTS['CREATED'], side=P2PItem.SIDE_BUY):
         if order.dt_received_buy <= datetime.datetime.now() - datetime.timedelta(minutes=P2P_BUY_TIMEOUTS['CREATED']):
-            # order.state = OrderBuyToken.STATE_BUY_NOT_CONFIRMED # FIXME
+            # order.state = OrderBuyToken.STATE_BUY_NOT_CONFIRMED # FIXME TODO SET APPEAL STATE
             order.error_message = 'Получение средств не подтвердили/оспорили за 30 минут'
+            order.set_error_state()
             order.save()
+
             process_buy_order_direct(order)
             return
         print("Wait withdraw confirmation")
