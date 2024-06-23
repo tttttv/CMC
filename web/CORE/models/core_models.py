@@ -767,21 +767,21 @@ def retry_on_exception(max_count):
                     if isinstance(e, InsufficientErrorSell):
                         print(InsufficientErrorSell)
                         if self.stage == self.STAGE_PROCESS_PAYMENT and self.p2p_item_sell:
-                            self.add_message('P2P Sell Insufficient', item=self.p2p_item_sell, attempt=attempts)
                             self.account.add_insufficient(self.p2p_item_sell)
+                            self.add_message('P2P Sell Insufficient', item=self.p2p_item_sell.to_json(), attempt=attempts)
 
                     elif self.p2p_item_buy:
-                        self.add_message('P2P Buy Insufficient', item=self.p2p_item_buy, attempt=attempts)
                         self.account.add_insufficient(self.p2p_item_buy)
+                        self.add_message('P2P Buy Insufficient', item=self.p2p_item_buy.to_json(), attempt=attempts)
 
                     attempts += 1
                     find_new_items = True
+                    time.sleep(10)
 
                 except (AmountException, DoesNotExist, ValueError) as ex:  # TODO AmountException Обработать как STATE_WRONG_PRICE
                     print(f'AmountException/DoesNotExist: {str(ex)}')
                     self.error_message = 'p2p item not exist'
                     self.set_error_state()
-                    self.save()
                     return False
 
                 except AdStatusChanged:
@@ -789,7 +789,8 @@ def retry_on_exception(max_count):
 
                     attempts += 1
                     find_new_items = True
-                    self.add_message('P2P: AdStatusChanged', item=self.p2p_item_buy)
+                    self.add_message('P2P: AdStatusChanged', item=self.p2p_item_buy.to_json(), attempt=attempts)
+                    time.sleep(10)
 
             print(f"Failed after {max_count} attempts")
             return False
