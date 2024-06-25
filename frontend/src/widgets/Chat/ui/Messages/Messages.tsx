@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
 import { Message as MessageType } from "$/shared/types/api/enitites";
 import { getDateFromMessage } from "../../lib/message";
 
@@ -10,29 +9,20 @@ import ScrollableList from "$/shared/ui/other/ScrollList";
 import { useStagesStore } from "$/widgets/Stages";
 import styles from "./Messages.module.scss";
 
-const UPDATE_INTERVAL = 10000;
+const REFETCH_DELAY = 5000;
+
 export const Messages = () => {
-  const stage = useStagesStore((state) => state.stage);
-  const {
-    data,
-    refetch: updateMessages,
-    isLoading,
-  } = useQuery({
+  const state = useStagesStore((state) => state.state);
+  const { data, isLoading } = useQuery({
     queryKey: ["messages"],
     queryFn: () => {
       return orderAPI.getOrderMessages();
     },
+    retry: 0,
+    refetchInterval: REFETCH_DELAY,
+    refetchOnWindowFocus: false,
     select: (data) => data.data,
   });
-
-  useEffect(() => {
-    const updateInterval = setInterval(() => {
-      updateMessages();
-    }, UPDATE_INTERVAL);
-
-    return clearInterval(updateInterval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const messages = data?.messages.sort(
     (m1, m2) => getDateFromMessage(m1) - getDateFromMessage(m2)
@@ -40,10 +30,10 @@ export const Messages = () => {
 
   return (
     <ScrollableList listClassName={styles.messages}>
-      {stage !== "ERROR" && (
+      {state !== "ERROR" && (
         <>
           {isLoading ? (
-            <LoadingScreen>Грузим сообщения...</LoadingScreen>
+            <LoadingScreen inContainer>Грузим сообщения...</LoadingScreen>
           ) : (
             <>
               {messages?.map((message, index) => (

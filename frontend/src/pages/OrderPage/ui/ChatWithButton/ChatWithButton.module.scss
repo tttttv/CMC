@@ -56,5 +56,10 @@
       align-items: center;
       justify-content: center;
     }
+    &.hideAmount {
+      &::after {
+        display: none;
+      }
+    }
   }
 }

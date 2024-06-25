@@ -1,0 +1,89 @@
+#shifts_calendar_table tbody td{
+    height: 100px !important;
+    padding: 0 !important;
+}
+
+#shifts_calendar_table tbody td, #shifts_calendar_table th{
+    border: 1px solid #eef2f7;
+}
+
+#shifts_calendar_table tbody tr:last-child td{
+
+}
+
+#shifts_calendar_table{
+    table-layout: fixed;
+}
+
+#shifts_calendar_table tbody td.calendar_shift_success{
+    background-color: rgba(10, 207, 151, 0.8) !important;
+    cursor: pointer;
+}
+
+#shifts_calendar_table tbody td.calendar_shift_secondary{
+    background-color: rgba(108, 117, 125, 0.8) !important;
+}
+
+#shifts_calendar_table tbody td.calendar_shift_danger{
+    background-color: rgba(250, 92, 124, 0.8) !important;
+}
+
+#shifts_calendar_table tbody td.calendar_shift_warning{
+    background-color: rgba(255, 188, 0, 0.8) !important;
+}
+
+#shifts_calendar_table tbody td.calendar_shift_primary{
+    background-color: rgba(114, 124, 245, 0.8) !important;
+}
+
+.shifts_calendar_day_date {
+    display: inline-block !important;
+    height: 25px !important;
+    width: 25px !important;;
+    text-align: center;
+    line-height: 25px;
+    background-color: #f1f3fa;
+    border-radius: 50%;
+    font-size: 15px;
+    padding: 0!important;
+    font-weight: bold;
+
+    margin: .45rem .45rem !important;
+}
+
+td.calendar_shift_danger .shifts_calendar_day_date,
+td.calendar_shift_success .shifts_calendar_day_date,
+td.calendar_shift_secondary .shifts_calendar_day_date,
+td.bg-primary .shifts_calendar_day_date,
+td.bg-warning .shifts_calendar_day_date{
+    background-color: white !important;
+}
+
+/*
+.calendar_shift_calculated_block{
+    background-color: #0acf97 !important;
+    padding: 5px 10px !important;
+    color: #fff !important;
+    border-radius: 4px !important;
+    margin: 0 5px !important;
+    cursor: pointer !important;
+    text-align: center;
+} */
+
+.calendar_shift_calculated_block{
+    font-size: 20px !important;
+    color: white !important;
+    margin-left: 0.95rem
+}
+
+.calendar_shift_planned_block{
+    font-size: 17px !important;
+    color: white !important;
+    margin-left: 0.95rem
+}
+
+.calendar_shift_missed_block{
+    font-size: 17px !important;
+    color: white !important;
+    margin-left: 0.95rem
+}

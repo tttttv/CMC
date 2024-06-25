@@ -27,12 +27,12 @@ class OrderAPI {
     for (const [key, value] of Object.entries(order)) {
       data.append(key, value);
     }
-    const config = this.createConfig(`${this.apiUrl}/order`, data);
+    const config = this.createConfig(`${this.apiUrl}/order/`, data);
     return await axios.request<OrderHash>(config);
   };
 
   getOrderState = async () => {
-    return await axios.get<OrderState>(`${this.apiUrl}/order/state`, {
+    return await axios.get<OrderState>(`${this.apiUrl}/order/state/`, {
       params: {
         order_hash: this.getHash(),
       },
@@ -43,22 +43,13 @@ class OrderAPI {
     const data = new FormData();
     data.append("order_hash", this.getHash());
 
-    const config = this.createConfig(`${this.apiUrl}/order/cancel`, data);
+    const config = this.createConfig(`${this.apiUrl}/order/cancel/`, data);
 
     return await axios.request<{ code: number; message: string }>(config);
   };
 
-  payOrder = async () => {
-    const data = new FormData();
-    data.append("order_hash", this.getHash());
-
-    const config = this.createConfig(`${this.apiUrl}/order/paid`, data);
-
-    return await axios.request(config);
-  };
-
   getOrderMessages = async () => {
-    return await axios.get<Messages>(`${this.apiUrl}/order/message`, {
+    return await axios.get<Messages>(`${this.apiUrl}/order/messages/`, {
       params: {
         order_hash: this.getHash(),
       },
@@ -70,7 +61,10 @@ class OrderAPI {
     data.append("order_hash", this.getHash());
     data.append("text", text);
 
-    const config = this.createConfig(`${this.apiUrl}/order/message/send`, data);
+    const config = this.createConfig(
+      `${this.apiUrl}/order/send_message/`,
+      data
+    );
     return await axios.request(config);
   };
 
@@ -78,12 +72,9 @@ class OrderAPI {
     const data = new FormData();
     data.append("order_hash", this.getHash());
 
-    data.append("image", base64Img);
+    data.append("file", base64Img);
 
-    const config = this.createConfig(
-      `${this.apiUrl}/order/message/send_image`,
-      data
-    );
+    const config = this.createConfig(`${this.apiUrl}/order/send_file/`, data);
 
     return await axios.request(config);
   };
@@ -92,13 +83,54 @@ class OrderAPI {
     const data = new FormData();
     data.append("order_hash", this.getHash());
 
-    const config = this.createConfig(`${this.apiUrl}/order/continue`, data);
+    const config = this.createConfig(
+      `${this.apiUrl}/order/continue_with_new_price/`,
+      data
+    );
 
     return await axios.request(config);
   };
 
   getAPILink = () => {
     return `${this.apiUrl}/order`;
+  };
+
+  confirmWithdraw = async () => {
+    const data = new FormData();
+    data.append("order_hash", this.getHash());
+
+    const config = this.createConfig(
+      `${this.apiUrl}/order/confirm_withdraw/`,
+      data
+    );
+
+    return await axios.request(config);
+  };
+
+  confirmPayment = async () => {
+    const data = new FormData();
+    data.append("order_hash", this.getHash());
+
+    const config = this.createConfig(
+      `${this.apiUrl}/order/confirm_payment/`,
+      data
+    );
+
+    return await axios.request(config);
+    {
+    }
+  };
+
+  openDispute = async () => {
+    const data = new FormData();
+    data.append("order_hash", this.getHash());
+
+    const config = this.createConfig(
+      `${this.apiUrl}/order/open_dispute/`,
+      data
+    );
+
+    return await axios.request(config);
   };
 }
 

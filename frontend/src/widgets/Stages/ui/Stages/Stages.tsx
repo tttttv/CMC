@@ -7,10 +7,18 @@ import FailOrder from "$/widgets/ModalWindows/FailOrder";
 import SuccessOrder from "$/widgets/ModalWindows/SuccessOrder";
 import styles from "./Stages.module.scss";
 import { Timer } from "./Timer";
+import { useOrder } from "$/shared/hooks/useOrder";
+import Button from "$/shared/ui/kit/Button/Button";
 
 export const Stages = () => {
-  const state = useStagesStore((state) => state.stage);
-  const crypto = useStagesStore((state) => state.crypto);
+  const withdrawType = useStagesStore((state) => state.withdrawType);
+  const { data } = useOrder();
+  const stateDate = data?.state_data;
+  const successWithdraw =
+    withdrawType === "crypto" && stateDate?.status === "blockchain confirmed";
+
+  const state = useStagesStore((state) => state.state);
+  const currency = useStagesStore((state) => state.currency);
 
   const stage = useRef(0);
   const statusBarRef = useRef<HTMLDivElement>(null);
@@ -79,9 +87,25 @@ export const Stages = () => {
         </Modal>
         <div className={styles.statusBar} ref={statusBarRef}></div>
         <li className={styles.stage}>Ожидается отправка средств</li>
-        <li className={styles.stage}>Покупка {crypto}</li>
-        <li className={styles.stage}>Обмен криптовалюты</li>
-        <li className={styles.stage}>Вывод криптовалюты</li>
+        <li className={styles.stage}>Покупка {currency}</li>
+        <li className={styles.stage}>Обмен {currency}</li>
+        <li className={styles.stage}>
+          Вывод {currency}{" "}
+          {withdrawType === "crypto" && stateDate?.status && (
+            <>({successWithdraw ? "Успешно" : "ожидайте..."})</>
+          )}
+        </li>
+        {successWithdraw && (
+          <Button
+            linkBehavior={{
+              to: stateDate?.transaction_url,
+              target: "_blank",
+              enabled: true,
+            }}
+          >
+            Сссылка на транзакцию
+          </Button>
+        )}
       </ul>
     </>
   );

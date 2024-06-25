@@ -1,39 +1,22 @@
 import { useWidgetEnv } from "$/pages/WidgetEnv/model/widgetEnv";
 import { z } from "zod";
-import { FormSchema } from "./UserForm";
 import { UseFormSetValue } from "react-hook-form";
 import { useEffect } from "react";
+import { FormSchema } from "../../lib/formSchema";
 
 interface Props {
   setValue: UseFormSetValue<z.infer<typeof FormSchema>>;
-  setChainDefaultValue: (value: string) => void;
 }
 
-const NAMING = {
-  full_name: "fullName",
-  address: "walletAddress",
-  email: "email",
-};
-
-export const SetupWidgetEnv = ({ setValue, setChainDefaultValue }: Props) => {
+export const SetupWidgetEnv = ({ setValue }: Props) => {
   const widgetEnv = useWidgetEnv((state) => state.widgetEnv);
 
   useEffect(() => {
-    for (const [key, value] of Object.entries(widgetEnv)) {
-      if (!value) continue;
-
-      switch (key) {
-        case "chain":
-          setChainDefaultValue(value as string);
-          break;
-        case "address":
-        case "full_name":
-        case "email":
-          setValue(
-            NAMING[key] as keyof z.infer<typeof FormSchema>,
-            value as string
-          );
-      }
+    const { email, name, withdrawing_address } = widgetEnv;
+    if (email) setValue("email", email);
+    if (name) setValue("withdrawName", name);
+    if (withdrawing_address) {
+      setValue("toWalletAddress", withdrawing_address);
     }
   }, [widgetEnv]);
   return <></>;

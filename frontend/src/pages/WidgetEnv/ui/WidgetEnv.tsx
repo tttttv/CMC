@@ -11,6 +11,7 @@ interface Props {
 
 export const WidgetEnv = ({ children, widgetId }: Props) => {
   const setWidgetEnv = useWidgetEnv((state) => state.setWidgetEnv);
+
   const { data, isSuccess, refetch } = useQuery({
     queryKey: ["widgetEnv"],
     queryFn: () => widgetAPI.getWidgetEnv(widgetId),
@@ -23,18 +24,10 @@ export const WidgetEnv = ({ children, widgetId }: Props) => {
 
   useEffect(() => {
     if (!isSuccess) return;
-
     const { color_palette: colorScheme, ...widgetEnvWithoutColors } = data;
 
     setWidgetEnv(widgetEnvWithoutColors);
-    // const colorScheme = {
-    //   bodyColor: "green",
-    //   blockColor: "pink",
-    //   textColor: "#DE87",
-    //   secondaryTextColor: "beige",
-    //   accentColor: "red",
-    //   secondaryAccentColor: "orange",
-    // };
+
     if (!colorScheme) return;
 
     const bodyCSS = getComputedStyle(document.body);

@@ -1,0 +1,49 @@
+{% extends 'ADMIN/base.html' %}
+
+{% block title %}P2P Items{% endblock %}
+
+{% block content %}
+
+
+<div class="page-title-box">
+    <div class="page-title-right">
+    </div>
+    <h4 class="page-title">P2P Сделки</h4>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="position-relative">
+                    <table class="table table-centered">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>Стоимость</th>
+                                <th>Описание</th>
+                                <th>Лимиты</th>
+                                <th>Банк</th>
+                                <th>Разрешить</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for exec in execs %}
+                            <tr class="table-primary">
+                                <td> {{ exec.command.car.partner }} </td>
+                                <td> {{ exec.datetime }}</td>
+                                <td> {{ exec.user.email }}</td>
+                                <td> {{ exec.command.type_description }}</td>
+                                <td> {{ exec.source_description }} </td>
+                                <td> {{ exec.command.car.car_number }}{% if exec.command.car.traccar_id is not None %} (Traccar){% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

@@ -25,12 +25,19 @@ SECRET_KEY = 'django-insecure-aopxkfkgx_t8=p@55@io!v*&rxbq%jt*)3f@8%hqrelzhp9mc2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['158.160.113.89', '127.0.0.1', 'fleshlight.fun', 'api.fleshlight.fun', 'https://*.fleshlight.fun']
+# from dotenv import load_dotenv  # FIXME TEST
+# load_dotenv()
+
+SERVER = os.getenv('SERVER', 'PROD')
+if SERVER == 'LOCAL':
+    CORS_ORIGIN_ALLOW_ALL = True
+    CORS_ALLOW_CREDENTIALS = True
+    ALLOWED_HOSTS = ['*']
+else:
+    ALLOWED_HOSTS = ['158.160.113.89', '127.0.0.1', 'fleshlight.fun', 'api.fleshlight.fun', 'https://*.fleshlight.fun']
+
 CSRF_TRUSTED_ORIGINS = ['https://*.fleshlight.fun']
 
-
-
-# Application definition
 
 INSTALLED_APPS = [
     'corsheaders',
@@ -41,8 +48,17 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_celery_results',
-    'CORE',
-    'API',
+
+    'rest_framework',
+    'drf_yasg',
+
+    # 'CORE',
+    # 'API',
+    # 'ADMIN',
+    'API.apps.ApiConfig',
+    'ADMIN.apps.AdminConfig',
+    'CORE.apps.CoreConfig',
+
 ]
 
 MIDDLEWARE = [
@@ -50,16 +66,21 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+
+    'django.middleware.csrf.CsrfViewMiddleware', # FIXME TEST
+
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # 'CORE.middleware.ExceptionLoggerMiddleware',  # FIXME
 ]
 
 ROOT_URLCONF = 'CMC.urls'
 
 CORS_ALLOW_ALL_ORIGINS = True
 
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 104857600  # 100mb FIXME nginx configure for diff dist
+# TODO use DATA_UPLOAD_MAX_MEMORY_SIZE
 
 CORS_ALLOW_HEADERS = [
     "accept",
@@ -75,7 +96,6 @@ CORS_ALLOW_HEADERS = [
     'Content-Type'
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
 
 TEMPLATES = [
     {
@@ -96,6 +116,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'CMC.wsgi.application'
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'API.renderers.UTF8CharsetJSONRenderer',
+    ],
+}
+
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [
@@ -112,7 +142,7 @@ DATABASES = {
         'NAME': os.getenv('POSTGRES_DATABASE'),
         'USER': os.getenv('POSTGRES_USER'),
         'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
-        'HOST': 'db',
+        'HOST': os.getenv('POSTGRES_HOST', 'db'),
         'PORT': '5432',
     },
 }
@@ -160,19 +190,19 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-
 CELERY_TIMEZONE = 'Europe/Moscow'
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_BROKER_URL = 'redis://' + os.getenv('REDIS_USER', '') + ':' + os.getenv('REDIS_PASSWORD', '') + '@redis:6379/0'
+CELERY_BROKER_URL = f"redis://{os.getenv('REDIS_USER', '')}:{os.getenv('REDIS_PASSWORD', '')}" \
+                    f"@{os.getenv('REDIS_HOST', 'redis')}:6379/0"
 CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_DEFAULT_QUEUE = 'default'
 CELERY_TASK_RESULT_EXPIRES = 604800
 CELERY_RESULT_EXTENDED = True
 
 
-
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+

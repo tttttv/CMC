@@ -9,12 +9,6 @@
   @media (max-width: 360px) {
     flex-direction: column;
   }
-  &:has(> *:not(:disabled):hover) {
-    > *:disabled {
-      background-color: transparent;
-      color: var(--textColor);
-    }
-  }
 }
 .chooseCurrencyCrypto,
 .chooseCurrencyBank {
@@ -31,10 +25,12 @@
     background-color: var(--accentColor);
     transition: 0.2s;
   }
-  transition: 0.7s;
-  &:hover {
-    background-color: var(--accentColor);
-    color: var(--white-color);
+  transition: 0.4s;
+  &:hover:not(:disabled) {
+    background-color: var(--secondaryAccentColor);
+  }
+  &:disabled {
+    cursor: default !important;
   }
 }
 

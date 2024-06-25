@@ -10,13 +10,15 @@
     }
     border-radius: 12px;
     border: 1px solid var(--uiKitBorderColor);
-    padding: 13px 24px;
-    padding-right: 0;
 
     display: flex;
-    gap: 5px;
+
     justify-content: space-between;
+    align-items: center;
+    padding-inline: 10px;
+
     .input {
+      margin-right: 5px;
       width: 100%;
       border: none;
       flex-grow: 1;
@@ -29,45 +31,51 @@
     }
   }
 }
-.inputButtons {
-  z-index: 100;
-  display: flex;
-  padding-right: 24px;
-
-  .image,
-  .send {
-    width: 24px;
-    height: 24px;
-  }
-  .send {
+.imageInput {
+  margin-right: 7px;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  position: relative;
+  pointer-events: auto;
+  ::-webkit-file-upload-button {
     cursor: pointer;
-    position: relative;
+  }
+  input[type="file"] {
+    cursor: pointer;
+  }
+  .imageInput {
+    cursor: pointer !important;
     pointer-events: auto;
-    &:disabled {
-      cursor: default;
-    }
-    &:not(:disabled) {
-      path {
-        fill: var(--accentColor);
-      }
+    opacity: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 999;
+  }
+}
+.send {
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  position: relative;
+  pointer-events: auto;
+  &:disabled {
+    cursor: default;
+  }
+  &:not(:disabled) {
+    path {
+      fill: var(--accentColor);
     }
   }
-  .image {
-    position: relative;
-    .imageInput {
-      cursor: pointer;
-
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      opacity: 0;
-    }
-  }
-  .divider {
-    width: 2px;
-    margin-inline: 6px;
-    background-color: #e2e2e2;
-  }
+}
+.divider {
+  background-color: var(--uiKitBorderColor);
+  width: 4px;
+  height: 24px;
+  border-radius: 5px;
+  margin-right: 7px;
 }

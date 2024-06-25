@@ -26,8 +26,8 @@ export const Message = ({ message }: Props) => {
   );
 
   let documentType: "video" | "image" | "pdf" = "image";
-  const isVideo = message.image?.includes("data:video");
-  const isPdf = message.image?.includes("data:application/pdf");
+  const isVideo = message.file?.includes("data:video");
+  const isPdf = message.file?.includes("data:application/pdf");
 
   if (isVideo) {
     documentType = "video";
@@ -52,18 +52,18 @@ export const Message = ({ message }: Props) => {
           </span>
         </div>
         <p className={styles.messageText}>
-          {!message.image ? (
+          {!message.file ? (
             message.text
           ) : (
             <>
               {documentType === "pdf" ? (
                 <a
                   className={styles.link}
-                  href={message.image}
-                  download={generateImageName(message.image)}
+                  href={message.file}
+                  download={generateImageName(message.file)}
                 >
                   <FileMessage
-                    url={message.image}
+                    url={message.file}
                     documentType={documentType}
                   />
                 </a>
@@ -71,14 +71,14 @@ export const Message = ({ message }: Props) => {
                 <button
                   onClick={() => {
                     setOpenedImage({
-                      url: formatBase64Url(message.image),
+                      url: formatBase64Url(message.file),
                       name: message.nick_name[0],
                       datetime: message.dt,
                     });
                   }}
                 >
                   <FileMessage
-                    url={message.image}
+                    url={message.file}
                     documentType={documentType}
                   />
                 </button>

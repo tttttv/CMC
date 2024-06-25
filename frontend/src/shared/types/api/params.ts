@@ -1,21 +1,30 @@
+export type PriceAnchor = "SELL" | "BUY";
+
 export interface PriceParams {
-  anchor: "token" | "currency";
-  amount?: number;
-  quantity?: number;
-  payment_method: string | number;
-  token: string;
-  chain: string;
+  payment_method: number;
+  payment_chain?: string;
+  withdraw_method: number;
+  withdraw_chain?: string;
+  payment_amount?: number;
+  withdraw_amount?: number;
+  amount: number;
+  anchor: PriceAnchor;
 }
 
 export interface Order {
-  name: string;
-  card_number: string;
-  payment_method: string;
-  amount: number;
-  price: number;
-  token: string;
-  chain: string;
-  address: string;
   email: string;
-  item_id: string;
+  payment_name: string;
+  payment_method: number;
+  payment_chain: string;
+  payment_address: string;
+  payment_amount: number;
+  withdraw_name: string;
+  withdraw_method: number;
+  withdraw_chain: string;
+  withdraw_address: string;
+  withdraw_amount: number;
+  item_sell: string;
+  price_sell: number;
+  item_buy: string;
+  price_buy: number;
 }

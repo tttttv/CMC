@@ -1,7 +1,22 @@
+.listContainer {
+  &:has([data-lack]) {
+    [class="os-scrollbar-track"] {
+      display: none;
+    }
+  }
+  [data-lack] {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding-bottom: 10px;
+  }
+}
 .list {
   display: flex;
   flex-direction: column;
-
+  [data-lack] {
+    text-align: center;
+  }
   max-height: 900px;
   padding-right: 12px;
   gap: 10px;
@@ -26,8 +41,14 @@
     background-color: var(--secondaryAccentColor);
   }
   @media (hover: hover) {
-    &:hover {
+    &:hover:has(button:not(:disabled)) {
       background-color: var(--secondaryAccentColor);
+    }
+  }
+  &:has(button:disabled) {
+    cursor: default;
+    button {
+      cursor: default;
     }
   }
 }

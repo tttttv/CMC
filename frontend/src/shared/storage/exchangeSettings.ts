@@ -3,7 +3,6 @@ import { create } from "zustand";
 interface ExchangeSettings {
   fromType: "crypto" | "bank";
   toType: "crypto" | "bank";
-
   setFromType: (type: "crypto" | "bank") => void;
   setToType: (type: "crypto" | "bank") => void;
 }

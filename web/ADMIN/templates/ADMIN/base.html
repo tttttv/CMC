@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+    <html lang="en">
+
+    <head>
+        {% load static %}
+        <meta charset="utf-8" />
+        <title>{% block title %}{% endblock %}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta content="A fully featured admin theme which can be used to build CRM, CMS, etc." name="description" />
+        <meta content="Coderthemes" name="author" />
+        <!-- App favicon -->
+        <link rel="shortcut icon" href="assets/images/favicon.ico">
+
+        <!-- third party css -->
+        <link href="{% static 'CORE/css/vendor/jquery-jvectormap-1.2.2.css' %}" rel="stylesheet" type="text/css" />
+        <!-- third party css end -->
+
+        <!-- App css -->
+        <link href="{% static 'CORE/css/icons.min.css' %}" rel="stylesheet" type="text/css" />
+        <link href="{% static 'CORE/css/app.min.css' %}" rel="stylesheet" type="text/css" id="light-style" />
+
+    </head>
+
+    <body  data-layout="topnav" data-layout-config='{"layoutBoxed":false,"darkMode":false,"showRightSidebarOnStart": true}'>
+        <!-- Begin page -->
+        <div class="wrapper">
+
+            <!-- ============================================================== -->
+            <!-- Start Page Content here -->
+            <!-- ============================================================== -->
+
+            <div class="content-page">
+                <div class="content">
+                    <div class="topnav">
+                        <div class="container-fluid">
+                            <nav class="navbar navbar-dark navbar-expand-lg topnav-menu">
+
+                                <div class="collapse navbar-collapse" id="topnav-menu-content">
+                                    <ul class="navbar-nav">
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="{% url 'Admin:management' %}" role="button">
+                                                <i class="uil-sliders-v-alt me-1"></i>Управление ControlGPS
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="{% url 'Admin:payments_table' %}" role="button">
+                                                Таблица платежей
+                                            </a>
+                                        </li>
+                                        {% if user.can_see_payment_info %}
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="{% url 'Admin:dealer_profile' %}" role="button">
+                                                Платежная информация
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                        {% if user.dealer and user.dealer.is_superdealer %}
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="{% url 'Admin:sales' %}" role="button">
+                                                <i class="uil-dollar-sign me-1"></i>Продажи
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="{% url 'Admin:commands_table' %}" role="button">
+                                                Таблица команд
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="{% url 'Admin:sms_table' %}" role="button">
+                                                СМС
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="{% url 'Admin:inbox_sms_table' %}" role="button">
+                                               Входящие СМС
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="{% url 'Admin:broken_cars' %}" role="button">
+                                                Поломки H02
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                        {% if user.is_dealer_manager %}
+                                         <li class="nav-item">
+                                            <a class="nav-link" href="{% url 'Admin:dealer_management' %}" role="button">
+                                                Дилеры
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                        {% if user.can_create_managers %}
+                                         <li class="nav-item">
+                                            <a class="nav-link" href="{% url 'Admin:get_managers' %}" role="button">
+                                                Менеджеры
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </nav>
+                        </div>
+                    </div>
+
+
+                    <!-- Start Content-->
+                    <div class="container-fluid">
+                        {% block content %}
+                        {% endblock %}
+                    </div>
+                    <!-- container -->
+
+                </div>
+                <!-- content -->
+
+                <!-- Footer Start -->
+                <footer class="footer">
+                    <div class="container-fluid">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <script>document.write(new Date().getFullYear())</script> © ControlGPS
+                            </div>
+                            <div class="col-md-6">
+                            </div>
+                        </div>
+                    </div>
+                </footer>
+                <!-- end Footer -->
+
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- End Page content -->
+            <!-- ============================================================== -->
+
+
+        </div>
+        <!-- END wrapper -->
+
+        <!-- bundle -->
+        <script src="{% static 'CRM_CORE/js/vendor.min.js' %}"></script>
+        <script src="{% static 'CRM_CORE/js/vendor/jquery.dataTables.min.js' %}"></script>
+
+        <!-- third party js -->
+        <script src="{% static 'CRM_CORE/js/vendor/apexcharts.min.js' %}"></script>
+        <script src="{% static 'CRM_CORE/js/vendor/jquery-jvectormap-1.2.2.min.js' %}"></script>
+        <script src="{% static 'CRM_CORE/js/vendor/jquery-jvectormap-world-mill-en.js' %}"></script>
+        <!-- third party js ends -->
+
+        <script src="{% static 'CRM_CORE/js/admin/partner_profile/partner_profile.js' %}?v=1"></script>
+        {% block scripts %}
+        {% endblock %}
+        <style>
+            table.dataTable thead .sorting::before, table.dataTable thead .sorting_asc::before, table.dataTable thead .sorting_desc::before, table.dataTable thead .sorting_asc_disabled::before, table.dataTable thead .sorting_desc_disabled::before{
+                content: ""
+            }
+
+            table.dataTable thead .sorting::after, table.dataTable thead .sorting_asc::after, table.dataTable thead .sorting_desc::after, table.dataTable thead .sorting_asc_disabled::after, table.dataTable thead .sorting_desc_disabled::after{
+                content: ""
+            }
+        </style>
+        {% block styles %}
+        {% endblock %}
+    </body>
+</html>

@@ -12,11 +12,13 @@ import { validateCurrencyInput } from "../../lib/validation";
 
 import { ErrorModal } from "$/shared/ui/modals/ErrorModal";
 import { AxiosError } from "axios";
+import { PriceAnchor } from "$/shared/types/api/params";
+import { ExchangeRate } from "./RateInfo";
 
 const DELAY = 1000;
 export const ChangeInputs = () => {
   const { to, from } = useCurrency();
-  const { setAmount, setBestP2P, setBestP2PPrice, setPrice, chain, price } =
+  const { setPrice, fromChain, toChain, setOrderData, orderData } =
     usePlaceOrder();
   const { fromType, toType } = useExchangeSettings();
   const bankType = useCurrencyStore((state) => state.bankCurrencyType);
@@ -39,7 +41,7 @@ export const ChangeInputs = () => {
     } else {
       return from.data?.crypto.find((c) => `${c.id}` === `${fromCurrencyId}`);
     }
-  }, [fromType, bankType, fromCurrencyId]);
+  }, [fromType, bankType, fromCurrencyId, from.data]);
 
   const toCurrency = useMemo(() => {
     if (toType === "bank") {
@@ -56,13 +58,14 @@ export const ChangeInputs = () => {
     } else {
       return to.data?.crypto.find((c) => `${c.id}` === `${toCurrencyId}`);
     }
-  }, [fromType, bankType, toCurrencyId]);
+  }, [fromType, bankType, toCurrencyId, to.data]);
 
   const isInputsDisabled = !toCurrency || !fromCurrency;
 
   const [fromValue, setFromValue] = useState("");
   const [toValue, setToValue] = useState("");
   const [betterAmount, setBetterAmount] = useState("");
+
   // Обнуляем инпуты при смене крипты на банк и т.д.
   const resetInputValue = useCallback((e: Event) => {
     const type = (e as CustomEvent).detail;
@@ -70,6 +73,7 @@ export const ChangeInputs = () => {
       setFromValue("");
     } else setToValue("");
   }, []);
+
   useEffect(() => {
     const fn = (e: Event) => resetInputValue(e);
     window.addEventListener("resetInputValue", fn);
@@ -82,37 +86,27 @@ export const ChangeInputs = () => {
   const isFromInputDisabled = isInputsDisabled || isFromGetting;
   const isToInputDisabled = isInputsDisabled || isToGetting;
 
-  const errorCode = useRef<number>(-1);
-  const [hasError, setHasError] = useState(false);
-
+  const [errorText, setErrorText] = useState<string | null>(null);
   const {
     refetch: getPrice,
     error,
+    isError,
     data,
   } = useQuery({
     queryKey: ["getPrice"],
     queryFn: () => {
-      const amountParam: { quantity?: number; amount?: number } = {};
       const amount = isFromGetting ? +toValue : +fromValue;
-      const anchor = (
-        isFromGetting
-          ? toType === "bank"
-            ? "currency"
-            : "token"
-          : fromType === "bank"
-            ? "currency"
-            : "token"
-      ) as "token" | "currency";
-      if (anchor === "token") {
-        amountParam.quantity = amount;
-      } else amountParam.amount = amount;
+      const anchor = (isFromGetting ? "BUY" : "SELL") as PriceAnchor;
 
       return currencyAPI.getPrice({
         anchor,
-        payment_method: fromCurrencyId,
-        token: toCurrencyId,
-        ...amountParam,
-        chain,
+        amount,
+        payment_method: +(fromCurrency?.id ?? -1),
+        payment_amount: +fromValue,
+        payment_chain: fromChain,
+        withdraw_method: +(toCurrency?.id ?? -1),
+        withdraw_chain: toChain,
+        withdraw_amount: +toValue,
       });
     },
     enabled: false,
@@ -122,53 +116,41 @@ export const ChangeInputs = () => {
   useEffect(() => {
     if (!data) return;
 
-    const amountName = isFromGetting
-      ? toType === "bank"
-        ? "quantity"
-        : "amount"
-      : fromType === "bank"
-        ? "quantity"
-        : "amount";
-    const newAmount = data?.data[amountName].toString() || "0";
+    setFromValue(`${data?.data.payment_amount || "0"}`);
+    setToValue(`${data?.data.withdraw_amount || "0"}`);
 
-    if (isFromGetting) {
-      setFromValue(newAmount);
-    } else setToValue(newAmount);
+    const { item_buy, item_sell, price_buy, price_sell, price, better_amount } =
+      data.data;
+    setOrderData({
+      item_buy,
+      item_sell,
+      price_buy,
+      price_sell,
+      payment_amount: +fromValue,
+      withdraw_amount: +toValue,
+      anchor: isFromGetting ? "BUY" : "SELL",
+    });
 
-    const otherInfo = data.data;
-
-    setAmount(otherInfo.amount);
-    setPrice(otherInfo.price);
-    setBestP2P(otherInfo.best_p2p);
-    setBestP2PPrice(otherInfo.best_p2p_price);
-
-    setBetterAmount(`${otherInfo.better_amount}`);
+    setPrice(price);
+    setBetterAmount((better_amount ?? "").toString());
     setGetPricing(null);
   }, [data]);
 
-  // Введены неправильные данные
   useEffect(() => {
-    if (!error || (error as any)?.response?.status === 500) return;
-    const { code: newErrorCode } = (error as AxiosError<{ code: number }>)
+    if (!error) return;
+    const { message } = (error as AxiosError<{ code: number; message: string }>)
       ?.response?.data || {
       code: -1,
     };
 
-    const amount = isFromGetting ? toValue : fromValue;
-    if (newErrorCode == 3 && amount === "0") {
-      if (isFromGetting) setFromValue("0");
-      else setToValue("0");
-      setAmount(0);
-      setGetPricing(null);
-      return;
-    }
-    errorCode.current = +(error || -1);
     setFromValue("0");
     setToValue("0");
-    setHasError(true);
-    setAmount(0);
+    setPrice("");
+    setBetterAmount("");
     setGetPricing(null);
-  }, [error]);
+    setOrderData(null);
+    setErrorText(message || null);
+  }, [error, isError]);
 
   // to/from currency update
   useEffect(() => {
@@ -177,28 +159,42 @@ export const ChangeInputs = () => {
     gettingTimer.current = setTimeout(() => {
       getPrice();
     }, DELAY);
-  }, [toCurrency]);
+  }, [toCurrency, toChain]);
   useEffect(() => {
     if (!toCurrency || !toValue || !fromCurrencyId) return;
     setGetPricing("from");
     gettingTimer.current = setTimeout(() => {
       getPrice();
     }, DELAY);
-  }, [fromCurrency]);
+  }, [fromCurrency, fromChain]);
   const gettingTimer = useRef<NodeJS.Timeout>();
 
+  useEffect(() => {
+    if (!orderData) return;
+    setOrderData({
+      ...orderData,
+      payment_amount: +fromValue,
+    });
+  }, [fromValue]);
+
+  useEffect(() => {
+    if (!orderData) return;
+    setOrderData({
+      ...orderData,
+      withdraw_amount: +toValue,
+    });
+  }, [toValue]);
   return (
     <>
-      {hasError && (
+      {errorText && (
         <ErrorModal
           text={
-            errorCode.current === 3
-              ? "Ошибка получения цены. Попробуйте другую цену или другой способ пополнения"
-              : ""
+            errorText
+              ? errorText
+              : "Ошибка получения цены. Попробуйте другую цену или другой способ пополнения"
           }
           closeFunction={() => {
-            errorCode.current = -1;
-            setHasError(false);
+            setErrorText(null);
           }}
           useMyFunction
         />
@@ -211,9 +207,12 @@ export const ChangeInputs = () => {
             clearTimeout(gettingTimer.current);
 
             const validatedValue = validateCurrencyInput(e.target.value);
-            if (!validatedValue) return;
+            if (!validatedValue && validatedValue !== "") return;
 
             setFromValue(validatedValue);
+            setOrderData(null);
+            if (validatedValue === "0" || validatedValue === "") return;
+
             setGetPricing("to");
             gettingTimer.current = setTimeout(() => {
               getPrice();
@@ -229,13 +228,14 @@ export const ChangeInputs = () => {
           value={isToGetting ? "Рассчитываем..." : toValue}
           onChange={(e) => {
             clearTimeout(gettingTimer.current);
-
             const validatedValue = validateCurrencyInput(e.target.value);
-            if (!validatedValue) return;
-
+            if (!validatedValue && validatedValue !== "") return;
+            setOrderData(null);
             setToValue(validatedValue);
-            setGetPricing("from");
 
+            if (validatedValue === "0" || validatedValue === "") return;
+
+            setGetPricing("from");
             gettingTimer.current = setTimeout(() => {
               getPrice();
             }, DELAY);
@@ -246,48 +246,12 @@ export const ChangeInputs = () => {
           iconAlt={toCurrencyId}
         />
 
-        <div className={styles.exchangeRate}>
-          <h3 className={styles.exchangeRateTitle}>
-            <span className={styles.exchangeRateText}>Курс обмена</span>
-            <span className={styles.exchangeRateValue}>
-              {price && fromCurrency && toCurrency ? (
-                <>
-                  {getPricing !== null ? "..." : price}{" "}
-                  {fromType === "bank"
-                    ? bankType === "all"
-                      ? "RUB"
-                      : bankType
-                    : fromCurrency.name}{" "}
-                  = 1{" "}
-                  {toType === "bank"
-                    ? bankType === "all"
-                      ? "RUB"
-                      : bankType
-                    : toCurrency.name}
-                </>
-              ) : (
-                "---"
-              )}
-            </span>
-          </h3>
-          <h3 className={styles.exchangeRateTitle}>
-            <span className={styles.exchangeRateText}>Курс выгоднее с</span>
-            <span className={styles.exchangeRateValue}>
-              {fromCurrency && betterAmount && toCurrency ? (
-                <>
-                  {getPricing !== null ? "..." : betterAmount}{" "}
-                  {fromType === "bank"
-                    ? bankType === "all"
-                      ? "RUB"
-                      : bankType
-                    : fromCurrency?.name}
-                </>
-              ) : (
-                "---"
-              )}
-            </span>
-          </h3>
-        </div>
+        <ExchangeRate
+          fromCurrency={fromCurrency}
+          toCurrency={toCurrency}
+          getPricing={getPricing}
+          betterAmount={betterAmount}
+        />
 
         {!isInputsDisabled && fromValue && getPricing === null && (
           <button
